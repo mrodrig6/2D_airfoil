@@ -192,6 +192,7 @@ Getting started
   list               list the decks '@' expands
 
 Running
+  solve [...]        solve one operating point and report the loads
   geometry [...]     inspect a section; no mesh, no flow
   mesh [...]         generate or read a mesh and report its quality
   flow [...]         print the non-dimensional free-stream state
@@ -207,6 +208,8 @@ Arguments are 'name=value', using the same names as the Python API:
   ./$SELF mesh airfoil=0012 n_surface=192 n_radial=64 figure=mesh.png
   ./$SELF mesh mesh=external.su2
   ./$SELF flow mach=0.8 alpha=1.25
+  ./$SELF solve @transonic mach=0.8 alpha=1.25 cp=cp.png figure=mach.png
+  ./$SELF solve @transonic flux=hllc convergence=hist.png
 
 A '@name' argument is replaced by the lines of cases/name.fv.  Later arguments
 win, so a deck is a starting point you can override:
@@ -328,7 +331,7 @@ main() {
         docs)      cmd_docs ;;
         test)      setup_import_path; cmd_test "$@" ;;
         verify)    setup_import_path; cmd_verify ${1+"$1"} ;;
-        check|geometry|mesh|flow)
+        check|geometry|mesh|flow|solve)
                    setup_import_path; fvairfoil "$command" "$@" ;;
         *)         printf '%s: unknown command %s\n\n' "$SELF" "$command" >&2
                    cmd_help >&2

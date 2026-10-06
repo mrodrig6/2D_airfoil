@@ -107,3 +107,66 @@ def test_nothing_outside_legacy_mentions_octave():
             if word in text:
                 offenders.append(f"{path.relative_to(ROOT)}: {word}")
     assert not offenders, offenders
+
+
+# -- the solve command ------------------------------------------------------
+@pytest.mark.slow
+def test_the_solve_command_runs_and_writes_what_it_is_asked_for(tmp_path, capsys):
+    pytest.importorskip("matplotlib")
+    argv = [
+        "solve",
+        "--n-surface",
+        "48",
+        "--n-radial",
+        "24",
+        "--far-field-radius",
+        "10",
+        "--first-cell-height",
+        "0.02",
+        "--mach",
+        "0.5",
+        "--alpha",
+        "2.0",
+        "--tolerance",
+        "1e-5",
+        "--print-interval",
+        "0",
+        "--max-iterations",
+        "20000",
+        "--cp",
+        str(tmp_path / "cp.png"),
+        "--figure",
+        str(tmp_path / "mach.png"),
+        "--convergence",
+        str(tmp_path / "conv.png"),
+    ]
+    assert main(argv) == 0
+    out = capsys.readouterr().out
+    assert "converged" in out and "cl =" in out
+    for name in ("cp.png", "mach.png", "conv.png"):
+        assert (tmp_path / name).stat().st_size > 0
+
+
+def test_a_solve_that_does_not_converge_exits_non_zero(capsys):
+    """A stalled march is a result, not a crash -- but the shell must know."""
+    assert (
+        main(
+            [
+                "solve",
+                "--n-surface",
+                "48",
+                "--n-radial",
+                "24",
+                "--far-field-radius",
+                "10",
+                "--first-cell-height",
+                "0.02",
+                "--max-iterations",
+                "5",
+                "--print-interval",
+                "0",
+            ]
+        )
+        == 1
+    )
+    assert "NOT converged" in capsys.readouterr().out

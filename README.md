@@ -11,17 +11,17 @@ sensitivities. You do not write the solver — it is a port of one that already
 worked, and the MATLAB it came from is kept in [`legacy/`](legacy/).
 
 ```python
-from src import naca4, build_mesh
+from src import solve_airfoil
 
-mesh, grid = build_mesh(naca4("0012", 192))
-print(mesh.summary())
+result = solve_airfoil("0012", mach=0.8, alpha=1.25)
+print(result.report())
 ```
 
-![The O-grid around a NACA 0012: wall-orthogonal at the surface, graded out to a circular far field](docs/figures/mesh.png)
+![Surface pressure at the legacy operating point: the upper-surface shock at 63% chord](docs/figures/cp_transonic.png)
 
-> **This is the first of five increments and it does not solve anything yet.**
-> Geometry and meshing are complete and tested; the solver, the backends and the
-> adjoint arrive next. [`docs/roadmap.md`](docs/roadmap.md) says what lands when.
+> **Two of five increments are done.** The solver runs, converges and is
+> verified; the fast backends and the adjoint arrive next.
+> [`docs/roadmap.md`](docs/roadmap.md) says what lands when.
 
 ---
 
@@ -34,7 +34,7 @@ compile.
 git clone https://github.com/mrodrig6/2D_airfoil.git
 cd 2D_airfoil
 ./fv2d.sh check                       # what is available
-./fv2d.sh mesh @transonic figure=mesh.png
+./fv2d.sh mesh @grid figure=mesh.png
 ```
 
 `check` reports a `NO` for each optional piece you are missing; `./fv2d.sh
@@ -88,6 +88,13 @@ mapped onto this code's two boundary conditions, and a loud refusal rather than
 a silent one when a marker cannot be mapped.
 → [`docs/usage.md`](docs/usage.md#using-a-mesh-from-elsewhere)
 
+**Solves.** Cell-centred finite volume on triangles, marched to steady state
+with a local time step. Four approximate Riemann solvers supply the upwinding —
+Roe with the Harten–Hyman entropy fix, HLLC with Batten's wave speeds,
+AUSM⁺-up, and SLAU2 — and which of them actually converge on this problem is
+[measured, not assumed](docs/riemann_fluxes.md).
+→ [`docs/theory.md`](docs/theory.md#6-the-finite-volume-discretisation)
+
 **Is non-dimensional throughout.** No SI anywhere: ρ∞ = |v∞| = c = 1 and
 R = γ − 1, so dynamic pressure is exactly 1/2 at every operating point and force
 coefficients compare across Mach numbers without rescaling.
@@ -100,7 +107,9 @@ coefficients compare across Mach numbers without rescaling.
 | If you want to | Read |
 |---|---|
 | Drive the code — launcher, Python API, every option | [`docs/usage.md`](docs/usage.md) |
-| Understand the formulation — equations, non-dimensionalisation, geometry, the mesh | [`docs/theory.md`](docs/theory.md) |
+| Understand the formulation — equations, non-dimensionalisation, geometry, mesh, scheme | [`docs/theory.md`](docs/theory.md) |
+| Know whether to believe a result | [`docs/verification.md`](docs/verification.md) |
+| See which flux to use, and why | [`docs/riemann_fluxes.md`](docs/riemann_fluxes.md) |
 | Know what is built and what is not | [`docs/roadmap.md`](docs/roadmap.md) |
 | See the MATLAB this came from, and what the port changed | [`legacy/README.md`](legacy/README.md) |
 
@@ -118,9 +127,10 @@ solver *is*.
 | 2 | **Calorically perfect gas**, constant γ = 1.4 | Fine for the whole transonic range this code targets |
 | 3 | **Steady** | Marched in pseudo-time to a fixed point. Buffet and any other unsteady transonic phenomenon is outside the model, not merely unresolved |
 | 4 | **Two-dimensional**, unit span | A section, not a wing. No induced drag, and no three-dimensional relief of the shock |
-| 5 | **Sharp trailing edge, no Kutta condition imposed** | Circulation is set by the discretisation at the trailing edge rather than by an explicit condition — which is standard for an Euler solver, and is the reason trailing-edge resolution affects lift |
-| 6 | **Non-dimensional throughout** | No SI anywhere. Compare runs with `cl` and `cd`, not raw forces |
-| 7 | **The mesh is structured** | Resolution is set by `n_surface` and `n_radial`, not by an error indicator, so a shock is resolved by whatever the grid provides there. Both an O-grid and a C-grid are available — see [`docs/theory.md`](docs/theory.md#choosing-a-topology) |
+| 5 | **First-order accurate.** Piecewise-constant reconstruction, as the legacy had | Lift is within a few per cent; **drag is not usable** — the spurious drag at a point where it must be zero is 0.013 against a published transonic wave drag of 0.022. [Measured](docs/verification.md#spurious-drag-and-what-first-order-costs) |
+| 6 | **Sharp trailing edge, no Kutta condition imposed** | Circulation is set by the discretisation at the trailing edge rather than by an explicit condition — which is standard for an Euler solver, and is the reason trailing-edge resolution affects lift |
+| 7 | **Non-dimensional throughout** | No SI anywhere. Compare runs with `cl` and `cd`, not raw forces |
+| 8 | **The mesh is structured** | Resolution is set by `n_surface` and `n_radial`, not by an error indicator, so a shock is resolved by whatever the grid provides there. Both an O-grid and a C-grid are available — see [`docs/theory.md`](docs/theory.md#choosing-a-topology) |
 
 ---
 

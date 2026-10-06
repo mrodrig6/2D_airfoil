@@ -1,12 +1,12 @@
 # Using the code
 
-Everything available today, from both the launcher and Python. The solver
-arrives in the next increment ([`roadmap.md`](roadmap.md)); what is here is the
-geometry and the mesh, which is what it will be built on.
+Everything available today, from both the launcher and Python.
 
 ## Contents
 
 - [The launcher](#the-launcher)
+- [Solving](#solving)
+- [Choosing a flux](#choosing-a-flux)
 - [Decks: a case in a file](#decks-a-case-in-a-file)
 - [From Python](#from-python)
 - [Describing a section](#describing-a-section)
@@ -32,6 +32,7 @@ directory.
 
 | command | what it does |
 |---|---|
+| `solve` | solve one operating point and report the loads |
 | `check` | report the Python and which optional packages are present |
 | `geometry` | inspect a section — thickness, camber, area; optionally a figure or a `.dat` |
 | `mesh` | generate (or read) a mesh and report its quality; optionally a figure or a `.su2` |
@@ -57,6 +58,68 @@ pass through, so anything `python -m src --help` documents still works.
 **`M` is deliberately not an alias.** In a compressible-flow code `M` is the
 Mach number and nothing else may claim that letter.
 
+## Solving
+
+```bash
+./fv2d.sh solve @transonic
+./fv2d.sh solve @subcritical cp=cp.png figure=mach.png convergence=history.png
+./fv2d.sh solve airfoil=23012 mach=0.7 alpha=3 flux=hllc
+```
+
+```python
+from src import solve_airfoil
+
+result = solve_airfoil("0012", mach=0.8, alpha=1.25)
+print(result.report())
+load = result.forces()
+print(load.cl, load.cd, load.cm)
+```
+
+Reuse a mesh across an angle-of-attack sweep, and warm-start each point from
+the last. The mesh does not rotate with $\alpha$ — it enters only through the
+free-stream direction — so this is exact, not an approximation:
+
+```python
+from src import build_case, FlowConditions, SolverOptions, forces
+
+case = build_case("0012", n_surface=192, n_radial=64)
+options, state = SolverOptions(print_interval=0), None
+for alpha in [0.0, 1.0, 2.0, 3.0, 4.0]:
+    result = case.solve(FlowConditions(mach=0.5, alpha_deg=alpha), options, state=state)
+    state = result.state  # warm start the next point
+    print(alpha, forces(result).cl)
+```
+
+A run that does not converge **returns** rather than raises — a stalled march
+is a result worth looking at, and for the flux comparison it is *the* result.
+`result.converged` says which happened and `result.message` says why; the
+`solve` command exits non-zero.
+
+### What the numbers mean
+
+| | |
+|---|---|
+| `scaled residual` | the component-weighted RMS of $d\vec U/dt$, divided by its value for a free-stream start at the same operating point. One tolerance therefore means the same thing on every mesh. |
+| `entropy error` | area-weighted RMS of $\Delta s$. Zero for an exact shock-free solution, so it measures the scheme's own error — but **not** zero for a transonic case, since a shock makes real entropy. |
+| `cl`, `cd`, `cm` | per unit span, about the quarter chord, from the surface pressure integral. **Read `cd` with care at first order** — see [`verification.md`](verification.md#spurious-drag-and-what-first-order-costs). |
+
+## Choosing a flux
+
+Four approximate Riemann solvers supply the upwinding. In a finite-volume
+scheme the Riemann solver **is** the upwinding — there is no separate upwind
+operator — so this is the single most consequential option after the mesh.
+
+| `flux=` | scheme | on this problem |
+|---|---|---|
+| `roe` | Roe + Harten–Hyman entropy fix | **converges**; the default, and what the legacy used |
+| `hllc` | HLLC with Batten's wave speeds | **converges**; agrees with Roe to 3%, and has no entropy-fix parameter |
+| `ausmup` | Liou's AUSM⁺-up | converges only for $M_{co}$ between 0.30 and 0.45 |
+| `slau2` | SLAU2, parameter-free | **does not converge**; shipped for the comparison |
+
+That ranking was measured, not assumed, and it is the *opposite* of what the
+companion nozzle code predicted for a problem with a surface shock.
+→ [`riemann_fluxes.md`](riemann_fluxes.md)
+
 ## Decks: a case in a file
 
 A `@name` argument is replaced by the lines of `cases/name.fv`, so a case you
@@ -64,14 +127,19 @@ run often lives in a file instead of in your shell history. Later arguments win,
 which makes a deck a starting point rather than a fixed case:
 
 ```bash
-./fv2d.sh mesh @transonic                  # exactly the lines in that deck
-./fv2d.sh mesh @transonic n_radial=96      # the deck, with one value changed
-./fv2d.sh mesh @coarse naca=2412
+./fv2d.sh mesh @grid                 # exactly the lines in that deck
+./fv2d.sh solve @transonic           # the same mesh, plus the operating point
+./fv2d.sh solve @transonic flux=hllc # the deck, with one value changed
 ```
+
+`@grid` carries only mesh keys, and `@transonic` is `@grid` plus `mach` and
+`alpha`. That split is deliberate: `mesh` and `geometry` do not take an
+operating point, so handing either of them `@transonic` reports
+`unrecognized arguments: --mach --alpha` rather than ignoring them.
 
 A deck holds exactly what you would have typed — `#` starts a comment, blank
 lines are ignored, and a deck may name another deck to build on it
-(`cases/fine.fv` is `@transonic` with two values raised). There is no schema to
+(`cases/transonic.fv` is `@grid` plus an operating point). There is no schema to
 keep in step with the code, because it is argument expansion and nothing more.
 
 The consequence is that a deck works with any command that accepts the keys in
@@ -321,6 +389,7 @@ There is no CI. You check, on your own machine:
 ./fv2d.sh test -k normal      # one test by name
 ```
 
+The slow half runs real solves and takes about two minutes; `--fast` skips it.
 `pytest --fast` and `pytest --slow` select disjoint sets and work directly too.
 Each `verify` step is skipped with a note rather than failing if its tool is not
 installed — a missing linter is not a broken mesher — and the exit code is

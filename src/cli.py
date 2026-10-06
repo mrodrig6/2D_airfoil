@@ -20,7 +20,8 @@ from pathlib import Path
 import numpy as np
 
 from . import __version__
-from .config import TOPOLOGIES, Discretization, FlowConditions
+from .api import build_case
+from .config import FLUXES, SCHEMES, TOPOLOGIES, Discretization, FlowConditions, SolverOptions
 from .geometry import CLUSTERINGS, load_airfoil, write_dat
 from .mesh import CGrid, build_mesh
 from .meshio import read_mesh, write_su2
@@ -193,6 +194,94 @@ def cmd_mesh(args: argparse.Namespace) -> int:
     return 0
 
 
+def _add_flow_options(parser: argparse.ArgumentParser) -> None:
+    f = FlowConditions
+    parser.add_argument("--mach", type=float, default=f.mach)
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=f.alpha_deg,
+        help="angle of attack in degrees (default: %(default)s)",
+    )
+    parser.add_argument("--gamma", type=float, default=f.gamma)
+    parser.add_argument(
+        "--flux",
+        choices=FLUXES,
+        default=f.flux,
+        help="the approximate Riemann solver (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--entropy-fix",
+        type=float,
+        default=f.entropy_fix,
+        help="roe only: Harten-Hyman delta (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--cutoff-mach",
+        type=float,
+        default=None,
+        help="ausm family only: Liou's M_co; defaults to the free stream",
+    )
+
+
+def _add_solver_options(parser: argparse.ArgumentParser) -> None:
+    o = SolverOptions
+    parser.add_argument("--cfl", type=float, default=o.cfl)
+    parser.add_argument("--tolerance", type=float, default=o.tolerance)
+    parser.add_argument("--max-iterations", type=int, default=o.max_iterations)
+    parser.add_argument("--scheme", choices=SCHEMES, default=o.scheme)
+    parser.add_argument("--print-interval", type=int, default=o.print_interval)
+
+
+def cmd_solve(args: argparse.Namespace) -> int:
+    """Solve one operating point and report the loads."""
+    from .postprocess import report
+
+    case = (
+        build_case(
+            args.airfoil,
+            _discretization(args),
+            mesh_file=args.mesh,
+            n_surface=args.n_surface,
+            clustering=args.clustering,
+        )
+        if args.mesh is None
+        else build_case(args.airfoil, mesh_file=args.mesh)
+    )
+    print(case.summary())
+    flow = FlowConditions(
+        mach=args.mach,
+        alpha_deg=args.alpha,
+        gamma=args.gamma,
+        flux=args.flux,
+        entropy_fix=args.entropy_fix,
+        cutoff_mach=args.cutoff_mach,
+    )
+    options = SolverOptions(
+        cfl=args.cfl,
+        tolerance=args.tolerance,
+        max_iterations=args.max_iterations,
+        scheme=args.scheme,
+        print_interval=args.print_interval,
+    )
+    result = case.solve(flow, options)
+    print(report(result))
+
+    if args.cp:
+        from .plotting import plot_surface_pressure
+
+        print(f"  wrote {plot_surface_pressure(result, args.cp)}")
+    if args.figure:
+        from .plotting import plot_field
+
+        print(f"  wrote {plot_field(result, args.figure, scalar=args.scalar)}")
+    if args.convergence:
+        from .plotting import plot_convergence
+
+        print(f"  wrote {plot_convergence(result, args.convergence)}")
+    return 0 if result.converged else 1
+
+
 def cmd_flow(args: argparse.Namespace) -> int:
     """Print the non-dimensional free-stream state for an operating point."""
     flow = FlowConditions(mach=args.mach, alpha_deg=args.alpha, gamma=args.gamma)
@@ -247,6 +336,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     mesh.add_argument("--su2", type=Path, default=None, help="write the mesh as SU2 here")
     mesh.set_defaults(run=cmd_mesh)
+
+    solve = sub.add_parser("solve", help="solve one operating point")
+    _add_geometry_options(solve)
+    _add_mesh_options(solve)
+    _add_flow_options(solve)
+    _add_solver_options(solve)
+    solve.add_argument(
+        "--cp", type=Path, default=None, help="write the surface pressure distribution here"
+    )
+    solve.add_argument("--figure", type=Path, default=None, help="write a field PNG here")
+    solve.add_argument("--scalar", default="mach", help="which field (default: %(default)s)")
+    solve.add_argument(
+        "--convergence", type=Path, default=None, help="write the residual history here"
+    )
+    solve.set_defaults(run=cmd_solve)
 
     flow = sub.add_parser("flow", help="print the non-dimensional free-stream state")
     flow.add_argument("--mach", type=float, default=FlowConditions.mach)

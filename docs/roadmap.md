@@ -7,8 +7,8 @@ leaves the repository working, rather than one drop at the end.
 |---|---|---|
 | **1** | **Scaffold, geometry, mesh** | **done** |
 | 1b | Five-digit sections, and the C-grid topology | **done** |
-| 2 | The solver | next |
-| 3 | Speed: the Numba backend | |
+| **2** | **The solver** | **done** |
+| 3 | Speed: the Numba backend, and a higher-order reconstruction | next |
 | 4 | JAX, the adjoint, and angle-of-attack sensitivity | |
 | 5 | The Riemann-flux study, adaptive refinement, and the lab material | |
 
@@ -31,20 +31,29 @@ Nothing solves anything yet, on purpose: the geometry and the mesh are what the
 solver is built *on*, and they are worth getting exactly right while they are
 the only thing in the repository.
 
-## 2. The solver
+## 2. The solver — done
 
-`physics.py` with all four approximate Riemann solvers (`roe`, `hllc`,
-`ausmup`, `slau2`), the inviscid wall and characteristic far-field boundary
-conditions, the vectorised NumPy residual, the local-time-step march, and
-`postprocess.py` with the corrected force integral. The checkpoint is
-`solve_airfoil(airfoil="0012", mach=0.8, alpha=1.25)` converging and returning
-$c_\ell$ and $c_d$, with the shock visible in the surface pressure.
+`physics.py` with all four approximate Riemann solvers, the inviscid wall and
+characteristic far-field conditions, the vectorised residual, the
+local-time-step march, and the corrected force integral. Reconstruction is
+piecewise constant, exactly the legacy scheme.
 
-Reconstruction stays **piecewise constant** — exactly the legacy scheme. A
-higher-order reconstruction is a question for increment 3, not a default
-slipped in here.
+`solve_airfoil("0012", mach=0.8, alpha=1.25)` converges and puts the shock at
+$x/c = 0.629$ against a published 0.62–0.65, with a peak Mach number of 1.341
+against ~1.35. Force coefficients are not yet converged — the scheme is first
+order, and [`verification.md`](verification.md) measures what that costs.
 
-## 3. Speed: the Numba backend
+Three things came out of it that were not planned:
+
+* **The far-field default is confirmed by measurement**: $c_\ell$ moves 1.7%
+  between 8 and 50 chords, and 20 is within 0.05% of 50.
+* **The AUSM⁺-up default changed.** Liou's $M_{co} \sim M_\infty$ diverges here;
+  the measured window is 0.30–0.45 and does not move with the free stream.
+* **The flux comparison already has its answer**, earlier than planned, and it
+  is the opposite of what the nozzle expected.
+  → [`riemann_fluxes.md`](riemann_fluxes.md)
+
+## 3. Speed, and the reconstruction decision
 
 The whole march fused into one `nopython` kernel — residual, local time step and
 the Runge–Kutta update — called once per few hundred iterations so Python sees

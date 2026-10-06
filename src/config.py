@@ -54,6 +54,10 @@ import numpy as np
 #: Backends the solver can execute on, fastest first.  See ``src.backends``.
 BACKENDS = ("numba", "numpy", "jax")
 
+#: Default :math:`M_{co}` for the AUSM family, from the sweep recorded in
+#: :attr:`FlowConditions.reference_mach`.
+AUSM_CUTOFF_MACH = 0.4
+
 #: Mesh topologies.  See :mod:`src.mesh`.
 TOPOLOGIES = ("ogrid", "cgrid")
 
@@ -72,6 +76,20 @@ class FlowConditions:
     ----------
     mach
         Free-stream Mach number :math:`M_\infty`.
+    flux
+        Which approximate Riemann solver supplies the upwinding; see
+        :data:`FLUXES` and :mod:`src.physics`.
+    entropy_fix
+        Roe only: the Harten-Hyman parameter :math:`\delta`, as a fraction of
+        the Roe-averaged sound speed.  ``legacy/residual_calc.m`` used 0.01;
+        0.05 is the usual choice for a transonic march, and it matters here
+        because this flow has a sonic line.
+    cutoff_mach
+        AUSM-family only: Liou's :math:`M_{co}`.  ``None`` uses
+        :data:`AUSM_CUTOFF_MACH`, which was measured rather than taken from the
+        free stream -- see :attr:`reference_mach`.  It is a reference Mach
+        number, **not** a regularisation epsilon: driving it to zero makes the
+        scheme's pressure-diffusion coefficient diverge.
     alpha_deg
         Angle of attack in **degrees**, measured from the chord line, positive
         nose-up.  It enters the problem only through the free-stream velocity
@@ -84,18 +102,58 @@ class FlowConditions:
     mach: float = 0.8
     alpha_deg: float = 1.25
     gamma: float = 1.4
+    flux: str = "roe"
+    entropy_fix: float = 0.05
+    cutoff_mach: float | None = None
 
     def __post_init__(self) -> None:
         if self.mach <= 0.0:
             raise ValueError(f"mach must be positive, got {self.mach}")
         if self.gamma <= 1.0:
             raise ValueError(f"gamma must exceed 1, got {self.gamma}")
+        if self.flux not in FLUXES:
+            raise ValueError(f"unknown flux {self.flux!r}; choose from {FLUXES}")
+        if self.entropy_fix < 0.0:
+            raise ValueError(f"entropy_fix must be non-negative, got {self.entropy_fix}")
+        if self.cutoff_mach is not None and not 0.0 < self.cutoff_mach <= 1.0:
+            raise ValueError(
+                f"cutoff_mach is a reference Mach number and must lie in (0, 1], got "
+                f"{self.cutoff_mach}"
+            )
 
     # -- derived free-stream quantities -----------------------------------
     @property
     def alpha(self) -> float:
         """Angle of attack in radians."""
         return math.radians(self.alpha_deg)
+
+    @property
+    def reference_mach(self) -> float:
+        r"""The AUSM family's :math:`M_{co}`.
+
+        The default is **measured, not inherited**.  Liou's guidance is
+        :math:`M_{co} \sim M_\infty`, and the companion nozzle code followed it;
+        on this problem it does not hold.  Swept on a NACA 0012 at two
+        operating points, AUSM\ :sup:`+`-up converges only for
+        :math:`0.30 \le M_{co} \le 0.45` and the window is the **same** at
+        :math:`M_\infty = 0.5` and :math:`M_\infty = 0.8` -- so :math:`M_{co}`
+        is not tracking the free stream here at all.  Outside it, below 0.2 the
+        march dies in a handful of iterations as :math:`K_p/f_a` diverges, and
+        at 0.5 and above it stalls in a limit cycle.
+
+        0.4 is the middle of that window.  See ``docs/riemann_fluxes.md``; this
+        is one section at two points, so treat it as a starting value rather
+        than a constant of nature.
+        """
+        return self.cutoff_mach if self.cutoff_mach is not None else AUSM_CUTOFF_MACH
+
+    def flux_options(self) -> dict:
+        """The keyword arguments this operating point gives its flux."""
+        if self.flux == "roe":
+            return {"entropy_fix": self.entropy_fix}
+        if self.flux == "ausmup":
+            return {"cutoff_mach": self.reference_mach}
+        return {}
 
     @property
     def gas_constant(self) -> float:
@@ -280,3 +338,56 @@ class Discretization:
         if self.topology == "cgrid":
             return (self.n_wake + self.n_surface) + self.n_radial * (self.n_columns + 1)
         return self.n_surface * (self.n_radial + 1)
+
+
+#: Pseudo-time integrators.  ``euler`` is what ``legacy/main.m`` used.
+SCHEMES = ("euler", "ssprk3", "rk4")
+
+
+@dataclass(frozen=True)
+class SolverOptions:
+    r"""How the pseudo-time march is run.
+
+    Parameters
+    ----------
+    cfl
+        Courant number for the **local** time step.  Each cell advances at its
+        own stable rate, which is legitimate because only the fixed point is
+        wanted and it is what makes an explicit march to steady state
+        affordable at all on a mesh whose cells span six orders of magnitude.
+    tolerance
+        Convergence threshold on the residual **scaled by its own initial
+        value**, so the number means the same thing on every mesh and at every
+        operating point.  ``legacy/main.m`` used an absolute
+        :math:`L_\infty` residual of 1e-2, which is neither.
+    max_iterations
+        Give up after this many steps and return ``converged=False`` rather
+        than raise -- a stalled run is a result worth looking at, and for the
+        flux comparison it is *the* result.
+    scheme
+        ``euler`` is forward Euler, what the legacy used.  ``ssprk3`` and
+        ``rk4`` cost three and four residuals per step and take a
+        correspondingly larger one.
+    print_interval
+        Iterations between progress lines; 0 is silent.
+    divergence_factor
+        Stop early if the scaled residual exceeds this.  A march that has
+        blown up will not recover, and the sooner it says so the better.
+    """
+
+    cfl: float = 0.9
+    tolerance: float = 1e-6
+    max_iterations: int = 20_000
+    scheme: str = "euler"
+    print_interval: int = 500
+    divergence_factor: float = 1e4
+
+    def __post_init__(self) -> None:
+        if self.cfl <= 0.0:
+            raise ValueError(f"cfl must be positive, got {self.cfl}")
+        if self.tolerance <= 0.0:
+            raise ValueError(f"tolerance must be positive, got {self.tolerance}")
+        if self.max_iterations < 1:
+            raise ValueError(f"max_iterations must be at least 1, got {self.max_iterations}")
+        if self.scheme not in SCHEMES:
+            raise ValueError(f"unknown scheme {self.scheme!r}; choose from {SCHEMES}")

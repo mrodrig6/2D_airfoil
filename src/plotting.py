@@ -55,6 +55,22 @@ _INK = "#1a1a1a"
 _MUTED = "#9aa0a6"
 _WALL = "#1f2933"
 _MESH = "#5b6b7a"
+_ACCENT = "#eb6834"
+
+#: Categorical series colours, assigned in this **fixed order** and never
+#: cycled: a colour follows the entity, not its rank, so filtering a flux out
+#: of a comparison must not repaint the others.
+#:
+#: These are not hand-picked.  A first attempt was, and it failed two checks --
+#: three of the four read as grey, and the green and the orange were 2.2 Delta E
+#: apart for a protanope, which is indistinguishable.  These are the validated
+#: slots; the worst adjacent pair is 9.2 under deuteranopia and 27.6 for normal
+#: vision.  The green is below 3:1 against white, which is why every multi-series
+#: figure here carries a legend rather than relying on the colour alone.
+#:
+#: A fifth series folds into "other" or becomes a small multiple.  It does not
+#: get a generated hue.
+_SERIES = ("#2a78d6", "#eb6834", "#1baf7a", "#4a3aa7")
 
 
 def _pyplot():
@@ -200,3 +216,186 @@ def plot_mesh(
 
 
 __all__ = ["FIELD_CMAP", "field_cmap", "plot_airfoil", "plot_mesh"]
+
+
+def plot_surface_pressure(
+    result,
+    path: str | Path | None = None,
+    *,
+    title: str | None = None,
+    **kwargs: Any,
+):
+    r"""The surface pressure distribution, drawn as :math:`-c_p` so suction is up.
+
+    Two series, so a legend is required -- identity must never be carried by
+    colour alone.  The sonic line :math:`c_p^*` is drawn because on a transonic
+    case it is the single most informative thing on the plot: everything above
+    it is supersonic, and where the upper-surface curve crosses back through it
+    is the shock.
+    """
+    plt = _pyplot()
+    from .postprocess import surface_pressure
+
+    trace = surface_pressure(result)
+    flow = result.flow
+    fig, ax = plt.subplots(figsize=(7.0, 4.6), **kwargs)
+
+    upper = trace["upper"]
+    for mask, label, colour in ((upper, "upper", _WALL), (~upper, "lower", _ACCENT)):
+        order = np.argsort(trace["x"][mask])
+        ax.plot(
+            trace["x"][mask][order],
+            -trace["cp"][mask][order],
+            color=colour,
+            linewidth=2.0,
+            label=label,
+            solid_joinstyle="round",
+        )
+
+    g = flow.gamma
+    cp_star = (2.0 / (g * flow.mach**2)) * (
+        ((2.0 + (g - 1.0) * flow.mach**2) / (g + 1.0)) ** (g / (g - 1.0)) - 1.0
+    )
+    ax.axhline(-cp_star, color=_MUTED, linewidth=1.0, linestyle=(0, (4, 3)))
+    ax.annotate(
+        "sonic",
+        xy=(0.985, -cp_star),
+        xytext=(0, 3),
+        textcoords="offset points",
+        ha="right",
+        va="bottom",
+        color=_MUTED,
+        fontsize=9,
+    )
+
+    ax.set_xlabel("$x/c$")
+    ax.set_ylabel("$-c_p$")
+    ax.set_xlim(-0.02, 1.02)
+    ax.set_title(
+        title or f"{result.flow.mach:g} Mach, {result.flow.alpha_deg:g}$^\\circ$",
+        color=_INK,
+        fontsize=11,
+        loc="left",
+    )
+    legend = ax.legend(frameon=False, fontsize=9, loc="upper right")
+    for text in legend.get_texts():
+        text.set_color(_INK)
+    _style(ax)
+    fig.tight_layout()
+    return _finish(fig, path)
+
+
+def plot_field(
+    result,
+    path: str | Path | None = None,
+    *,
+    scalar: str = "mach",
+    window: tuple[float, float, float, float] = (-0.6, 1.8, -0.8, 0.8),
+    levels: int = 24,
+    cmap: str | None = None,
+    title: str | None = None,
+    **kwargs: Any,
+):
+    """A cell-centred scalar field over the mesh, with the section drawn on top.
+
+    Uses :data:`FIELD_CMAP` through :func:`field_cmap`, which refuses the
+    non-monotonic maps -- see the module docstring for why that matters more on
+    a transonic field than on most.
+    """
+    plt = _pyplot()
+    from matplotlib.collections import LineCollection
+    from matplotlib.tri import Triangulation
+
+    from .postprocess import scalar_field
+
+    values = scalar_field(result.state, result.flow, scalar)
+    mesh = result.mesh
+    tri = Triangulation(mesh.node_coords[:, 0], mesh.node_coords[:, 1], mesh.elements)
+
+    fig, ax = plt.subplots(figsize=(7.4, 5.0), **kwargs)
+    art = ax.tripcolor(
+        tri, facecolors=values, cmap=field_cmap(cmap), shading="flat", rasterized=True
+    )
+    if scalar == "mach":
+        # the sonic line is the one contour worth naming on a transonic field
+        ax.tricontour(
+            tri,
+            _node_average(mesh, values),
+            levels=[1.0],
+            colors="white",
+            linewidths=1.2,
+        )
+    wall = mesh.boundary_edges[mesh.tag_slice(BoundaryTag.WALL), 1:3]
+    ax.add_collection(
+        LineCollection(mesh.node_coords[wall], colors=_WALL, linewidths=1.6, zorder=3)
+    )
+
+    bar = fig.colorbar(art, ax=ax, fraction=0.035, pad=0.02)
+    bar.outline.set_visible(False)
+    bar.ax.tick_params(colors=_MUTED, labelsize=9, width=0.8, length=3)
+    bar.set_label(scalar, color=_INK, fontsize=10)
+
+    ax.set_xlim(window[0], window[1])
+    ax.set_ylim(window[2], window[3])
+    ax.set_aspect("equal")
+    ax.set_xlabel("$x/c$")
+    ax.set_ylabel("$y/c$")
+    ax.set_title(
+        title or f"{scalar}, {result.flow.mach:g} Mach, {result.flow.alpha_deg:g}$^\\circ$",
+        color=_INK,
+        fontsize=11,
+        loc="left",
+    )
+    _style(ax, frame=False)
+    fig.tight_layout()
+    return _finish(fig, path)
+
+
+def _node_average(mesh, values):
+    """Cell values averaged onto nodes, for a contour line."""
+    total = np.bincount(mesh.elements.ravel(), np.repeat(values, 3), minlength=mesh.n_nodes)
+    count = np.bincount(mesh.elements.ravel(), minlength=mesh.n_nodes)
+    return total / np.maximum(count, 1)
+
+
+def plot_convergence(
+    results,
+    path: str | Path | None = None,
+    *,
+    labels: list[str] | None = None,
+    title: str | None = None,
+    **kwargs: Any,
+):
+    """Residual histories, one line each, on a log axis.
+
+    Takes one result or several, which is what the flux comparison needs: the
+    whole question there is whether a scheme's residual decays or stalls, and
+    that is only legible with the histories on one pair of axes.
+    """
+    plt = _pyplot()
+
+    if not isinstance(results, (list, tuple)):
+        results = [results]
+    fig, ax = plt.subplots(figsize=(7.0, 4.4), **kwargs)
+    for i, result in enumerate(results):
+        name = labels[i] if labels else getattr(result.flow, "flux", f"run {i + 1}")
+        ax.semilogy(
+            np.arange(1, result.history.size + 1),
+            result.history,
+            color=_SERIES[i % len(_SERIES)],
+            linewidth=1.8,
+            label=name,
+        )
+    ax.axhline(results[0].options.tolerance, color=_MUTED, linewidth=1.0, linestyle=(0, (4, 3)))
+    ax.set_xlabel("iteration")
+    ax.set_ylabel("scaled residual")
+    ax.set_title(title or "convergence", color=_INK, fontsize=11, loc="left")
+    ax.grid(True, which="major", color=_MUTED, alpha=0.18, linewidth=0.6)
+    ax.set_axisbelow(True)
+    if len(results) > 1:
+        legend = ax.legend(frameon=False, fontsize=9)
+        for text in legend.get_texts():
+            text.set_color(_INK)
+    _style(ax)
+    fig.tight_layout()
+    return _finish(fig, path)

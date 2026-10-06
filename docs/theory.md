@@ -6,10 +6,10 @@ how a section is described, and how the mesh around it is built.
 Written in Markdown with LaTeX, so it renders on GitHub and there is nothing to
 build in order to read it.
 
-> **Status.** Sections 1–5 are complete and are what the code implements today.
-> Sections 6–8 describe the discretisation the solver will use and are written
-> here because the geometry and the mesh were built *for* them; the code for
-> them lands in the next increment. [`roadmap.md`](roadmap.md) is the schedule.
+> **Status.** Sections 1–8 are implemented. What is measured rather than
+> derived lives in [`verification.md`](verification.md), and the flux
+> comparison in [`riemann_fluxes.md`](riemann_fluxes.md).
+> [`roadmap.md`](roadmap.md) says what is still to come.
 
 ## Contents
 
@@ -571,9 +571,6 @@ then the O-grid is the default because it is the smaller of the two.
 
 ## 6. The finite-volume discretisation
 
-> Implemented in the next increment. Recorded here because sections 4 and 5
-> were built for it.
-
 Integrating the Euler equations over a fixed cell $e$ of area $A_e$ and applying
 the divergence theorem gives the semi-discrete form the solver marches:
 
@@ -608,8 +605,10 @@ AUSM-family pair did not — but its domain is **shock-free by construction**,
 which is precisely the property the AUSM family is designed for and that solver
 never exercised. Kitamura's carbuncle ranking is *inverted* against what
 converged there. This code has a **shock on the body surface**, so the
-measurement has to be redone rather than inherited; the result will be
-`riemann_fluxes.md`.
+measurement was redone rather than inherited. The short version: the nozzle's
+ranking **transfers** — Roe and HLLC converge, both AUSM-family schemes fail —
+which is the opposite of what that project expected.
+→ [`riemann_fluxes.md`](riemann_fluxes.md)
 
 ### Time integration
 
@@ -624,12 +623,20 @@ $$
 $$
 
 with $(|v_n| + a)_f$ the maximum signal speed the face's Riemann solver reports.
+This is `legacy/main.m`'s $\mathrm{CFL}\,d_h/s$ with $d_h = 2A/P$ substituted;
+the perimeter cancels, which removes a quantity that otherwise has to be kept
+in step with the faces for no benefit.
+
+Convergence is measured by the component-weighted RMS of $d\vec U/dt$, scaled by
+the value it takes for a **free-stream start at the same operating point**. The
+scaling is what makes one tolerance mean the same thing on every mesh — and the
+reference is deliberately not the run's *own* first iteration, which would make
+a warm-started run chase the same reduction factor from a smaller start and so
+save nothing.
 
 ---
 
 ## 7. Boundary conditions
-
-> Implemented in the next increment.
 
 Two boundaries, matching `src.mesh.BoundaryTag`.
 
@@ -659,23 +666,31 @@ $$
 taking $R^+$ from the interior and $R^-$ from the free stream on a subsonic
 inflow face and the reverse on outflow, with entropy and the tangential velocity
 taken from whichever side the flow comes from. A non-reflecting boundary admits a
-much smaller domain, which is free speed; **how much smaller is a question to be
-measured, not asserted**, and `far_field_radius` defaults to a conservative 20
-chords until it is.
+much smaller domain, which is free speed. How much smaller was then measured
+rather than asserted: $c_\ell$ moves 1.7% between 8 and 50 chords, and the
+20-chord default is within 0.05% of 50.
+→ [`verification.md`](verification.md#how-far-away-the-far-field-has-to-be)
 
 ---
 
 ## 8. Forces and coefficients
-
-> Implemented in the next increment.
 
 For an inviscid flow the only force on the section is the pressure integral over
 the surface. With $\hat n$ the outward normal of the *flow domain* — which at the
 wall points **into** the section — the force per unit span is
 
 $$
-\vec{F} = -\oint_{\text{wall}} p\,\hat{n}\,ds ,
+\vec{F} = \oint_{\text{wall}} p\,\hat{n}\,ds .
 $$
+
+The sign is worth deriving rather than remembering. The stress in a fluid is
+$\sigma = -p\mathbf{I}$, so the traction it exerts on the body is
+$-p\,\hat{n}_{\text{body}}$, with $\hat{n}_{\text{body}}$ pointing out of the
+body into the flow. This code's $\hat{n}$ points out of the *flow domain*,
+which at the wall is the opposite vector, so the two signs cancel. The check
+that settles it: on the lower surface of a lifting section $\hat{n}$ points up
+and the pressure is high, so the contribution must be upward — which
+$+p\,\hat{n}$ gives and $-p\,\hat{n}$ does not.
 
 and lift and drag are that vector resolved **perpendicular and parallel to the
 free stream**, which is a rotation through $\alpha$:
@@ -714,9 +729,10 @@ which is wrong in two independent ways:
    $\cos\alpha$, where the correct operation is a **rotation of the force
    vector**. These coincide only when one of the two components vanishes.
 
-The port implements the formula above. The legacy expression is reproducible for
-comparison, and the difference will be reported in `verification.md` when the
-solver lands.
+The port implements the formula above, and `legacy_forces` reproduces the old
+expression so the difference stays checkable. Measured at $M_\infty = 0.5$,
+$\alpha = 2^\circ$: lift is 4% out and **drag is 520% out**.
+→ [`verification.md`](verification.md#the-legacy-force-formula-measured)
 
 ---
 
