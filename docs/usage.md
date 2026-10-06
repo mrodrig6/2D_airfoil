@@ -113,11 +113,12 @@ operator — so this is the single most consequential option after the mesh.
 |---|---|---|
 | `roe` | Roe + Harten–Hyman entropy fix | **converges**; the default, and what the legacy used |
 | `hllc` | HLLC with Batten's wave speeds | **converges**; agrees with Roe to 3%, and has no entropy-fix parameter |
-| `ausmup` | Liou's AUSM⁺-up | converges only for $M_{co}$ between 0.30 and 0.45 |
-| `slau2` | SLAU2, parameter-free | **does not converge**; shipped for the comparison |
+| `ausmup` | Liou's AUSM⁺-up | **converges** at $M_{co}\approx0.4$ (the default); diverges at Liou's own $M_{co}\sim M_\infty$ |
+| `slau2` | SLAU2, parameter-free | **converges below a peak Mach of ~0.9 only**; fails on anything transonic |
 
-That ranking was measured, not assumed, and it is the *opposite* of what the
-companion nozzle code predicted for a problem with a surface shock.
+That ranking was measured over 60 solves, not assumed. SLAU2's threshold is the
+surprise: it fails from a peak Mach of 0.92 upward, on flow that is still
+subsonic everywhere, so it is not about shock capturing.
 → [`riemann_fluxes.md`](riemann_fluxes.md)
 
 ## Decks: a case in a file

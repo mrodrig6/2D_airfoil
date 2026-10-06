@@ -5,14 +5,14 @@ does on this problem. It exists because the companion nozzle code measured the
 same four, reached a conclusion, and **said explicitly that the conclusion
 should not be carried across** — so it was re-measured rather than inherited.
 
-> **Status: increment 2.** Everything below is measured on one section at two
-> operating points on one mesh. The ranking is already clear and the mechanism
-> behind the AUSM-family failure is not. The remaining work — mesh dependence,
-> the hypotheses in [Open questions](#open-questions), and the shock-resolution
-> comparison — is increment 5. See [`roadmap.md`](roadmap.md).
+> **Status.** The headline question — does each flux work on this problem — is
+> answered: 60 solves over four fluxes, five operating points and three meshes,
+> plus a Mach sweep that brackets the one failure. What is *not* answered is the
+> mechanism. See [Open questions](#open-questions).
 
 ## Contents
 
+- [Short answer](#short-answer)
 - [The question, and why it had to be asked again](#the-question-and-why-it-had-to-be-asked-again)
 - [First: are the implementations right?](#first-are-the-implementations-right)
 - [The result](#the-result)
@@ -24,6 +24,32 @@ should not be carried across** — so it was re-measured rather than inherited.
 - [Recommendation](#recommendation)
 
 ---
+
+## Short answer
+
+Four fluxes, five operating points, three meshes — 60 converged-or-not solves on
+a NACA 0012.
+
+| flux | works? | |
+|---|---|---|
+| **`roe`** | **yes** | 15 / 15 |
+| **`hllc`** | **yes** | 15 / 15 |
+| **`ausmup`** | **yes**, conditionally | 15 / 15 at $M_{co} = 0.4$; **diverges** at Liou's recommended $M_{co}\sim M_\infty$ |
+| **`slau2`** | **no**, above a threshold | 7 / 15 — converges below peak Mach ≈ 0.91, fails above it |
+
+Roe and HLLC are unconditional. AUSM⁺-up works but only inside a narrow window
+in its one tunable constant, and the window is not where its author's guidance
+puts it. SLAU2 is the only outright failure, and it fails on everything
+transonic.
+
+| case | peak Mach | `roe` | `hllc` | `ausmup` | `slau2` |
+|---|---|---|---|---|---|
+| $M$ 0.50, $\alpha$ 0° | 0.60 | yes | yes | yes | **yes** |
+| $M$ 0.50, $\alpha$ 2° | 0.66 | yes | yes | yes | **yes** |
+| $M$ 0.72, $\alpha$ 0° (64×32) | 0.94 | yes | yes | yes | **yes** |
+| $M$ 0.72, $\alpha$ 0° (finer) | 0.95 | yes | yes | yes | **no** |
+| $M$ 0.80, $\alpha$ 1.25° | 1.34 | yes | yes | yes | **no** |
+| $M$ 0.80, $\alpha$ 3.0° | 1.44 | yes | yes | yes | **no** |
 
 ## The question, and why it had to be asked again
 
@@ -204,12 +230,11 @@ for 30 000 iterations without decaying.
 That is the same signature, on a domain with the shock the nozzle lacked. The
 hypothesis that the shock was the missing ingredient is **not supported**.
 
-### Where the residual actually lives
+### Where the residual lives, and what sets the threshold
 
-The nozzle asked this and found the failure *distributed* — its ten worst cells
-carried 8.3% of the total, spread through the supersonic section rather than
-piled at one feature. Repeating it here, where there is an obvious feature to
-pile at, gives a sharper answer than it could:
+The nozzle asked where the residual lives and found the failure *distributed* —
+its ten worst cells carried 8.3% of the total, spread through the supersonic
+section rather than piled at one feature. Repeating it here:
 
 | region | share of cells | share of residual |
 |---|---|---|
@@ -219,11 +244,36 @@ pile at, gives a sharper answer than it could:
 | wall-adjacent cells | 1.2% | 5.6% |
 | within 0.06 chord of the shock | 4.8% | 4.3% |
 
-**It is the supersonic pocket, and it is neither the shock nor the wall.** The
-worst cells sit at $x/c = 0.26$–$0.41$ just above the upper surface at Mach
-1.25–1.29 — upstream of the shock, inside the pocket. The ten worst carry 5.6%,
-matching the nozzle's 8.3%, so it is not a handful of bad cells; but the worst
-10% carry 99.9% against Roe's 68.6%, so it is strongly regional.
+**It is neither the shock nor the wall.** The worst cells sit at
+$x/c = 0.26$–$0.41$ just above the upper surface at Mach 1.25–1.29, upstream of
+the shock. The ten worst carry 5.6%, matching the nozzle's 8.3%, so it is not a
+handful of bad cells; but the worst 10% carry 99.9% against Roe's 68.6%, so it
+is strongly regional.
+
+Reading that table, it is tempting to conclude "the supersonic pocket". **That
+is wrong, and a sweep in Mach number shows it.** At zero incidence on a fixed
+96 × 40 mesh:
+
+| $M_\infty$ | peak Mach | supersonic cells | `slau2` | `hllc` |
+|---|---|---|---|---|
+| 0.50 | 0.600 | 0 | yes | yes |
+| 0.65 | 0.815 | 0 | yes | yes |
+| 0.70 | **0.904** | **0** | **yes** | yes |
+| 0.71 | **0.924** | **0** | **no** | yes |
+| 0.72 | 0.946 | 0 | no | yes |
+| 0.76 | 1.061 | 240 | no | yes |
+
+The threshold sits between a peak Mach of 0.904 and 0.924, and **there is not a
+single supersonic cell on either side of it**. SLAU2 fails on a flow that is
+subsonic everywhere. The same point shows up in the mesh study above: at
+$M_\infty = 0.72$ it converges on 64 × 32 (peak Mach 0.9367) and fails on
+96 × 40 (0.9457) — the same operating point, the difference being only how
+nearly sonic the finer mesh resolves the flow to be.
+
+So the trigger is the **near-sonic region**, not a shock and not supersonic
+flow. That the residual then concentrates where $M > 0.9$ is consistent with it;
+it is not evidence for the pocket, because the failure begins before any pocket
+exists.
 
 The limit cycle is also far more violent here than in the nozzle: the state
 keeps moving with a saturated amplitude of $1.7\times10^{-1}$ relative, against
@@ -274,24 +324,31 @@ For increment 5, written down now so the null results are not lost:
    low-Mach cells.
 2. **Does the window depend on the mesh?** If 0.30–0.45 is really set by the
    smallest resolved Mach number, refining the leading edge should move it.
-3. **Why the supersonic pocket?** Measured above: Mach > 0.9 is 16% of the
-   cells and 97% of SLAU2's residual, while the shock and the wall are
-   innocent. The obvious follow-up is whether the pocket's *extent* predicts the
-   failure — a sequence of Mach numbers from 0.72 (no pocket) upward would say,
-   and it is cheap.
+3. **Why near-sonic?** The threshold is a peak Mach of 0.91 and the flow there
+   is subsonic everywhere, so nothing about shock capturing can explain it.
+   SLAU2's switches — $g$, $\chi = (1-\hat M)^2$, the $\dot m$ split — are all
+   functions of Mach number, and $\chi$ in particular goes to zero as
+   $\hat M \to 1$, removing the pressure-difference term from the mass flux
+   exactly there. That is a candidate with an obvious test: hold $\chi$ at a
+   floor and see whether the threshold moves. It has not been tried.
 4. **Does second order change the ranking?** The AUSM family's case rests on
    shock capturing. Increment 3 makes this answerable.
 
 ## Recommendation
 
-**Use `roe` (the default) or `hllc`.** They converge, they agree, and HLLC needs
-no entropy-fix parameter.
+**Use `roe` (the default) or `hllc`.** Both converge on every case tried, they
+agree with each other, and HLLC has no entropy-fix parameter to choose.
 
-`ausmup` is usable at $M_{co}$ near 0.4 and gives an answer within 4% of Roe's,
-but the window is narrow enough that it should not be used without checking
-convergence. `slau2` does not converge here and is shipped for the comparison,
-not for use.
+**`ausmup` works**, at $M_{co}$ near 0.4, on all fifteen cases, and gives $c_\ell$
+within 4% of Roe's. The window is narrow enough that it should not be used
+without checking that the run converged — and it is not where its author's own
+guidance points, which is the thing to remember about it.
 
-That is the same practical conclusion the nozzle reached. The difference is that
-it is now a conclusion for a problem **with** a surface shock, which is the one
-the nozzle could not test.
+**`slau2` is usable below a peak Mach of about 0.9** and not above, which rules
+it out for any transonic case on this geometry. It is shipped for the
+comparison, not for use.
+
+That is the same practical conclusion the nozzle reached, for a problem with a
+surface shock that the nozzle could not test. What is new is that the failure
+is **not about the shock at all**: it begins in flow that is subsonic
+everywhere, which neither project would have predicted.
