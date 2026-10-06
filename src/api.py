@@ -42,6 +42,8 @@ _MESH_KEYS = (
 )
 _FLOW_KEYS = ("mach", "alpha", "gamma", "flux", "entropy_fix", "cutoff_mach")
 _SOLVER_KEYS = (
+    "backend",
+    "batch",
     "cfl",
     "tolerance",
     "max_iterations",

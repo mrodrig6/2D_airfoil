@@ -52,6 +52,7 @@ class SolveResult:
     history: np.ndarray = field(repr=False)
     seconds: float = 0.0
     message: str = ""
+    backend: str = "numpy"
 
     @property
     def mesh(self):
@@ -61,7 +62,7 @@ class SolveResult:
         verdict = "converged" if self.converged else f"NOT converged ({self.message})"
         return (
             f"{verdict} after {self.iterations} iterations in {self.seconds:.2f} s "
-            f"({self.iterations / max(self.seconds, 1e-9):.0f} it/s), "
+            f"({self.iterations / max(self.seconds, 1e-9):.0f} it/s on {self.backend}), "
             f"scaled residual {self.residual:.3e}"
         )
 
@@ -87,6 +88,21 @@ def _step(U, metrics, flow, opts, xp=np):
     k3 = asm.residual(U - 0.5 * dt[:, None] * k2, metrics, flow, xp=xp).R / area
     k4 = asm.residual(U - dt[:, None] * k3, metrics, flow, xp=xp).R / area
     return U - (dt[:, None] / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4), rate
+
+
+def resolve_backend(options: SolverOptions) -> str:
+    """Turn ``backend='auto'`` into a name, preferring the compiled one.
+
+    The multi-stage schemes are vectorised only, so asking for ``auto`` with
+    ``scheme='rk4'`` gives NumPy rather than an error.
+    """
+    from .backends import available_backends
+
+    if options.backend != "auto":
+        return options.backend
+    if options.scheme != "euler":
+        return "numpy"
+    return available_backends()[0]
 
 
 def initial_state(metrics: Metrics, flow: FlowConditions) -> np.ndarray:
@@ -130,16 +146,34 @@ def solve_steady(
         asm.ph.FLOOR,
     )
 
+    backend_name = resolve_backend(opts)
+    compiled = None
+    if backend_name != "numpy":
+        from .backends import get_backend
+
+        compiled = get_backend(backend_name, metrics, flow, opts)
+
     history: list[float] = []
     message = ""
     converged = False
+    iteration = 0
     started = time.perf_counter()
 
     with np.errstate(over="ignore", invalid="ignore"):
-        for iteration in range(1, opts.max_iterations + 1):
-            U, rate = _step(U, metrics, flow, opts)
-            scaled = rate / reference
-            history.append(scaled)
+        while iteration < opts.max_iterations:
+            if compiled is None:
+                U, rate = _step(U, metrics, flow, opts)
+                scaled = rate / reference
+                iteration += 1
+                history.append(scaled)
+            else:
+                # the compiled backend runs a batch without returning to Python,
+                # which is the whole reason it is faster; convergence is
+                # therefore tested every `batch` steps rather than every step
+                steps = min(opts.batch, opts.max_iterations - iteration)
+                U, scaled = compiled.run(U, steps, reference)
+                iteration += steps
+                history.extend([scaled] * steps)
 
             if not np.isfinite(scaled):
                 message = f"the residual became {scaled} at iteration {iteration}"
@@ -150,7 +184,7 @@ def solve_steady(
                     f"march has diverged; lower cfl, or try flux='hllc'"
                 )
                 break
-            if opts.print_interval and iteration % opts.print_interval == 0:
+            if opts.print_interval and iteration % opts.print_interval < opts.batch:
                 print(f"  iteration {iteration:6d}   residual {scaled:.6e}")
             if scaled < opts.tolerance:
                 converged = True
@@ -169,6 +203,7 @@ def solve_steady(
         history=np.asarray(history),
         seconds=time.perf_counter() - started,
         message=message,
+        backend=backend_name,
     )
 
 

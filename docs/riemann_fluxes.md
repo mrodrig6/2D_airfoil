@@ -14,7 +14,9 @@ should not be carried across** — so it was re-measured rather than inherited.
 ## Contents
 
 - [The question, and why it had to be asked again](#the-question-and-why-it-had-to-be-asked-again)
+- [First: are the implementations right?](#first-are-the-implementations-right)
 - [The result](#the-result)
+- [Do the ones that converge agree?](#do-the-ones-that-converge-agree)
 - [AUSM⁺-up has a narrow window, and it is not where Liou says](#ausm-up-has-a-narrow-window-and-it-is-not-where-liou-says)
 - [SLAU2 reproduces the nozzle's limit cycle exactly](#slau2-reproduces-the-nozzles-limit-cycle-exactly)
 - [What this does and does not establish](#what-this-does-and-does-not-establish)
@@ -60,6 +62,36 @@ be expected to run the other way.
 **It does not.** This code has the shock, and the ranking is the same as the
 nozzle's.
 
+## First: are the implementations right?
+
+Before any conclusion about a *scheme*, the port has to be cleared of being the
+problem. A subtly wrong SLAU2 that fails to converge would look exactly like a
+scheme that fails to converge, and the conclusion would be worthless.
+
+Two independent checks, and they are the reason the rest of this page can be
+read as being about the schemes.
+
+**Against the nozzle's reference implementations.** The companion project's
+`legacy/riemann_solvers.py` carries all four fluxes, verified there. Run on 200
+random state pairs spanning Mach 0.018 to 8.86, including 289 supersonic faces:
+
+| flux | max relative difference | verdict |
+|---|---|---|
+| `roe` | 1.2e−16 | identical to round-off |
+| `hllc` | 2.5e−16 | identical to round-off |
+| `ausmup` | **0** | bit-identical |
+| `slau2` | **0** | bit-identical |
+
+**Against the properties a numerical flux must have.** Every solver is checked
+for consistency $\hat{F}(U, U, \hat{n}) = F(U)\cdot\hat{n}$, conservation
+$\hat{F}(L, R, \hat{n}) = -\hat{F}(R, L, -\hat{n})$, full upwinding in the
+supersonic limit, and finiteness at a near-vacuum — all to $10^{-10}$ or better,
+in `tests/test_physics.py`. The AUSM split polynomials are checked to sum to
+the identities that make the scheme consistent.
+
+**So the failures below are properties of the schemes**, reproduced
+independently in two codebases, and not artefacts of this port.
+
 ## The result
 
 NACA 0012, $M_\infty = 0.8$, $\alpha = 1.25^\circ$ — a shock at 63% chord on the
@@ -79,6 +111,46 @@ below $10^{-6}$.
 Roe and HLLC agree on the shock position to within one cell and on $c_\ell$ to
 3%, which is the right order for two different schemes at first order. The two
 AUSM-family schemes fail, in two different ways.
+
+## Do the ones that converge agree?
+
+Self-consistency is not "all four give the same answer" — two of them do not
+give an answer at all. It is whether the ones that **do** converge agree, and
+whether that agreement **improves as the mesh is refined**. If it does, the
+spread is discretisation error and the schemes are consistent with each other;
+if it does not, something is wrong with one of them.
+
+Roe, HLLC and AUSM⁺-up at $M_{co} = 0.4$, all converged to $10^{-6}$:
+
+| | mesh | cells | `roe` | `hllc` | `ausmup` | $c_\ell$ spread | $c_d$ spread | shock spread |
+|---|---|---|---|---|---|---|---|---|
+| **subcritical** | 64 × 32 | 4 096 | 0.2406 | 0.2365 | 0.2350 | 2.37% | 17.9% | — |
+| $M = 0.5$ | 96 × 40 | 7 680 | 0.2464 | 0.2429 | 0.2421 | 1.74% | 17.1% | — |
+| $\alpha = 2^\circ$ | 128 × 48 | 12 288 | 0.2503 | 0.2480 | 0.2478 | **1.03%** | 16.7% | — |
+| **transonic** | 64 × 32 | 4 096 | 0.2713 | 0.2624 | 0.2597 | 4.38% | 15.3% | 0.000 |
+| $M = 0.8$ | 96 × 40 | 7 680 | 0.2835 | 0.2750 | 0.2713 | 4.42% | 12.0% | 0.032 |
+| $\alpha = 1.25^\circ$ | 128 × 48 | 12 288 | 0.2916 | 0.2829 | 0.2808 | **3.78%** | 10.5% | 0.000 |
+
+Three things to read off it.
+
+**Lift agreement tightens with refinement** — 2.4% to 1.0% subcritical, 4.4% to
+3.8% transonic — and all three march toward the same limit. Subcritically that
+limit is checkable: thin-airfoil theory with the Prandtl–Glauert correction
+gives 0.2532, and Roe reaches 0.2503 on the finest mesh. The spread is
+discretisation error, behaving as discretisation error should.
+
+**The shock lands in the same place.** All three agree to within one cell on two
+of the three meshes, and to 0.03 chord on the third. Three schemes with
+completely different derivations putting a shock in the same cell is a strong
+statement that none of them is wrong.
+
+**Drag agrees far less well, and that is expected rather than alarming.** At
+first order most of the computed $c_d$ *is* the scheme's numerical dissipation
+(see [`verification.md`](verification.md#spurious-drag-and-what-first-order-costs)),
+and the three schemes differ precisely in how they dissipate. So drag is the
+quantity where they must differ most. It is also shrinking — 17.9% to 16.7%
+subcritical, 15.3% to 10.5% transonic — which is what it should do if the
+difference is dissipation that is itself vanishing with $h$.
 
 ## AUSM⁺-up has a narrow window, and it is not where Liou says
 
@@ -132,6 +204,39 @@ for 30 000 iterations without decaying.
 That is the same signature, on a domain with the shock the nozzle lacked. The
 hypothesis that the shock was the missing ingredient is **not supported**.
 
+### Where the residual actually lives
+
+The nozzle asked this and found the failure *distributed* — its ten worst cells
+carried 8.3% of the total, spread through the supersonic section rather than
+piled at one feature. Repeating it here, where there is an obvious feature to
+pile at, gives a sharper answer than it could:
+
+| region | share of cells | share of residual |
+|---|---|---|
+| Mach > 1.1 | 4.3% | **60.8%** |
+| Mach 0.9 – 1.1 | 12.1% | 36.7% |
+| Mach < 0.9 | 83.6% | **2.6%** |
+| wall-adjacent cells | 1.2% | 5.6% |
+| within 0.06 chord of the shock | 4.8% | 4.3% |
+
+**It is the supersonic pocket, and it is neither the shock nor the wall.** The
+worst cells sit at $x/c = 0.26$–$0.41$ just above the upper surface at Mach
+1.25–1.29 — upstream of the shock, inside the pocket. The ten worst carry 5.6%,
+matching the nozzle's 8.3%, so it is not a handful of bad cells; but the worst
+10% carry 99.9% against Roe's 68.6%, so it is strongly regional.
+
+The limit cycle is also far more violent here than in the nozzle: the state
+keeps moving with a saturated amplitude of $1.7\times10^{-1}$ relative, against
+the nozzle's $8\times10^{-4}$. Measured over 400 further steps after the march
+was abandoned, the amplitude in the last 50 equals the amplitude in the first
+50 to four digits — saturated, not decaying.
+
+That the failure concentrates in the *supersonic* region, and that it is worse
+on a case with a supersonic pocket than on one without, is the most specific
+thing either project has about the mechanism. It is still not a demonstration,
+and it is written down as [open question 3](#open-questions) rather than a
+conclusion.
+
 ## What this does and does not establish
 
 **Established.**
@@ -169,10 +274,11 @@ For increment 5, written down now so the null results are not lost:
    low-Mach cells.
 2. **Does the window depend on the mesh?** If 0.30–0.45 is really set by the
    smallest resolved Mach number, refining the leading edge should move it.
-3. **Does SLAU2's limit cycle localise?** In the nozzle it did not — the ten
-   worst cells carried 8.3% of the residual. Worth repeating here, because a
-   shock gives it somewhere obvious to localise, and if it still does not, that
-   rules out the shock as the cause in both codes.
+3. **Why the supersonic pocket?** Measured above: Mach > 0.9 is 16% of the
+   cells and 97% of SLAU2's residual, while the shock and the wall are
+   innocent. The obvious follow-up is whether the pocket's *extent* predicts the
+   failure — a sequence of Mach numbers from 0.72 (no pocket) upward would say,
+   and it is cheap.
 4. **Does second order change the ranking?** The AUSM family's case rests on
    shock capturing. Increment 3 makes this answerable.
 

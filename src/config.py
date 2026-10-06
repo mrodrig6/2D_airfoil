@@ -52,7 +52,7 @@ from dataclasses import dataclass
 import numpy as np
 
 #: Backends the solver can execute on, fastest first.  See ``src.backends``.
-BACKENDS = ("numba", "numpy", "jax")
+BACKENDS = ("numba", "numpy")
 
 #: Default :math:`M_{co}` for the AUSM family, from the sweep recorded in
 #: :attr:`FlowConditions.reference_mach`.
@@ -368,6 +368,17 @@ class SolverOptions:
         ``euler`` is forward Euler, what the legacy used.  ``ssprk3`` and
         ``rk4`` cost three and four residuals per step and take a
         correspondingly larger one.
+    backend
+        ``auto`` takes the fastest installed, ``numpy`` the vectorised
+        reference, ``numba`` the compiled one.  They agree to :math:`10^{-13}`
+        and the answer does not depend on the choice.
+    batch
+        Steps the compiled backend runs per call, and so how often convergence
+        is tested.  The whole point of that backend is not returning to Python
+        every iteration, so this cannot be 1 without giving the speed back; it
+        means a run can overshoot the tolerance by up to ``batch`` steps, which
+        costs a fraction of a second and nothing else.  Ignored by ``numpy``,
+        which checks every step.
     print_interval
         Iterations between progress lines; 0 is silent.
     divergence_factor
@@ -375,6 +386,8 @@ class SolverOptions:
         blown up will not recover, and the sooner it says so the better.
     """
 
+    backend: str = "auto"
+    batch: int = 25
     cfl: float = 0.9
     tolerance: float = 1e-6
     max_iterations: int = 20_000
@@ -383,6 +396,10 @@ class SolverOptions:
     divergence_factor: float = 1e4
 
     def __post_init__(self) -> None:
+        if self.backend not in ("auto", *BACKENDS):
+            raise ValueError(f"unknown backend {self.backend!r}; choose auto or one of {BACKENDS}")
+        if self.batch < 1:
+            raise ValueError(f"batch must be at least 1, got {self.batch}")
         if self.cfl <= 0.0:
             raise ValueError(f"cfl must be positive, got {self.cfl}")
         if self.tolerance <= 0.0:

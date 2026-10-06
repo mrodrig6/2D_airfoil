@@ -21,7 +21,15 @@ import numpy as np
 
 from . import __version__
 from .api import build_case
-from .config import FLUXES, SCHEMES, TOPOLOGIES, Discretization, FlowConditions, SolverOptions
+from .config import (
+    BACKENDS,
+    FLUXES,
+    SCHEMES,
+    TOPOLOGIES,
+    Discretization,
+    FlowConditions,
+    SolverOptions,
+)
 from .geometry import CLUSTERINGS, load_airfoil, write_dat
 from .mesh import CGrid, build_mesh
 from .meshio import read_mesh, write_su2
@@ -135,7 +143,7 @@ def cmd_check(args: argparse.Namespace) -> int:
     print(f"fvairfoil  {__version__}  ({Path(__file__).parent})")
     for name, what in (
         ("numpy", "required"),
-        ("numba", "the fast solver"),
+        ("numba", "the compiled backend"),
         ("jax", "gradients and sensitivity"),
         ("matplotlib", "figures"),
         ("scipy", "optimisation, and reading legacy .mat files"),
@@ -282,6 +290,45 @@ def cmd_solve(args: argparse.Namespace) -> int:
     return 0 if result.converged else 1
 
 
+def cmd_bench(args: argparse.Namespace) -> int:
+    """Time the backends against each other on the same mesh and state."""
+    import time
+
+    import numpy as np
+
+    from .backends import available_backends, get_backend
+    from .solver import initial_state
+
+    case = build_case(
+        args.airfoil, _discretization(args), n_surface=args.n_surface, clustering=args.clustering
+    )
+    flow = FlowConditions(mach=args.mach, alpha_deg=args.alpha, flux=args.flux)
+    options = SolverOptions(cfl=args.cfl)
+    print(case.mesh.summary())
+    U0 = initial_state(case.metrics, flow)
+
+    timings = {}
+    for name in available_backends():
+        backend = get_backend(name, case.metrics, flow, options)
+        # the compiled backend is given more steps because it needs them to be
+        # measurable at all, and fewer would be dominated by the call overhead
+        steps = args.steps if name != "numpy" else max(args.steps // 10, 20)
+        if hasattr(backend, "warm_up"):
+            print(f"  {name}: compiled in {backend.warm_up():.1f} s (cached on disk)")
+        started = time.perf_counter()
+        backend.run(np.array(U0), steps, 1.0)
+        timings[name] = (steps, time.perf_counter() - started)
+
+    # always relative to the reference backend, so the number means "times
+    # faster than the readable implementation" whichever backends are present
+    baseline = timings["numpy"][0] / timings["numpy"][1]
+    print(f"\n{'backend':10s} {'steps':>8s} {'seconds':>9s} {'it/s':>10s} {'vs numpy':>10s}")
+    for name, (steps, elapsed) in timings.items():
+        rate = steps / elapsed
+        print(f"{name:10s} {steps:8d} {elapsed:9.2f} {rate:10.0f} {rate / baseline:9.1f}x")
+    return 0
+
+
 def cmd_flow(args: argparse.Namespace) -> int:
     """Print the non-dimensional free-stream state for an operating point."""
     flow = FlowConditions(mach=args.mach, alpha_deg=args.alpha, gamma=args.gamma)
@@ -343,6 +390,18 @@ def build_parser() -> argparse.ArgumentParser:
     _add_flow_options(solve)
     _add_solver_options(solve)
     solve.add_argument(
+        "--backend",
+        choices=("auto", *BACKENDS),
+        default=SolverOptions.backend,
+        help="execution strategy (default: %(default)s)",
+    )
+    solve.add_argument(
+        "--batch",
+        type=int,
+        default=SolverOptions.batch,
+        help="compiled-backend steps per call (default: %(default)s)",
+    )
+    solve.add_argument(
         "--cp", type=Path, default=None, help="write the surface pressure distribution here"
     )
     solve.add_argument("--figure", type=Path, default=None, help="write a field PNG here")
@@ -351,6 +410,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--convergence", type=Path, default=None, help="write the residual history here"
     )
     solve.set_defaults(run=cmd_solve)
+
+    bench = sub.add_parser("bench", help="time the backends against each other")
+    _add_geometry_options(bench)
+    _add_mesh_options(bench)
+    _add_flow_options(bench)
+    bench.add_argument("--cfl", type=float, default=SolverOptions.cfl)
+    bench.add_argument(
+        "--steps",
+        type=int,
+        default=2000,
+        help="compiled-backend steps to time (default: %(default)s)",
+    )
+    bench.set_defaults(run=cmd_bench)
 
     flow = sub.add_parser("flow", help="print the non-dimensional free-stream state")
     flow.add_argument("--mach", type=float, default=FlowConditions.mach)

@@ -95,6 +95,12 @@ AUSM⁺-up, and SLAU2 — and which of them actually converge on this problem is
 [measured, not assumed](docs/riemann_fluxes.md).
 → [`docs/theory.md`](docs/theory.md#6-the-finite-volume-discretisation)
 
+**Runs fast.** A compiled Numba backend with the whole march fused into one
+`nopython` call — **23× the vectorised reference** on the production mesh, and a
+converged transonic solve in 16 seconds rather than six minutes. The answer does
+not depend on which backend ran.
+→ [`docs/performance.md`](docs/performance.md)
+
 **Is non-dimensional throughout.** No SI anywhere: ρ∞ = |v∞| = c = 1 and
 R = γ − 1, so dynamic pressure is exactly 1/2 at every operating point and force
 coefficients compare across Mach numbers without rescaling.
@@ -109,6 +115,7 @@ coefficients compare across Mach numbers without rescaling.
 | Drive the code — launcher, Python API, every option | [`docs/usage.md`](docs/usage.md) |
 | Understand the formulation — equations, non-dimensionalisation, geometry, mesh, scheme | [`docs/theory.md`](docs/theory.md) |
 | Know whether to believe a result | [`docs/verification.md`](docs/verification.md) |
+| Know how fast it is, and why | [`docs/performance.md`](docs/performance.md) |
 | See which flux to use, and why | [`docs/riemann_fluxes.md`](docs/riemann_fluxes.md) |
 | Know what is built and what is not | [`docs/roadmap.md`](docs/roadmap.md) |
 | See the MATLAB this came from, and what the port changed | [`legacy/README.md`](legacy/README.md) |

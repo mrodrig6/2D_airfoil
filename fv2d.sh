@@ -196,6 +196,7 @@ Running
   geometry [...]     inspect a section; no mesh, no flow
   mesh [...]         generate or read a mesh and report its quality
   flow [...]         print the non-dimensional free-stream state
+  bench [...]        time the backends against each other
   test [...]         run the test suite
   verify [--fast]    everything the project checks about itself: tests, lint,
                      format and spelling.  '--fast' skips the larger meshes.
@@ -331,7 +332,7 @@ main() {
         docs)      cmd_docs ;;
         test)      setup_import_path; cmd_test "$@" ;;
         verify)    setup_import_path; cmd_verify ${1+"$1"} ;;
-        check|geometry|mesh|flow|solve)
+        check|geometry|mesh|flow|solve|bench)
                    setup_import_path; fvairfoil "$command" "$@" ;;
         *)         printf '%s: unknown command %s\n\n' "$SELF" "$command" >&2
                    cmd_help >&2
