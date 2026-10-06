@@ -54,18 +54,13 @@ import numpy as np
 #: Backends the solver can execute on, fastest first.  See ``src.backends``.
 BACKENDS = ("numba", "numpy")
 
-#: Default :math:`M_{co}` for the AUSM family, from the sweep recorded in
-#: :attr:`FlowConditions.reference_mach`.
-AUSM_CUTOFF_MACH = 0.4
-
 #: Mesh topologies.  See :mod:`src.mesh`.
 TOPOLOGIES = ("ogrid", "cgrid")
 
-#: Interface fluxes.  All four are approximate Riemann solvers in the sense that
-#: they take a left and a right state and return a single upwind face flux; the
-#: AUSM-family pair reach it by splitting rather than by linearising a Riemann
-#: problem.  See ``docs/theory.md`` and ``docs/riemann_fluxes.md``.
-FLUXES = ("roe", "hllc", "ausmup", "slau2")
+#: Interface fluxes.  Both are approximate Riemann solvers: they take a left and
+#: a right state and return a single upwind face flux.  Two AUSM-family schemes
+#: were also implemented, measured and removed -- see ``docs/riemann_fluxes.md``.
+FLUXES = ("roe", "hllc")
 
 
 @dataclass(frozen=True)
@@ -84,12 +79,6 @@ class FlowConditions:
         the Roe-averaged sound speed.  ``legacy/residual_calc.m`` used 0.01;
         0.05 is the usual choice for a transonic march, and it matters here
         because this flow has a sonic line.
-    cutoff_mach
-        AUSM-family only: Liou's :math:`M_{co}`.  ``None`` uses
-        :data:`AUSM_CUTOFF_MACH`, which was measured rather than taken from the
-        free stream -- see :attr:`reference_mach`.  It is a reference Mach
-        number, **not** a regularisation epsilon: driving it to zero makes the
-        scheme's pressure-diffusion coefficient diverge.
     alpha_deg
         Angle of attack in **degrees**, measured from the chord line, positive
         nose-up.  It enters the problem only through the free-stream velocity
@@ -104,7 +93,6 @@ class FlowConditions:
     gamma: float = 1.4
     flux: str = "roe"
     entropy_fix: float = 0.05
-    cutoff_mach: float | None = None
 
     def __post_init__(self) -> None:
         if self.mach <= 0.0:
@@ -115,11 +103,6 @@ class FlowConditions:
             raise ValueError(f"unknown flux {self.flux!r}; choose from {FLUXES}")
         if self.entropy_fix < 0.0:
             raise ValueError(f"entropy_fix must be non-negative, got {self.entropy_fix}")
-        if self.cutoff_mach is not None and not 0.0 < self.cutoff_mach <= 1.0:
-            raise ValueError(
-                f"cutoff_mach is a reference Mach number and must lie in (0, 1], got "
-                f"{self.cutoff_mach}"
-            )
 
     # -- derived free-stream quantities -----------------------------------
     @property
@@ -127,33 +110,9 @@ class FlowConditions:
         """Angle of attack in radians."""
         return math.radians(self.alpha_deg)
 
-    @property
-    def reference_mach(self) -> float:
-        r"""The AUSM family's :math:`M_{co}`.
-
-        The default is **measured, not inherited**.  Liou's guidance is
-        :math:`M_{co} \sim M_\infty`, and the companion nozzle code followed it;
-        on this problem it does not hold.  Swept on a NACA 0012 at two
-        operating points, AUSM\ :sup:`+`-up converges only for
-        :math:`0.30 \le M_{co} \le 0.45` and the window is the **same** at
-        :math:`M_\infty = 0.5` and :math:`M_\infty = 0.8` -- so :math:`M_{co}`
-        is not tracking the free stream here at all.  Outside it, below 0.2 the
-        march dies in a handful of iterations as :math:`K_p/f_a` diverges, and
-        at 0.5 and above it stalls in a limit cycle.
-
-        0.4 is the middle of that window.  See ``docs/riemann_fluxes.md``; this
-        is one section at two points, so treat it as a starting value rather
-        than a constant of nature.
-        """
-        return self.cutoff_mach if self.cutoff_mach is not None else AUSM_CUTOFF_MACH
-
     def flux_options(self) -> dict:
         """The keyword arguments this operating point gives its flux."""
-        if self.flux == "roe":
-            return {"entropy_fix": self.entropy_fix}
-        if self.flux == "ausmup":
-            return {"cutoff_mach": self.reference_mach}
-        return {}
+        return {"entropy_fix": self.entropy_fix} if self.flux == "roe" else {}
 
     @property
     def gas_constant(self) -> float:

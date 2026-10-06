@@ -263,7 +263,6 @@ def cmd_solve(args: argparse.Namespace) -> int:
         gamma=args.gamma,
         flux=args.flux,
         entropy_fix=args.entropy_fix,
-        cutoff_mach=args.cutoff_mach,
     )
     options = SolverOptions(
         cfl=args.cfl,

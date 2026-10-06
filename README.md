@@ -89,10 +89,11 @@ a silent one when a marker cannot be mapped.
 → [`docs/usage.md`](docs/usage.md#using-a-mesh-from-elsewhere)
 
 **Solves.** Cell-centred finite volume on triangles, marched to steady state
-with a local time step. Four approximate Riemann solvers supply the upwinding —
-Roe with the Harten–Hyman entropy fix, HLLC with Batten's wave speeds,
-AUSM⁺-up, and SLAU2 — and which of them actually converge on this problem is
-[measured, not assumed](docs/riemann_fluxes.md).
+with a local time step. Two approximate Riemann solvers supply the upwinding —
+Roe with the Harten–Hyman entropy fix and HLLC with Batten's wave speeds. Two
+more were implemented, measured over 60 solves and removed, because neither is
+usable on this problem; the measurement is
+[kept](docs/riemann_fluxes.md) even though the code is not.
 → [`docs/theory.md`](docs/theory.md#6-the-finite-volume-discretisation)
 
 **Runs fast.** A compiled Numba backend with the whole march fused into one

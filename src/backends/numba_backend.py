@@ -45,7 +45,6 @@ class NumbaBackend(Backend):
         self.weight = np.ascontiguousarray(asm.component_weights(flow))
         self.kind = FLUXES.index(flow.flux)
         self.entropy_fix = float(flow.entropy_fix)
-        self.cutoff_mach = float(flow.reference_mach)
         self.compile_seconds = 0.0
 
     def _args(self):
@@ -57,7 +56,6 @@ class NumbaBackend(Backend):
             self.flow.gamma,
             self.kind,
             self.entropy_fix,
-            self.cutoff_mach,
         )
 
     def residual(self, U):
@@ -81,7 +79,6 @@ class NumbaBackend(Backend):
             self.flow.gamma,
             self.kind,
             self.entropy_fix,
-            self.cutoff_mach,
             self.options.cfl,
             self.weight,
             scale,

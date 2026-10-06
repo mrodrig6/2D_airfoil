@@ -80,7 +80,7 @@ def test_an_unknown_backend_is_refused():
 
 
 @pytest.mark.numba
-@pytest.mark.parametrize("flux", ["roe", "hllc", "ausmup", "slau2"])
+@pytest.mark.parametrize("flux", ["roe", "hllc"])
 @pytest.mark.parametrize("alpha", [0.0, 2.0])
 def test_the_compiled_residual_matches_the_vectorised_one(metrics, flux, alpha):
     flow = FlowConditions(mach=0.8, alpha_deg=alpha, flux=flux)

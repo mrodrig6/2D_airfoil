@@ -77,7 +77,7 @@ def test_solve_airfoil_takes_a_section_to_loads_in_one_call():
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("flux", ["roe", "hllc", "ausmup", "slau2"])
+@pytest.mark.parametrize("flux", ["roe", "hllc"])
 def test_every_flux_reaches_the_same_subcritical_answer(flux):
     """A shock-free case is where all four should agree; if they do not, the
     disagreement is in the scheme rather than in the shock capturing."""

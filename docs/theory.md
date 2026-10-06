@@ -596,18 +596,19 @@ upwind flux. Four will be available, all with the same signature:
 |---|---|
 | `roe` | Roe's linearised Riemann solver with the Harten–Hyman entropy fix — the legacy default, and what `legacy/residual_calc.m` implements |
 | `hllc` | HLLC with Batten's wave speeds; positivity-preserving, no tunable constant |
-| `ausmup` | Liou's AUSM⁺-up; a flux-vector splitting designed for robustness at a captured shock |
-| `slau2` | SLAU2, the parameter-free AUSM-family member |
 
-The last two matter here for a specific reason. The companion nozzle code
-measured all four and found that Roe-with-entropy-fix converged and the
-AUSM-family pair did not — but its domain is **shock-free by construction**,
-which is precisely the property the AUSM family is designed for and that solver
-never exercised. Kitamura's carbuncle ranking is *inverted* against what
-converged there. This code has a **shock on the body surface**, so the
-measurement was redone rather than inherited. The short version: the nozzle's
-ranking **transfers** — Roe and HLLC converge, both AUSM-family schemes fail —
-which is the opposite of what that project expected.
+Two more — AUSM⁺-up and SLAU2 — were implemented and then **removed**. The
+companion nozzle code had found that Roe-with-entropy-fix converged while the
+AUSM-family pair did not, and said explicitly that its own domain being
+shock-free made that conclusion untransferable. This code has a shock on the
+body surface, so the measurement was redone over sixty solves rather than
+inherited.
+
+The ranking transferred, and for a reason neither project predicted: SLAU2
+stops converging above a peak Mach number of about **0.91**, on flow that is
+still subsonic everywhere, so it is not about shock capturing at all. AUSM⁺-up
+works only inside a narrow window in its one tunable constant and not where its
+author's guidance puts that window. Neither is usable here, so neither ships.
 → [`riemann_fluxes.md`](riemann_fluxes.md)
 
 ### Time integration

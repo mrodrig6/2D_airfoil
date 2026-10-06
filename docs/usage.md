@@ -105,20 +105,19 @@ is a result worth looking at, and for the flux comparison it is *the* result.
 
 ## Choosing a flux
 
-Four approximate Riemann solvers supply the upwinding. In a finite-volume
-scheme the Riemann solver **is** the upwinding — there is no separate upwind
-operator — so this is the single most consequential option after the mesh.
+Two approximate Riemann solvers supply the upwinding. In a finite-volume scheme
+the Riemann solver **is** the upwinding — there is no separate upwind operator —
+so this is the single most consequential option after the mesh.
 
 | `flux=` | scheme | on this problem |
 |---|---|---|
 | `roe` | Roe + Harten–Hyman entropy fix | **converges**; the default, and what the legacy used |
 | `hllc` | HLLC with Batten's wave speeds | **converges**; agrees with Roe to 3%, and has no entropy-fix parameter |
-| `ausmup` | Liou's AUSM⁺-up | **converges** at $M_{co}\approx0.4$ (the default); diverges at Liou's own $M_{co}\sim M_\infty$ |
-| `slau2` | SLAU2, parameter-free | **converges below a peak Mach of ~0.9 only**; fails on anything transonic |
 
-That ranking was measured over 60 solves, not assumed. SLAU2's threshold is the
-surprise: it fails from a peak Mach of 0.92 upward, on flow that is still
-subsonic everywhere, so it is not about shock capturing.
+Two others — AUSM⁺-up and SLAU2 — were implemented, measured over 60 solves and
+then **removed**, because neither is usable here: AUSM⁺-up only inside a narrow
+window in its one tunable constant, and SLAU2 not at all above a peak Mach of
+about 0.91. → [`riemann_fluxes.md`](riemann_fluxes.md)
 → [`riemann_fluxes.md`](riemann_fluxes.md)
 
 ## Decks: a case in a file

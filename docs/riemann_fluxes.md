@@ -1,13 +1,22 @@
 # The approximate Riemann solvers, measured
 
-Four interface fluxes ship, and this is the record of what each one actually
-does on this problem. It exists because the companion nozzle code measured the
-same four, reached a conclusion, and **said explicitly that the conclusion
-should not be carried across** — so it was re-measured rather than inherited.
+Four interface fluxes were implemented and measured. **Two ship and two were
+removed.** This is the record of why.
+
+It exists because the companion nozzle code measured the same four, reached a
+conclusion, and **said explicitly that the conclusion should not be carried
+across** — so it was re-measured here rather than inherited.
+
+> **The two removed schemes are no longer in `src/`.** They are not archived
+> here either, and deliberately so: verified copies already exist in the
+> companion project's `legacy/riemann_solvers.py`, and this code's were checked
+> **bit-identical** to them (see below). So everything on this page can be
+> reproduced from that file plus this one, without a second copy of dead code
+> to keep in step with the solver.
 
 > **Status.** The headline question — does each flux work on this problem — is
 > answered: 60 solves over four fluxes, five operating points and three meshes,
-> plus a Mach sweep that brackets the one failure. What is *not* answered is the
+> plus a Mach sweep that brackets the failure. What is *not* answered is the
 > mechanism. See [Open questions](#open-questions).
 
 ## Contents
@@ -30,17 +39,22 @@ should not be carried across** — so it was re-measured rather than inherited.
 Four fluxes, five operating points, three meshes — 60 converged-or-not solves on
 a NACA 0012.
 
-| flux | works? | |
-|---|---|---|
-| **`roe`** | **yes** | 15 / 15 |
-| **`hllc`** | **yes** | 15 / 15 |
-| **`ausmup`** | **yes**, conditionally | 15 / 15 at $M_{co} = 0.4$; **diverges** at Liou's recommended $M_{co}\sim M_\infty$ |
-| **`slau2`** | **no**, above a threshold | 7 / 15 — converges below peak Mach ≈ 0.91, fails above it |
+| flux | works? | | shipped? |
+|---|---|---|---|
+| **`roe`** | **yes** | 15 / 15 | **yes**, the default |
+| **`hllc`** | **yes** | 15 / 15 | **yes** |
+| `ausmup` | yes, conditionally | 15 / 15 at $M_{co} = 0.4$; **diverges** at Liou's recommended $M_{co}\sim M_\infty$ | **removed** |
+| `slau2` | **no**, above a threshold | 7 / 15 — converges below peak Mach ≈ 0.91, fails above | **removed** |
 
-Roe and HLLC are unconditional. AUSM⁺-up works but only inside a narrow window
-in its one tunable constant, and the window is not where its author's guidance
-puts it. SLAU2 is the only outright failure, and it fails on everything
-transonic.
+Roe and HLLC are unconditional and both ship.
+
+AUSM⁺-up does converge on every case tried — but only inside a narrow window in
+its one tunable constant, and **not where its author's own guidance puts that
+window**. A scheme that works only if you already know the answer to a question
+the literature gets wrong for this geometry is a trap in a teaching code, so it
+was removed rather than shipped with a warning.
+
+SLAU2 fails on everything transonic and was removed outright.
 
 | case | peak Mach | `roe` | `hllc` | `ausmup` | `slau2` |
 |---|---|---|---|---|---|

@@ -35,7 +35,7 @@ from numba import njit, prange
 FLOOR = 1e-10
 
 #: Flux selector, matching :data:`src.config.FLUXES` by index.
-ROE, HLLC, AUSMUP, SLAU2 = 0, 1, 2, 3
+ROE, HLLC = 0, 1
 
 #: Neighbour codes for a face that has no neighbouring element.
 WALL, FARFIELD = -1, -2
@@ -180,112 +180,6 @@ def _hllc(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma):
 
 
 @njit(**_FAST)
-def _ausmup(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma, mco):
-    rhoL, vxL, vyL, pL, HL = _primitives(lr, lru, lrv, lrE, gamma)
-    rhoR, vxR, vyR, pR, HR = _primitives(rr, rru, rrv, rrE, gamma)
-    vnL = vxL * nx + vyL * ny
-    vnR = vxR * nx + vyR * ny
-
-    k = 2.0 * (gamma - 1.0) / (gamma + 1.0)
-    asL = np.sqrt(max(k * HL, FLOOR))
-    asR = np.sqrt(max(k * HR, FLOOR))
-    ah = min(asL * asL / max(asL, abs(vnL)), asR * asR / max(asR, abs(vnR)))
-
-    ML = vnL / ah
-    MR = vnR / ah
-    mbar2 = 0.5 * (vnL * vnL + vnR * vnR) / (ah * ah)
-    m0 = np.sqrt(min(1.0, max(mbar2, mco * mco)))
-    fa = m0 * (2.0 - m0)
-    alpha = 0.1875 * (5.0 * fa * fa - 4.0)
-    beta = 0.125
-
-    m2p = 0.25 * (ML + 1.0) ** 2
-    m2m = -0.25 * (MR - 1.0) ** 2
-    if abs(ML) >= 1.0:
-        m4p = 0.5 * (ML + abs(ML))
-        p5p = 0.5 * (1.0 + (1.0 if ML > 0 else (-1.0 if ML < 0 else 0.0)))
-    else:
-        m4p = m2p * (1.0 + 4.0 * beta * (ML - 1.0) ** 2)
-        p5p = m2p * ((2.0 - ML) + 4.0 * alpha * ML * (ML - 1.0) ** 2)
-    if abs(MR) >= 1.0:
-        m4m = 0.5 * (MR - abs(MR))
-        p5m = 0.5 * (1.0 - (1.0 if MR > 0 else (-1.0 if MR < 0 else 0.0)))
-    else:
-        m4m = m2m * (1.0 + 4.0 * beta * (MR + 1.0) ** 2)
-        p5m = -m2m * ((2.0 + MR) - 4.0 * alpha * MR * (MR + 1.0) ** 2)
-
-    rho_h = 0.5 * (rhoL + rhoR)
-    mp = -(0.25 / fa) * max(1.0 - mbar2, 0.0) * (pR - pL) / (rho_h * ah * ah)
-    mh = m4p + m4m + mp
-    ph = p5p * pL + p5m * pR - 0.75 * p5p * p5m * (rhoL + rhoR) * (fa * ah) * (vnR - vnL)
-
-    if mh > 0.0:
-        mdot = ah * mh * rhoL
-        f0 = mdot
-        f1 = mdot * vxL + ph * nx
-        f2 = mdot * vyL + ph * ny
-        f3 = mdot * HL
-    else:
-        mdot = ah * mh * rhoR
-        f0 = mdot
-        f1 = mdot * vxR + ph * nx
-        f2 = mdot * vyR + ph * ny
-        f3 = mdot * HR
-
-    aL = np.sqrt(max(gamma * pL / rhoL, FLOOR))
-    aR = np.sqrt(max(gamma * pR / rhoR, FLOOR))
-    return f0, f1, f2, f3, max(abs(vnL) + aL, abs(vnR) + aR)
-
-
-@njit(**_FAST)
-def _slau2(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma):
-    rhoL, vxL, vyL, pL, HL = _primitives(lr, lru, lrv, lrE, gamma)
-    rhoR, vxR, vyR, pR, HR = _primitives(rr, rru, rrv, rrE, gamma)
-    vnL = vxL * nx + vyL * ny
-    vnR = vxR * nx + vyR * ny
-    aL = np.sqrt(max(gamma * pL / rhoL, FLOOR))
-    aR = np.sqrt(max(gamma * pR / rhoR, FLOOR))
-    ab = 0.5 * (aL + aR)
-
-    ML = vnL / ab
-    MR = vnR / ab
-    g = -max(min(ML, 0.0), -1.0) * min(max(MR, 0.0), 1.0)
-    vabs = (rhoL * abs(vnL) + rhoR * abs(vnR)) / (rhoL + rhoR)
-    vaL = (1.0 - g) * vabs + g * abs(vnL)
-    vaR = (1.0 - g) * vabs + g * abs(vnR)
-
-    qbar = np.sqrt(0.5 * (vxL * vxL + vyL * vyL + vxR * vxR + vyR * vyR))
-    chi = (1.0 - min(1.0, qbar / ab)) ** 2
-    mdot = 0.5 * (rhoL * (vnL + vaL) + rhoR * (vnR - vaR) - (chi / ab) * (pR - pL))
-
-    if abs(ML) >= 1.0:
-        bp = 0.5 * (1.0 + (1.0 if ML > 0 else (-1.0 if ML < 0 else 0.0)))
-    else:
-        bp = 0.25 * (ML + 1.0) ** 2 * (2.0 - ML)
-    if abs(MR) >= 1.0:
-        bm = 0.5 * (1.0 - (1.0 if MR > 0 else (-1.0 if MR < 0 else 0.0)))
-    else:
-        bm = 0.25 * (MR - 1.0) ** 2 * (2.0 + MR)
-    ph = (
-        0.5 * (pL + pR)
-        + 0.5 * (bp - bm) * (pL - pR)
-        + qbar * (bp + bm - 1.0) * 0.5 * (rhoL + rhoR) * ab
-    )
-
-    if mdot > 0.0:
-        f0 = mdot
-        f1 = mdot * vxL + ph * nx
-        f2 = mdot * vyL + ph * ny
-        f3 = mdot * HL
-    else:
-        f0 = mdot
-        f1 = mdot * vxR + ph * nx
-        f2 = mdot * vyR + ph * ny
-        f3 = mdot * HR
-    return f0, f1, f2, f3, max(abs(vnL) + aL, abs(vnR) + aR)
-
-
-@njit(**_FAST)
 def _wall(r, ru, rv, rE, nx, ny, gamma):
     rho = max(r, FLOOR)
     vx = ru / rho
@@ -328,18 +222,14 @@ def _farfield_state(r, ru, rv, rE, ir, iru, irv, irE, nx, ny, gamma):
 
 
 @njit(**_FAST)
-def _interface(kind, lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma, efix, mco):
+def _interface(kind, lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma, efix):
     if kind == ROE:
         return _roe(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma, efix)
-    if kind == HLLC:
-        return _hllc(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma)
-    if kind == AUSMUP:
-        return _ausmup(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma, mco)
-    return _slau2(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma)
+    return _hllc(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma)
 
 
 @njit(fastmath=True, cache=True, parallel=True)
-def residual_gather(U, neighbour, length, normal, U_inf, gamma, kind, efix, mco, R, wave):
+def residual_gather(U, neighbour, length, normal, U_inf, gamma, kind, efix, R, wave):
     """One residual, every element gathering its own three faces.
 
     Each thread writes only to the element it owns, so ``prange`` needs no
@@ -373,7 +263,6 @@ def residual_gather(U, neighbour, length, normal, U_inf, gamma, kind, efix, mco,
                     ny,
                     gamma,
                     efix,
-                    mco,
                 )
             elif j == WALL:
                 f0, f1, f2, f3, sp = _wall(U[e, 0], U[e, 1], U[e, 2], U[e, 3], nx, ny, gamma)
@@ -405,7 +294,6 @@ def residual_gather(U, neighbour, length, normal, U_inf, gamma, kind, efix, mco,
                     ny,
                     gamma,
                     efix,
-                    mco,
                 )
             r0 += f0 * ell
             r1 += f1 * ell
@@ -446,7 +334,6 @@ def march(
     gamma,
     kind,
     efix,
-    mco,
     cfl,
     weight,
     scale,
@@ -462,6 +349,6 @@ def march(
     wave = np.empty(n)
     norm = 0.0
     for _ in range(n_steps):
-        residual_gather(U, neighbour, length, normal, U_inf, gamma, kind, efix, mco, R, wave)
+        residual_gather(U, neighbour, length, normal, U_inf, gamma, kind, efix, R, wave)
         norm = _advance(U, R, wave, area, cfl, weight, scale)
     return norm

@@ -27,7 +27,6 @@ slow half about two minutes; neither needs a network or a service.
 | Property | Where |
 |---|---|
 | Every flux is consistent, conservative, fully upwind when supersonic, and survives a near-vacuum | `tests/test_physics.py` |
-| The AUSM split polynomials sum to the identities that make the scheme consistent | `tests/test_physics.py` |
 | The far field reproduces the free stream exactly, at any angle of attack | `tests/test_physics.py` |
 | **A uniform free stream stays uniform**, for all four fluxes | `tests/test_solver.py` |
 | The local time step equals the legacy's `CFL * d_h / s` | `tests/test_solver.py` |
@@ -187,8 +186,7 @@ so this stays checkable rather than remembered.
 
 **The march diverges.** The solver says so and stops rather than returning
 numbers. In order of likelihood: the CFL is too high (the default 0.9 is near
-the explicit limit, so try 0.5); the flux is an AUSM-family one (see
-[`riemann_fluxes.md`](riemann_fluxes.md)); or the mesh has a bad cell, which
+the explicit limit, so try 0.5); or the mesh has a bad cell, which
 `./fv2d.sh mesh` will report before you ever solve.
 
 **It converges to the wrong answer.** Check free-stream preservation first —
@@ -196,9 +194,9 @@ the explicit limit, so try 0.5); the flux is an AUSM-family one (see
 the boundary conditions are sound and the problem is resolution.
 
 **It will not converge but does not diverge either.** The residual falls a few
-orders and then sits there. That is a limit cycle, and with an AUSM-family flux
-it is the documented failure in [`riemann_fluxes.md`](riemann_fluxes.md). With
-Roe or HLLC, suspect a mesh with a sliver cell.
+orders and then sits there. That is a limit cycle; the AUSM-family schemes that
+did it reproducibly have been removed ([`riemann_fluxes.md`](riemann_fluxes.md)),
+so with Roe or HLLC suspect a mesh with a sliver cell, or try the other flux.
 
 **The mesh builder refuses.** The message names the four numbers that would fix
 it. See [`usage.md`](usage.md#meshing-it).

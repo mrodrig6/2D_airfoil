@@ -33,7 +33,7 @@ the only thing in the repository.
 
 ## 2. The solver — done
 
-`physics.py` with all four approximate Riemann solvers, the inviscid wall and
+`physics.py` with the approximate Riemann solvers, the inviscid wall and
 characteristic far-field conditions, the vectorised residual, the
 local-time-step march, and the corrected force integral. Reconstruction is
 piecewise constant, exactly the legacy scheme.
@@ -47,11 +47,8 @@ Three things came out of it that were not planned:
 
 * **The far-field default is confirmed by measurement**: $c_\ell$ moves 1.7%
   between 8 and 50 chords, and 20 is within 0.05% of 50.
-* **The AUSM⁺-up default changed.** Liou's $M_{co} \sim M_\infty$ diverges here;
-  the measured window is 0.30–0.45 and does not move with the free stream.
-* **The flux comparison already has its answer**, earlier than planned, and it
-  is the opposite of what the nozzle expected.
-  → [`riemann_fluxes.md`](riemann_fluxes.md)
+* **The flux comparison got its answer**, earlier than planned, and two of the
+  four schemes were removed as a result. → [`riemann_fluxes.md`](riemann_fluxes.md)
 
 ## 3. Speed, and the reconstruction decision
 
@@ -79,13 +76,6 @@ bumps). Gradients are verified against finite differences at a shock-free point,
 and the shock's effect on differentiability is documented rather than hidden.
 
 ## 5. The study, adaptation, and the lab material
-
-**The Riemann-flux measurement** the companion nozzle code asked for: that
-project found Roe converged and the AUSM family did not, but its domain is
-shock-free by construction, so its conclusion explicitly does not transfer. This
-code has a shock on the body. Each flux is measured on the same operating point
-— residual history, converged $c_\ell$ and $c_d$, the shock position, wall time
-— and the result becomes `riemann_fluxes.md`.
 
 **Adaptive refinement** last, because conforming red–green refinement trades
 away the fixed array shapes that make increments 3 and 4 fast. The legacy

@@ -77,24 +77,6 @@ def test_every_flux_survives_a_near_vacuum(flux, normals):
     assert np.all(np.isfinite(out.flux)) and np.all(np.isfinite(out.max_speed))
 
 
-def test_the_ausm_split_polynomials_sum_to_the_identity_they_must():
-    r"""M4+ + M4- = M and P5+ + P5- = 1 identically, which is what makes it consistent."""
-    M = np.linspace(-3.0, 3.0, 61)
-    beta, alpha = 0.125, 0.1875 * (5.0 * 1.0 - 4.0)
-    m2p, m2m = 0.25 * (M + 1) ** 2, -0.25 * (M - 1) ** 2
-    m4p = np.where(np.abs(M) >= 1, 0.5 * (M + np.abs(M)), m2p * (1 + 4 * beta * (M - 1) ** 2))
-    m4m = np.where(np.abs(M) >= 1, 0.5 * (M - np.abs(M)), m2m * (1 + 4 * beta * (M + 1) ** 2))
-    assert np.allclose(m4p + m4m, M)
-
-    p5p = np.where(
-        np.abs(M) >= 1, 0.5 * (1 + np.sign(M)), m2p * ((2 - M) + 4 * alpha * M * (M - 1) ** 2)
-    )
-    p5m = np.where(
-        np.abs(M) >= 1, 0.5 * (1 - np.sign(M)), -m2m * ((2 + M) - 4 * alpha * M * (M + 1) ** 2)
-    )
-    assert np.allclose(p5p + p5m, 1.0)
-
-
 def test_the_entropy_fix_bounds_the_eigenvalues_away_from_zero():
     """Without it the Roe flux adds no dissipation at a sonic point and admits
     an expansion shock -- which this flow, having a sonic line, would find."""
@@ -114,6 +96,16 @@ def test_the_wall_flux_carries_pressure_and_nothing_else(states, normals):
     assert np.allclose(out.flux[:, 0], 0.0)  # no mass through a wall
     assert np.allclose(out.flux[:, 3], 0.0)  # and so no energy
     assert np.allclose(out.flux[:, 1] * ny, out.flux[:, 2] * nx)  # force along n
+
+
+def test_only_the_two_fluxes_that_work_are_shipped():
+    """AUSM+-up and SLAU2 were implemented, measured and removed; see
+    docs/riemann_fluxes.md.  This pins that they stayed removed."""
+    assert set(ph.SOLVERS) == {"roe", "hllc"}
+    for gone in ("ausmup", "slau2"):
+        assert not hasattr(ph, f"{gone}_flux")
+        with pytest.raises(ValueError, match="unknown flux"):
+            ph.interface_flux(gone, np.zeros((1, 4)), np.zeros((1, 4)), 1.0, 0.0, GAMMA)
 
 
 def test_the_wall_pressure_removes_only_the_normal_velocity():
@@ -153,37 +145,3 @@ def test_the_far_field_takes_everything_from_one_side_when_supersonic():
 def test_an_unknown_flux_is_refused():
     with pytest.raises(ValueError, match="unknown flux"):
         ph.interface_flux("godunov", np.zeros((1, 4)), np.zeros((1, 4)), 1.0, 0.0, GAMMA)
-
-
-def test_the_ausm_cutoff_mach_default_is_the_measured_one():
-    """Liou's guidance is M_co ~ M_inf; measured here the window is 0.30-0.45
-    and is the *same* at M = 0.5 and M = 0.8, so it does not follow the free
-    stream.  The default is the middle of the measured window, and is
-    deliberately independent of the operating point."""
-    from src.config import AUSM_CUTOFF_MACH
-
-    assert 0.30 <= AUSM_CUTOFF_MACH <= 0.45
-    assert FlowConditions(mach=0.8).reference_mach == AUSM_CUTOFF_MACH
-    assert FlowConditions(mach=0.5).reference_mach == AUSM_CUTOFF_MACH
-    assert FlowConditions(mach=0.8, cutoff_mach=0.2).reference_mach == pytest.approx(0.2)
-    assert FlowConditions(mach=0.8, flux="ausmup").flux_options() == {
-        "cutoff_mach": AUSM_CUTOFF_MACH
-    }
-
-
-def test_a_tiny_cutoff_mach_really_does_blow_the_mass_flux_up():
-    """The trap, demonstrated, so the default is not merely asserted to matter.
-    Two nearly-still states with a 1% pressure difference."""
-    rest = ph.conservative(
-        np.array([1.0, 1.0]),
-        np.array([1e-6, 1e-6]),
-        np.zeros(2),
-        np.array([1.0, 1.01]),
-        GAMMA,
-    )
-    L, R = rest[:1], rest[1:]
-    nx, ny = np.array([1.0]), np.array([0.0])
-    sane = ph.ausmup_flux(L, R, nx, ny, GAMMA, cutoff_mach=0.8).flux[0, 0]
-    tiny = ph.ausmup_flux(L, R, nx, ny, GAMMA, cutoff_mach=1e-8).flux[0, 0]
-    assert abs(sane) < 1.0
-    assert abs(tiny) > 1e3 * max(abs(sane), 1e-12)

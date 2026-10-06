@@ -23,46 +23,30 @@ characteristic comes from.
                default, and what ``legacy/residual_calc.m`` implements.
 ``hllc``       HLLC with Batten's wave speeds.  Positivity-preserving, with no
                tunable constant.
-``ausmup``     Liou's AUSM\ :sup:`+`-up: a flux-vector splitting, designed for
-               robustness at a captured shock.
-``slau2``      SLAU2, the parameter-free member of the AUSM family.
 =============  ==============================================================
 
-Why all four, and why that matters here
----------------------------------------
-The companion nozzle code measured the same four and found Roe-with-entropy-fix
-converged while the AUSM-family pair did not -- but **its domain is shock free
-by construction**, which is precisely the property the AUSM family is designed
-for and which that solver therefore never exercised.  Kitamura's 2016
-carbuncle ranking is *inverted* against what converged there: Roe with the
-entropy fix scores 0 of 20 on the standard shock-robustness test and SLAU2
-scores 20, the exact reverse of how they behaved in the nozzle.
+Two were tried and removed
+--------------------------
+AUSM\ :sup:`+`-up and SLAU2 were implemented, measured over sixty solves, and
+then taken out.  AUSM\ :sup:`+`-up works, but only inside a narrow window in
+its one tunable constant and not where its author's guidance puts that window;
+SLAU2 stops converging above a peak Mach number of about 0.91, which rules out
+every transonic case on this geometry.
 
-This code has a **shock on the body surface**, so that measurement has to be
-redone rather than inherited.  All four ship so the comparison is reproducible;
-the result goes in ``docs/riemann_fluxes.md``.
-
-One trap is already known and is worth stating before anyone meets it:
-AUSM\ :sup:`+`-up's :math:`M_{co}` is a reference Mach number of the order of
-the smallest in the flow, **not** a regularisation epsilon.  It appears as
-:math:`K_p/f_a`, so driving it towards zero makes that coefficient diverge --
-with :math:`M_{co} = 0` a 1% pressure difference between two states *at rest*
-gives a mass flux of :math:`-9.8\times10^4` where Roe gives
-:math:`-3.5\times10^{-3}`, and the march dies within 51 iterations.  Liou's
-guidance is :math:`M_{co} \sim M_\infty`; **measured on this problem it does not
-hold**, and the usable window is 0.30 to 0.45 at both :math:`M_\infty = 0.5` and
-:math:`M_\infty = 0.8`.  The default is the middle of that window.  See
-``docs/riemann_fluxes.md``.
+``docs/riemann_fluxes.md`` is the record -- what was measured, what the numbers
+were, and what is still unexplained.  The implementations are not kept here,
+because verified copies already exist in the companion nozzle project's
+``legacy/riemann_solvers.py`` and this code's were checked bit-identical to
+them, so the measurements can be reproduced without a second copy to maintain.
 
 References
 ----------
 1. P. L. Roe, *J. Comput. Phys.* **43**, 357-372, 1981.
 2. A. Harten and J. M. Hyman, *J. Comput. Phys.* **50**, 235-269, 1983.
 3. P. Batten et al., *SIAM J. Sci. Comput.* **18**(6), 1553-1570, 1997.
-4. M.-S. Liou, *J. Comput. Phys.* **214**, 137-170, 2006.
-5. E. Shima and K. Kitamura, *AIAA J.* **49**(8), 1693-1709, 2011.
-6. K. Kitamura and E. Shima, *J. Comput. Phys.* **245**, 62-83, 2013.
-7. K. Kitamura, *Computers and Fluids* **129**, 134-145, 2016.
+4. M.-S. Liou, *J. Comput. Phys.* **214**, 137-170, 2006.  (AUSM+-up, removed)
+5. K. Kitamura and E. Shima, *J. Comput. Phys.* **245**, 62-83, 2013.  (SLAU2,
+   removed)
 """
 
 from __future__ import annotations
@@ -295,204 +279,11 @@ def hllc_flux(UL, UR, nx, ny, gamma: float, *, xp=np) -> FluxResult:
     return FluxResult(flux, xp.maximum(xp.abs(SL), xp.abs(SR)))
 
 
-# --------------------------------------------------------------------------
-# The AUSM family
-# --------------------------------------------------------------------------
-def ausmup_flux(UL, UR, nx, ny, gamma: float, *, cutoff_mach: float = 0.8, xp=np) -> FluxResult:
-    r"""Liou's AUSM\ :sup:`+`-up: a flux-vector splitting, not a Riemann solver.
-
-    Rather than linearise a Riemann problem, AUSM splits the interface into a
-    **mass** flux carrying the convected field and a **pressure** flux carrying
-    the acoustic one:
-
-    .. math::
-        \hat{\mathbf{F}} = \dot{m}_{1/2}\,\boldsymbol{\Psi}_{\mathrm{up}}
-                         + p_{1/2}\,(0,\ n_x,\ n_y,\ 0)^T,
-        \qquad \boldsymbol{\Psi} = (1,\ v_x,\ v_y,\ H)^T,
-
-    with :math:`\boldsymbol{\Psi}` taken wholly from whichever side the mass
-    flux comes from.  There is no eigen-decomposition anywhere in it, which is
-    the source of both its speed and its different failure modes.
-
-    The split polynomials are built so that
-    :math:`\mathcal{M}^{+}_{(4)} + \mathcal{M}^{-}_{(4)} = M` and
-    :math:`\mathcal{P}^{+}_{(5)} + \mathcal{P}^{-}_{(5)} = 1` *identically*,
-    which is what makes the scheme consistent; a test pins both.  The ``-up``
-    suffix is two diffusion terms -- a pressure-diffusion term in the mass flux
-    that supplies the velocity-pressure coupling a plain AUSM loses as
-    :math:`M \to 0`, and a velocity-diffusion term in the pressure.
-
-    The interface sound speed is the **numerical** one built from the critical
-    speed rather than an average, which is what lets the scheme hold a
-    stationary normal shock with no interior point:
-
-    .. math::
-        a_*^2 = \frac{2(\gamma-1)}{\gamma+1} H, \qquad
-        \tilde{a} = \frac{a_*^2}{\max(a_*,\ \lvert v_n \rvert)}, \qquad
-        a_{1/2} = \min(\tilde{a}_L,\ \tilde{a}_R).
-
-    Parameters
-    ----------
-    cutoff_mach
-        Liou's :math:`M_{co}`, setting :math:`M_0 = \min(1, \max(\bar M,
-        M_{co}))` and :math:`f_a = M_0(2 - M_0)`.
-
-        **It is not a regularisation epsilon**, and this is the one place the
-        scheme will bite.  :math:`f_a` appears as :math:`K_p/f_a`, so a small
-        :math:`M_{co}` makes that coefficient *large*: at :math:`M_{co} = 0` a
-        1% pressure jump between two states at rest gives a mass flux of
-        :math:`-9.8\times10^4` where Roe gives :math:`-3.5\times10^{-3}`.
-        Liou's guidance is :math:`M_{co} \sim M_\infty`.  On this problem that
-        is wrong: swept at two operating points, the scheme converges only for
-        :math:`0.30 \le M_{co} \le 0.45`, the same window at both, so it is not
-        tracking the free stream.  Below 0.2 the march dies within a handful of
-        iterations; at 0.5 it stalls.  The default is 0.4.
-    """
-    rhoL, vxL, vyL, pL, HL = primitives(UL, gamma, xp=xp)
-    rhoR, vxR, vyR, pR, HR = primitives(UR, gamma, xp=xp)
-    vnL = vxL * nx + vyL * ny
-    vnR = vxR * nx + vyR * ny
-
-    k = 2.0 * (gamma - 1.0) / (gamma + 1.0)
-    astarL = xp.sqrt(xp.maximum(k * HL, FLOOR))
-    astarR = xp.sqrt(xp.maximum(k * HR, FLOOR))
-    a_half = xp.minimum(
-        astarL * astarL / xp.maximum(astarL, xp.abs(vnL)),
-        astarR * astarR / xp.maximum(astarR, xp.abs(vnR)),
-    )
-
-    ML = vnL / a_half
-    MR = vnR / a_half
-    mbar2 = 0.5 * (vnL * vnL + vnR * vnR) / (a_half * a_half)
-    m0 = xp.sqrt(xp.minimum(1.0, xp.maximum(mbar2, cutoff_mach * cutoff_mach)))
-    fa = m0 * (2.0 - m0)
-    alpha = 0.1875 * (5.0 * fa * fa - 4.0)
-    beta = 0.125
-
-    m2p = 0.25 * (ML + 1.0) ** 2
-    m2m = -0.25 * (MR - 1.0) ** 2
-    m4p = xp.where(
-        xp.abs(ML) >= 1.0,
-        0.5 * (ML + xp.abs(ML)),
-        m2p * (1.0 + 4.0 * beta * (ML - 1.0) ** 2),
-    )
-    m4m = xp.where(
-        xp.abs(MR) >= 1.0,
-        0.5 * (MR - xp.abs(MR)),
-        m2m * (1.0 + 4.0 * beta * (MR + 1.0) ** 2),
-    )
-
-    rho_half = 0.5 * (rhoL + rhoR)
-    kp, ku, sigma = 0.25, 0.75, 1.0
-    mp = (
-        -(kp / fa) * xp.maximum(1.0 - sigma * mbar2, 0.0) * (pR - pL) / (rho_half * a_half * a_half)
-    )
-    m_half = m4p + m4m + mp
-
-    p5p = xp.where(
-        xp.abs(ML) >= 1.0,
-        0.5 * (1.0 + xp.sign(ML)),
-        m2p * ((2.0 - ML) + 4.0 * alpha * ML * (ML - 1.0) ** 2),
-    )
-    p5m = xp.where(
-        xp.abs(MR) >= 1.0,
-        0.5 * (1.0 - xp.sign(MR)),
-        -m2m * ((2.0 + MR) - 4.0 * alpha * MR * (MR + 1.0) ** 2),
-    )
-    p_half = p5p * pL + p5m * pR - ku * p5p * p5m * (rhoL + rhoR) * (fa * a_half) * (vnR - vnL)
-
-    forward = (m_half > 0.0)[..., None]
-    mdot = a_half * m_half * xp.where(m_half > 0.0, rhoL, rhoR)
-    psi = xp.where(
-        forward,
-        xp.stack([xp.ones_like(vxL), vxL, vyL, HL], axis=-1),
-        xp.stack([xp.ones_like(vxR), vxR, vyR, HR], axis=-1),
-    )
-    zero = xp.zeros_like(pL)
-    nvec = xp.stack([zero, nx + zero, ny + zero, zero], axis=-1)
-    flux = mdot[..., None] * psi + p_half[..., None] * nvec
-
-    aL = sound_speed(rhoL, pL, gamma, xp=xp)
-    aR = sound_speed(rhoR, pR, gamma, xp=xp)
-    return FluxResult(flux, xp.maximum(xp.abs(vnL) + aL, xp.abs(vnR) + aR))
-
-
-def slau2_flux(UL, UR, nx, ny, gamma: float, *, xp=np) -> FluxResult:
-    r"""SLAU2: the parameter-free AUSM-family flux of Shima and Kitamura.
-
-    Same split as AUSM\ :sup:`+`-up, but **every switch is built from the states
-    themselves**, so there is no constant to get wrong -- no :math:`K_p`, no
-    :math:`K_u`, and above all no :math:`M_{co}`.  That is the reason to carry
-    it alongside: it makes "did a tuning constant cause this?" a question that
-    can be answered rather than argued.
-
-    Kitamura and Shima's Eqs. (2.3) and (3.5):
-
-    .. math::
-        \dot{m} = \tfrac12\Bigl[\rho_L(v_{nL} + \lvert\overline{v_n}\rvert_L)
-                  + \rho_R(v_{nR} - \lvert\overline{v_n}\rvert_R)
-                  - \frac{\chi}{\bar{a}}\,\Delta p\Bigr],
-
-    with :math:`g` a function of the two Mach numbers,
-    :math:`\chi = (1 - \hat{M})^2`, and the pressure term carrying the
-    :math:`\sqrt{\cdot}` form that gives SLAU2 its shock robustness.
-    """
-    rhoL, vxL, vyL, pL, HL = primitives(UL, gamma, xp=xp)
-    rhoR, vxR, vyR, pR, HR = primitives(UR, gamma, xp=xp)
-    vnL = vxL * nx + vyL * ny
-    vnR = vxR * nx + vyR * ny
-    aL = sound_speed(rhoL, pL, gamma, xp=xp)
-    aR = sound_speed(rhoR, pR, gamma, xp=xp)
-    a_bar = 0.5 * (aL + aR)
-
-    ML = vnL / a_bar
-    MR = vnR / a_bar
-    g = -xp.maximum(xp.minimum(ML, 0.0), -1.0) * xp.minimum(xp.maximum(MR, 0.0), 1.0)
-
-    vn_abs = (rhoL * xp.abs(vnL) + rhoR * xp.abs(vnR)) / (rhoL + rhoR)
-    vn_abs_L = (1.0 - g) * vn_abs + g * xp.abs(vnL)
-    vn_abs_R = (1.0 - g) * vn_abs + g * xp.abs(vnR)
-
-    m_hat = xp.minimum(
-        1.0,
-        xp.sqrt(0.5 * (vxL * vxL + vyL * vyL + vxR * vxR + vyR * vyR)) / a_bar,
-    )
-    chi = (1.0 - m_hat) ** 2
-
-    mdot = 0.5 * (rhoL * (vnL + vn_abs_L) + rhoR * (vnR - vn_abs_R) - (chi / a_bar) * (pR - pL))
-
-    bp = xp.where(xp.abs(ML) >= 1.0, 0.5 * (1.0 + xp.sign(ML)), 0.25 * (ML + 1.0) ** 2 * (2.0 - ML))
-    bm = xp.where(xp.abs(MR) >= 1.0, 0.5 * (1.0 - xp.sign(MR)), 0.25 * (MR - 1.0) ** 2 * (2.0 + MR))
-    # SLAU2's pressure flux: the sqrt term is what makes it shock robust
-    p_half = (
-        0.5 * (pL + pR)
-        + 0.5 * (bp - bm) * (pL - pR)
-        + xp.sqrt(0.5 * (vxL * vxL + vyL * vyL + vxR * vxR + vyR * vyR))
-        * (bp + bm - 1.0)
-        * 0.5
-        * (rhoL + rhoR)
-        * a_bar
-    )
-
-    forward = (mdot > 0.0)[..., None]
-    psi = xp.where(
-        forward,
-        xp.stack([xp.ones_like(vxL), vxL, vyL, HL], axis=-1),
-        xp.stack([xp.ones_like(vxR), vxR, vyR, HR], axis=-1),
-    )
-    zero = xp.zeros_like(pL)
-    nvec = xp.stack([zero, nx + zero, ny + zero, zero], axis=-1)
-    flux = mdot[..., None] * psi + p_half[..., None] * nvec
-    return FluxResult(flux, xp.maximum(xp.abs(vnL) + aL, xp.abs(vnR) + aR))
-
-
 #: The approximate Riemann solvers, by the name :class:`~src.config.FlowConditions`
 #: uses.
 SOLVERS = {
     "roe": roe_flux,
     "hllc": hllc_flux,
-    "ausmup": ausmup_flux,
-    "slau2": slau2_flux,
 }
 
 
@@ -612,7 +403,6 @@ __all__ = [
     "FLOOR",
     "SOLVERS",
     "FluxResult",
-    "ausmup_flux",
     "conservative",
     "euler_flux",
     "farfield_flux",
@@ -622,7 +412,6 @@ __all__ = [
     "normal_flux",
     "primitives",
     "roe_flux",
-    "slau2_flux",
     "sound_speed",
     "wall_flux",
 ]
