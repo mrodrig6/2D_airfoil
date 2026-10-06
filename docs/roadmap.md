@@ -1,0 +1,83 @@
+# Roadmap
+
+The port is being done in five increments. Each one is a reviewable change that
+leaves the repository working, rather than one drop at the end.
+
+| | Increment | Status |
+|---|---|---|
+| **1** | **Scaffold, geometry, mesh** | **done** |
+| 2 | The solver | next |
+| 3 | Speed: the Numba backend | |
+| 4 | JAX, the adjoint, and angle-of-attack sensitivity | |
+| 5 | The Riemann-flux study, adaptive refinement, and the lab material | |
+
+## 1. Scaffold, geometry, mesh — done
+
+The MATLAB moved to [`../legacy/`](../legacy/) unchanged. The Python package
+describes a section and meshes it, and nothing more:
+
+* `src/config.py` — the free stream, the gas, the mesh resolution, and the
+  non-dimensionalisation
+* `src/geometry.py` — the NACA four-digit family; Selig and Lednicer coordinate
+  files; resampling
+* `src/mesh.py` — the O-grid, its triangulation, and connectivity
+* `src/meshio.py` — SU2 and Gmsh 2.2 meshes from elsewhere
+* `src/metrics.py` — areas, face lengths and normals
+* `src/plotting.py`, `src/cli.py`, `fv2d.sh`
+
+Nothing solves anything yet, on purpose: the geometry and the mesh are what the
+solver is built *on*, and they are worth getting exactly right while they are
+the only thing in the repository.
+
+## 2. The solver
+
+`physics.py` with all four approximate Riemann solvers (`roe`, `hllc`,
+`ausmup`, `slau2`), the inviscid wall and characteristic far-field boundary
+conditions, the vectorised NumPy residual, the local-time-step march, and
+`postprocess.py` with the corrected force integral. The checkpoint is
+`solve_airfoil(airfoil="0012", mach=0.8, alpha=1.25)` converging and returning
+$c_\ell$ and $c_d$, with the shock visible in the surface pressure.
+
+Reconstruction stays **piecewise constant** — exactly the legacy scheme. A
+higher-order reconstruction is a question for increment 3, not a default
+slipped in here.
+
+## 3. Speed: the Numba backend
+
+The whole march fused into one `nopython` kernel — residual, local time step and
+the Runge–Kutta update — called once per few hundred iterations so Python sees
+almost nothing. Assembly in gather form, each face flux computed from both
+sides, so `prange` is race-free without atomics.
+
+A genuinely higher-order reconstruction is decided here rather than assumed. The
+O-grid is structured, so dimensional WENO along grid lines is the real
+candidate, and it wants the quadrilateral grid rather than the triangulated one
+— which is an architectural choice, not a flag.
+
+## 4. JAX, the adjoint, and angle-of-attack sensitivity
+
+The same vectorised code under `jax.numpy`, with the march fused by
+`lax.fori_loop`, and `sensitivity.py` computing exact design gradients by the
+**discrete adjoint** — the implicit function theorem on $R(\vec U, \vec a) = 0$,
+with both Jacobian actions from `jax.vjp`, rather than taping thousands of
+iterations.
+
+Design variables are the angle of attack, the Mach number and the shape, the
+last through smooth parameterisations (four-digit $m$, $p$, $t$, and Hicks–Henne
+bumps). Gradients are verified against finite differences at a shock-free point,
+and the shock's effect on differentiability is documented rather than hidden.
+
+## 5. The study, adaptation, and the lab material
+
+**The Riemann-flux measurement** the companion nozzle code asked for: that
+project found Roe converged and the AUSM family did not, but its domain is
+shock-free by construction, so its conclusion explicitly does not transfer. This
+code has a shock on the body. Each flux is measured on the same operating point
+— residual history, converged $c_\ell$ and $c_d$, the shock position, wall time
+— and the result becomes `riemann_fluxes.md`.
+
+**Adaptive refinement** last, because conforming red–green refinement trades
+away the fixed array shapes that make increments 3 and 4 fast. The legacy
+Mach-jump indicator from `legacy/post_calc.m` is what drives it.
+
+Then the examples, the lab guide and the figures.

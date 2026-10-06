@@ -1,0 +1,6 @@
+# a small mesh that builds in well under a second, for trying something out
+airfoil=0012
+n_surface=96
+n_radial=40
+far_field_radius=15.0
+first_cell_height=5e-3

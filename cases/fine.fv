@@ -1,0 +1,4 @@
+# the transonic mesh, doubled around the section -- for a grid-convergence pair
+@transonic
+n_surface=384
+n_radial=96
