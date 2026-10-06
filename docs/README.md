@@ -18,6 +18,8 @@ stops matching the code is a one-command fix:
 ```bash
 ./fv2d.sh mesh @transonic figure=docs/figures/mesh.png
 ./fv2d.sh geometry airfoil=0012 figure=docs/figures/section.png normals=yes
+./fv2d.sh mesh topology=cgrid @transonic n_wake=32 wake_length=20 \
+    figure=docs/figures/cgrid.png window=-0.6,2.6,-0.9,0.9
 ```
 
 There is no figure build step and no CI checking them, so this is a **manual

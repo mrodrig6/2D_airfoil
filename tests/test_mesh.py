@@ -149,3 +149,111 @@ def test_cambered_and_thick_sections_mesh_without_folding(code, n_surface):
     mesh, _ = build_mesh(naca4(code, n_surface), disc)
     assert np.all(mesh.signed_areas() > 0.0)
     assert build_metrics(mesh).closure_error() < 1e-12
+
+
+# -- the C-grid -------------------------------------------------------------
+CGRID = Discretization(
+    topology="cgrid",
+    n_surface=48,
+    n_radial=24,
+    n_wake=12,
+    far_field_radius=10.0,
+    wake_length=10.0,
+    first_cell_height=0.02,
+)
+
+
+@pytest.fixture(scope="module")
+def cmesh(section):
+    return build_mesh(section, CGRID)
+
+
+def test_the_cgrid_is_a_valid_conforming_triangulation(cmesh):
+    mesh, _ = cmesh
+    mesh.validate()
+    assert mesh.n_elements == CGRID.n_elements
+    assert mesh.n_nodes == CGRID.n_nodes
+    assert np.all(mesh.signed_areas() > 0.0)
+    assert 3 * mesh.n_elements == 2 * mesh.n_interior_edges + mesh.n_boundary_edges
+
+
+def test_the_wake_cut_is_interior_and_needs_no_boundary_condition(cmesh, section):
+    """The point of sharing the cut's nodes: its faces have an element each side."""
+    mesh, _ = cmesh
+    metrics = build_metrics(mesh)
+    mid = metrics.boundary_midpoint
+    on_cut = (
+        (mid[:, 0] > section.points[0, 0] + 1e-6)
+        & (mid[:, 0] < CGRID.wake_length - 1e-9)
+        & (np.abs(mid[:, 1] - section.points[0, 1]) < 1e-9)
+    )
+    assert not on_cut.any()
+
+
+def test_the_cgrid_boundaries_are_the_section_and_everything_outside(cmesh):
+    mesh, _ = cmesh
+    assert mesh.n_faces_on(BoundaryTag.WALL) == CGRID.n_surface
+    # the outer C, plus an outflow leg above and below the cut
+    assert mesh.n_faces_on(BoundaryTag.FARFIELD) == CGRID.n_columns + 2 * CGRID.n_radial
+
+
+def test_the_outflow_plane_is_flat(cmesh):
+    """Both legs must be exactly vertical, which is what anchoring the fan at
+    *both* ends buys; a running maximum alone bows the lower one."""
+    mesh, _ = cmesh
+    metrics = build_metrics(mesh)
+    on_plane = np.abs(metrics.boundary_midpoint[:, 0] - CGRID.wake_length) < 1e-9
+    assert on_plane.sum() == 2 * CGRID.n_radial
+    assert np.allclose(np.abs(metrics.boundary_normal[on_plane, 0]), 1.0)
+
+
+def test_the_cgrid_metrics_close(cmesh, section):
+    mesh, _ = cmesh
+    metrics = build_metrics(mesh)
+    assert metrics.closure_error() < 1e-12
+    assert np.allclose(
+        np.sort(mesh.node_coords[mesh.boundary_nodes(BoundaryTag.WALL)], axis=0),
+        np.sort(section.points, axis=0),
+    )
+
+
+def test_the_cgrid_resolves_the_wake_without_the_ogrid_fan(section):
+    """The reason the topology exists.  An O-grid's lines radiate from the
+    trailing edge, so cells behind it are stretched across the wake; a C-grid's
+    run along it."""
+    o_disc = Discretization(
+        n_surface=48, n_radial=24, far_field_radius=10.0, first_cell_height=0.02
+    )
+    counts = {}
+    for name, disc in (("ogrid", o_disc), ("cgrid", CGRID)):
+        mesh, _ = build_mesh(section, disc)
+        centre = mesh.node_coords[mesh.elements].mean(axis=1)
+        wake = (centre[:, 0] > 1.1) & (centre[:, 0] < 4.0) & (np.abs(centre[:, 1]) < 0.4)
+        counts[name] = int(wake.sum())
+    assert counts["cgrid"] > 1.5 * counts["ogrid"]
+
+
+def test_the_fan_is_made_monotone_only_where_it_has_to_be():
+    """Enforcing monotonicity must not disturb the leading edge, which is where
+    wall orthogonality earns its keep."""
+    from src.mesh import fan_monotonically
+
+    turning = np.array([90.0, 90.0, 85.9, 81.7, 81.8, 100.0, 140.0, 180.0])
+    angles = np.radians(turning)
+    fixed = fan_monotonically(np.stack([np.cos(angles), np.sin(angles)], axis=-1))
+    out = np.degrees(np.unwrap(np.arctan2(fixed[:, 1], fixed[:, 0])))
+    assert np.all(np.diff(out) >= -1e-9)  # monotone
+    assert np.allclose(out[5:], turning[5:])  # untouched past the dip
+    assert out[0] == pytest.approx(turning[0]) and out[-1] == pytest.approx(turning[-1])
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("code", ["0012", "2412", "23012"])
+def test_both_topologies_build_at_full_size(code):
+    from src import naca
+
+    section = naca(code, 192)
+    for topology in ("ogrid", "cgrid"):
+        mesh, _ = build_mesh(section, Discretization(topology=topology))
+        assert np.all(mesh.signed_areas() > 0.0)
+        assert build_metrics(mesh).closure_error() < 1e-12

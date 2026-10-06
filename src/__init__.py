@@ -24,9 +24,10 @@ Layout
 =========================  ==================================================
 :mod:`~src.config`         the free stream, the gas, and the mesh resolution;
                            the non-dimensionalisation is documented here
-:mod:`~src.geometry`       the NACA four-digit family, and coordinates read
-                           from a file
-:mod:`~src.mesh`           O-grid generation, triangulation, connectivity
+:mod:`~src.geometry`       the NACA four- and five-digit families, and
+                           coordinates read from a file
+:mod:`~src.mesh`           O-grid and C-grid generation, triangulation,
+                           connectivity
 :mod:`~src.meshio`         meshes generated elsewhere (SU2, Gmsh)
 :mod:`~src.metrics`        areas, face lengths and normals
 :mod:`~src.plotting`       matplotlib figures
@@ -42,12 +43,14 @@ from __future__ import annotations
 
 __version__ = "0.1.0"
 
-from .config import BACKENDS, FLUXES, Discretization, FlowConditions
+from .config import BACKENDS, FLUXES, TOPOLOGIES, Discretization, FlowConditions
 from .geometry import (
     CLUSTERINGS,
     Airfoil,
     load_airfoil,
+    naca,
     naca4,
+    naca5,
     read_dat,
     resample,
     surface_normals,
@@ -55,9 +58,11 @@ from .geometry import (
 )
 from .mesh import (
     BoundaryTag,
+    CGrid,
     MeshTopology,
     OGrid,
     build_mesh,
+    generate_cgrid,
     generate_ogrid,
     radial_distribution,
     triangulate,
@@ -72,10 +77,13 @@ __all__ = [
     "Discretization",
     "BACKENDS",
     "FLUXES",
+    "TOPOLOGIES",
     "CLUSTERINGS",
     # geometry
     "Airfoil",
+    "naca",
     "naca4",
+    "naca5",
     "load_airfoil",
     "read_dat",
     "write_dat",
@@ -83,9 +91,11 @@ __all__ = [
     "surface_normals",
     # mesh
     "BoundaryTag",
+    "CGrid",
     "MeshTopology",
     "OGrid",
     "build_mesh",
+    "generate_cgrid",
     "generate_ogrid",
     "triangulate",
     "radial_distribution",

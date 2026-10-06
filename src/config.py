@@ -54,6 +54,9 @@ import numpy as np
 #: Backends the solver can execute on, fastest first.  See ``src.backends``.
 BACKENDS = ("numba", "numpy", "jax")
 
+#: Mesh topologies.  See :mod:`src.mesh`.
+TOPOLOGIES = ("ogrid", "cgrid")
+
 #: Interface fluxes.  All four are approximate Riemann solvers in the sense that
 #: they take a left and a right state and return a single upwind face flux; the
 #: AUSM-family pair reach it by splitting rather than by linearising a Riemann
@@ -160,6 +163,19 @@ class Discretization:
 
     Parameters
     ----------
+    topology
+        ``'ogrid'`` wraps a single closed loop around the section out to a
+        circular far field.  ``'cgrid'`` instead cuts along the wake: the grid
+        runs from the downstream outflow plane up the cut, around the section,
+        and back down the cut, so cells **behind** the trailing edge are aligned
+        with the wake rather than fanning out of it.  The C-grid costs
+        ``2 * n_wake`` extra columns and is the better topology when the wake
+        matters; the O-grid is smaller and simpler.  See :mod:`src.mesh`.
+    n_wake
+        C-grid only: cells along the wake cut, on each side of it.
+    wake_length
+        C-grid only: where the wake cut ends and the downstream outflow plane
+        sits, in chords from the leading edge.
     n_surface
         Points around the airfoil.  Must be even so that a symmetric airfoil
         gets a point exactly at the leading edge.
@@ -195,8 +211,11 @@ class Discretization:
         trailing edge, ``'uniform'`` does not.
     """
 
+    topology: str = "ogrid"
     n_surface: int = 192
     n_radial: int = 64
+    n_wake: int = 32
+    wake_length: float = 20.0
     far_field_radius: float = 20.0
     far_field_centre: tuple[float, float] = (0.5, 0.0)
     first_cell_height: float = 2.0e-3
@@ -205,6 +224,16 @@ class Discretization:
     clustering: str = "cosine"
 
     def __post_init__(self) -> None:
+        if self.topology not in TOPOLOGIES:
+            raise ValueError(f"unknown topology {self.topology!r}; use one of {TOPOLOGIES}")
+        if self.topology == "cgrid":
+            if self.n_wake < 2:
+                raise ValueError(f"n_wake must be at least 2, got {self.n_wake}")
+            if self.wake_length <= 2.0:
+                raise ValueError(
+                    f"wake_length must put the outflow plane more than 2 chords aft of "
+                    f"the leading edge, got {self.wake_length}"
+                )
         if self.n_surface < 16 or self.n_surface % 2:
             raise ValueError(f"n_surface must be even and at least 16, got {self.n_surface}")
         if self.n_radial < 4:
@@ -223,11 +252,31 @@ class Discretization:
             raise ValueError(f"unknown clustering {self.clustering!r}; use cosine or uniform")
 
     @property
+    def n_columns(self) -> int:
+        """Quadrilateral columns around the section.
+
+        The O-grid's index wraps, so it has one column per surface point.  The
+        C-grid's does not: it runs ``n_wake`` columns down the cut, ``n_surface``
+        around the section and ``n_wake`` back up the other side of the cut.
+        """
+        if self.topology == "cgrid":
+            return 2 * self.n_wake + self.n_surface
+        return self.n_surface
+
+    @property
     def n_elements(self) -> int:
         """Triangles in the mesh: two per quadrilateral cell."""
-        return 2 * self.n_surface * self.n_radial
+        return 2 * self.n_columns * self.n_radial
 
     @property
     def n_nodes(self) -> int:
-        """Nodes in the mesh.  The surface loop is periodic, so there is no seam."""
+        """Nodes in the mesh.
+
+        The O-grid's surface index is periodic, so there is no seam.  The
+        C-grid's wake-cut nodes at ``j = 0`` are **shared** between the two sides
+        of the cut -- which is what makes the cut an ordinary interior interface
+        rather than a boundary needing a condition -- so one row is short.
+        """
+        if self.topology == "cgrid":
+            return (self.n_wake + self.n_surface) + self.n_radial * (self.n_columns + 1)
         return self.n_surface * (self.n_radial + 1)

@@ -230,6 +230,7 @@ lower → leading edge → upper.
 
 ### The NACA four-digit family
 
+
 For a section `MPXX` with thickness ratio $t = XX/100$, the half-thickness is
 
 $$
@@ -306,6 +307,49 @@ which packs points at the leading edge, where the curvature is, and at the
 trailing edge, where the pressure recovery is steepest.
 
 ---
+
+### The NACA five-digit family
+
+The digits are `LPSTT`: $L$ sets the design lift coefficient as
+$c_{\ell,\text{design}} = 0.15 L$, $P$ puts the camber crest at $x/c = P/20$,
+$S$ selects a plain (0) or reflexed (1) camber line, and $TT$ is the thickness
+in per cent. The thickness distribution is the **same quartic** as the
+four-digit family; only the camber line differs, and it is a cubic forward of
+the crest and straight behind it:
+
+$$
+y_c = \begin{cases}
+  \dfrac{k_1}{6}\left(x^3 - 3mx^2 + m^2(3-m)x\right), & x \le m,\\[3mm]
+  \dfrac{k_1 m^3}{6}\left(1 - x\right), & x > m .
+\end{cases}
+$$
+
+That is the point of the family: it puts the camber well forward, so the
+aerodynamic centre moves far less with lift than a four-digit section's does. A
+**reflexed** line ($S = 1$) adds a slight upward turn at the tail, which nulls
+the pitching moment:
+
+$$
+y_c = \frac{k_1}{6}\begin{cases}
+  (x-m)^3 - \frac{k_2}{k_1}(1-m)^3 x - m^3 x + m^3, & x \le m,\\[2mm]
+  \frac{k_2}{k_1}(x-m)^3 - \frac{k_2}{k_1}(1-m)^3 x - m^3 x + m^3, & x > m .
+\end{cases}
+$$
+
+$m$ and $k_1$ are **not free parameters**. They are tabulated against $P$
+(Abbott & von Doenhoff, Table 6.1), chosen so the crest lands at $P/20$ and the
+design lift comes out right, and only five positions exist — four for a
+reflexed line. A code naming any other is **refused rather than interpolated**:
+an interpolated five-digit section is not a NACA section, and inventing one
+silently would be worse than saying no.
+
+NACA 23012 is the canonical one, and is what the test checks: 0.3 design lift,
+crest at 15% chord, 12% thick. Measured from the generated surface, the crest
+sits at $x/c = 0.1499$ with camber 0.01839, against the published 0.15 and
+~0.0183.
+
+The six-series and the modified four-digit sections have no closed form here;
+read those from a coordinate file.
 
 ## 5. Mesh generation
 
@@ -439,24 +483,89 @@ here, and `build_metrics` refuses to return if it is not at round-off.
 
 ![The default 192x64 O-grid, framed on the section](figures/mesh.png)
 
-### Limitations of the O-grid
+### The C-grid
 
-Worth stating plainly, because they are design choices and not oversights:
+An O-grid's radial lines all radiate from the trailing edge, so cells behind the
+section fan out *across* the wake rather than running along it. The C-grid
+exists to remove that: it **cuts along the wake**, running from a downstream
+outflow plane up one side of the cut, around the section, and back down the
+other side.
 
-* **The wake is not wrapped.** A C-grid wraps its grid lines around the wake
-  downstream of the trailing edge; an O-grid's lines radiate from it, so cells
-  behind the section are stretched and skewed. For an inviscid solve this costs
-  much less than it would with a viscous wake to resolve, but it is the main
-  reason to reach for a different topology, and reading an external C-grid
-  through `src/meshio.py` is the escape hatch.
+![The C-grid near the trailing edge: cells run along the wake, not out of it](figures/cgrid.png)
+
+The cut itself is **not a boundary**. At $j = 0$ its two sides are the same
+physical points and are given the same node number, so the cells above and
+below it are ordinary interior neighbours sharing a face. Nothing in the solver
+knows the cut is there. Above $j = 0$ the two sides separate, and the two
+radial lines leaving the trailing edge run to opposite ends of the outer
+boundary — that is the cut opening up, and it is what an O-grid cannot do.
+
+Three things about it were found by measurement rather than by design, and each
+is worth recording because each looked like something else first.
+
+**The marching fan has to be monotone.** Marching along the surface normal fails
+here, and not for a tunable reason. The wake cut's own normal is straight up;
+the upper surface leaves a sharp trailing edge sloping **aft** — $8.3^\circ$ for
+a NACA 0012 — so its normal tilts aft too, while the stations march forward. The
+direction field therefore *dips* by a few degrees at the junction and climbs
+back. The two stations either side are one short wake panel apart, so a
+$4^\circ$ dip closes that gap after 0.05 chords of a 20-chord march and the
+cells invert. Sweeping the blend exponent over its whole range changed the fold
+count from 122 to 220 and never to zero; smoothing the normals does not help
+either, because the dip is real rather than noise. What works is requiring the
+fan to turn one way — the running maximum of the unwrapped angle, **anchored at
+both ends**. Anchoring only the start flattens the first dip but carries the
+second outward with it, which leans the far end of the cut and bows the outflow
+plane off vertical. The cost is bounded: only the rear of each surface moves,
+between the trailing edge and the point of maximum thickness, and the largest
+correction is the trailing-edge slope itself. The leading-edge region, where
+orthogonality earns its keep, is left exactly alone.
+
+**The outer legs need their own spacing.** Reusing the wake cut's distribution
+for the straight legs is the obvious thing and it is wrong: the cut clusters
+hard at the trailing edge, so the outer spacing falls to 0.0033 right where the
+arc's is 0.327, and a hundredfold jump between neighbouring columns leaves a
+$0.03^\circ$ sliver at the far field. Starting each leg at the arc's spacing
+keeps the two sides of that junction within a factor of two.
+
+**The first cell is a wall height, and the cut has no wall.** Sharing one value
+puts a 0.002-tall cell under a station 3.8 chords long far downstream — aspect
+ratio 1900, which triangulates into $0.03^\circ$ slivers and, worse, collapses
+the local time step through the hydraulic diameter across the whole wake.
+Capping the first cell's aspect ratio leaves every station on the section
+untouched, since their panels are far shorter than the cap allows, and opens
+the wake out to match its own streamwise spacing.
+
+### Choosing a topology
+
+Measured on a NACA 0012 at $192 \times 64$, equiangle skewness (0 is
+equilateral, 1 a degenerate sliver):
+
+| | cells | worst skew | min angle | cells in the wake | wake skew (median) |
+|---|---|---|---|---|---|
+| **O-grid** | 24 576 | 0.961 | $2.3^\circ$ | 1 936 | 0.846 |
+| **C-grid** | 32 768 | 0.974 | $1.5^\circ$ | 3 242 | 0.797 |
+
+The C-grid costs a third more cells and puts two thirds more of them in the
+wake, at better quality there; the O-grid is smaller and marginally better in
+its worst cell. **Which one is right is a question about the answer, not about
+the mesh**, and it is answerable only once the solver can produce one. Until
+then the O-grid is the default because it is the smaller of the two.
+
+### What a structured mesh costs
+
 * **Resolution is uniform in index, not in error.** There is no flagged
   refinement, so a shock is resolved by whatever `n_surface` and `n_radial`
   provide there. Adaptive refinement is on the roadmap for last, precisely
   because it trades away the fixed array shapes that make the fast backends
   fast.
-* **The far-field boundary is an $N$-gon**, not a circle. Its area is
+* **The far-field boundary is a polygon**, not a circle. The O-grid's area is
   $\tfrac12 N R^2 \sin(2\pi/N)$, which is what the area test compares against —
   $\pi R^2$ would be wrong by $0.02\%$ at $N = 192$.
+* **Skewness is the wrong metric to read alone.** A right isoceles triangle,
+  which is what splitting a square gives, already scores 0.25, and one from a
+  2:1 rectangle scores 0.56. The numbers above are comparable with each other
+  and not with an unstructured mesher's.
 
 ---
 

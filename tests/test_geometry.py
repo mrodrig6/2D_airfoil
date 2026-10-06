@@ -122,3 +122,111 @@ def test_load_airfoil_resolves_a_code_and_a_path(section, tmp_path):
     assert geo.load_airfoil(path, 64).n_points == 64
     with pytest.raises(ValueError, match="cannot resolve"):
         geo.load_airfoil("not-an-airfoil")
+
+
+# -- the five-digit family --------------------------------------------------
+def naca5_camber(code, x):
+    """The five-digit camber line, written out so the test is independent."""
+    from src.geometry import _NACA5_PLAIN, _NACA5_REFLEXED
+
+    lift, position, reflexed = int(code[0]), int(code[1]), int(code[2])
+    scale = 0.15 * lift / 0.3
+    if reflexed:
+        m, k1, ratio = _NACA5_REFLEXED[position]
+        k1 *= scale
+        tail = ratio * (1 - m) ** 3 + m**3
+        return (k1 / 6) * np.where(
+            x <= m, (x - m) ** 3 - tail * x + m**3, ratio * (x - m) ** 3 - tail * x + m**3
+        )
+    m, k1 = _NACA5_PLAIN[position]
+    k1 *= scale
+    return (k1 / 6) * np.where(x <= m, x**3 - 3 * m * x**2 + m * m * (3 - m) * x, m**3 * (1 - x))
+
+
+@pytest.mark.parametrize("code", ["12012", "23012", "24012", "25012", "43012", "23112", "25112"])
+def test_the_five_digit_crest_lands_where_the_second_digit_says(code):
+    """The tabulated m and k1 exist to put the crest at P/20; check that they do."""
+    x = np.linspace(0.0, 1.0, 200_001)
+    camber = naca5_camber(code, x)
+    assert abs(x[np.argmax(np.abs(camber))] - int(code[1]) / 20) < 2e-3
+
+
+def test_naca23012_matches_the_published_section():
+    """0.3 design lift, crest at 15% chord, 12% thick -- the canonical one."""
+    x = np.linspace(0.0, 1.0, 200_001)
+    assert naca5_camber("23012", x).max() == pytest.approx(0.0183, abs=1e-4)
+    section = geo.naca5("23012", 400)
+    xs, thickness, _ = section.thickness_and_camber(2000)
+    assert thickness.max() == pytest.approx(0.12, abs=5e-4)
+    assert xs[np.argmax(thickness)] == pytest.approx(0.30, abs=0.01)
+    assert section.is_sharp and section.area > 0.0
+
+
+def test_the_generated_five_digit_surface_sits_on_its_camber_line():
+    section = geo.naca5("23012", 400)
+    x, _, camber = section.thickness_and_camber(800)
+    inside = (x > 0.05) & (x < 0.95)  # the leading edge is a sqrt, not a polynomial
+    assert np.abs(camber[inside] - naca5_camber("23012", x[inside])).max() < 2e-3
+
+
+def test_the_reflexed_camber_line_turns_up_at_the_tail():
+    """Which is the point of the third digit: it is what nulls the pitching moment."""
+    x = np.linspace(0.0, 1.0, 2001)
+    plain, reflexed = naca5_camber("23012", x), naca5_camber("23112", x)
+    assert np.interp(0.9, x, reflexed) < np.interp(0.9, x, plain)
+    assert plain.max() > 0.0 and reflexed.max() > 0.0
+
+
+@pytest.mark.parametrize(
+    "code,message",
+    [
+        ("26012", "camber position 6 is not tabulated"),
+        ("21112", "camber position 1 is not tabulated"),
+        ("23212", "plain .0. or reflexed .1."),
+        ("2301", "not a NACA five-digit code"),
+    ],
+)
+def test_an_untabulated_five_digit_section_is_refused(code, message):
+    """Interpolating the table would produce something that is not a NACA section."""
+    with pytest.raises(ValueError, match=message):
+        geo.naca5(code)
+
+
+@pytest.mark.parametrize(
+    "code,name",
+    [
+        ("0012", "NACA 0012"),
+        ("naca 2412", "NACA 2412"),
+        ("23012", "NACA 23012"),
+        ("NACA-23112", "NACA 23112"),
+    ],
+)
+def test_naca_dispatches_on_the_digit_count(code, name):
+    assert geo.naca(code, 64).name == name
+
+
+@pytest.mark.parametrize("code", ["63-012", "sc20612", "012"])
+def test_naca_refuses_what_it_has_no_closed_form_for(code):
+    with pytest.raises(ValueError, match="six-series"):
+        geo.naca(code)
+
+
+def test_load_airfoil_takes_a_five_digit_code_too():
+    assert geo.load_airfoil("23012", 96).name == "NACA 23012"
+
+
+def test_normals_of_an_open_path_do_not_wrap_around():
+    """The C-grid's inner path is open, and joining its ends would put a normal
+    where the outflow boundary is.
+
+    An L: right along the x axis, then up.  Each end must take its own single
+    edge's normal; only the corner is a bisector.
+    """
+    path = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]])
+    n = geo.surface_normals(path, closed=False)
+    assert np.allclose(n[0], [0.0, -1.0])  # from the first edge alone
+    assert np.allclose(n[-1], [1.0, 0.0])  # from the last edge alone
+    assert np.allclose(n[1], [np.sqrt(0.5), -np.sqrt(0.5)])  # the corner bisects
+    closed = geo.surface_normals(path, closed=True)
+    assert not np.allclose(closed[0], n[0])  # wrapping changes both ends
+    assert not np.allclose(closed[-1], n[-1])

@@ -6,6 +6,7 @@ leaves the repository working, rather than one drop at the end.
 | | Increment | Status |
 |---|---|---|
 | **1** | **Scaffold, geometry, mesh** | **done** |
+| 1b | Five-digit sections, and the C-grid topology | **done** |
 | 2 | The solver | next |
 | 3 | Speed: the Numba backend | |
 | 4 | JAX, the adjoint, and angle-of-attack sensitivity | |
@@ -18,9 +19,10 @@ describes a section and meshes it, and nothing more:
 
 * `src/config.py` — the free stream, the gas, the mesh resolution, and the
   non-dimensionalisation
-* `src/geometry.py` — the NACA four-digit family; Selig and Lednicer coordinate
-  files; resampling
-* `src/mesh.py` — the O-grid, its triangulation, and connectivity
+* `src/geometry.py` — the NACA four- and five-digit families; Selig and
+  Lednicer coordinate files; resampling
+* `src/mesh.py` — the O-grid and the C-grid, their triangulation, and
+  connectivity
 * `src/meshio.py` — SU2 and Gmsh 2.2 meshes from elsewhere
 * `src/metrics.py` — areas, face lengths and normals
 * `src/plotting.py`, `src/cli.py`, `fv2d.sh`

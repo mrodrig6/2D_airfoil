@@ -53,9 +53,22 @@ difference between the two codes, and
 [`../docs/theory.md`](../docs/theory.md#mesh-generation) gives the construction
 and what it trades away.
 
+Two topologies are available — an O-grid and a C-grid — and the solver sees
+only the triangles either produces, so the choice is one option rather than a
+fork in the code.
+
 The flagged refinement of `adaptmesh.m` goes with it. The Mach-jump indicator
 from `post_calc.m` is kept for a later increment; until then resolution is set
 by `n_surface` and `n_radial`.
+
+Worth noting what the legacy's mesh did and did not have, since it is the
+obvious comparison. `initmesh` produces a roughly isotropic unstructured
+triangulation, so it has no trailing-edge fan — but it has no wall clustering
+either, and the legacy never resolved the surface to anything like the
+$2\times10^{-3}$ chords used here. Its answer to resolution was *adaptation*:
+three iterations refining 5% of cells on the Mach jump. The trade here is
+different rather than strictly better — wall resolution and fixed array shapes,
+which Numba and JAX need, in exchange for structure.
 
 ### The force integral was wrong
 

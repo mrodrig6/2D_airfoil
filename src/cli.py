@@ -20,9 +20,9 @@ from pathlib import Path
 import numpy as np
 
 from . import __version__
-from .config import Discretization, FlowConditions
+from .config import TOPOLOGIES, Discretization, FlowConditions
 from .geometry import CLUSTERINGS, load_airfoil, write_dat
-from .mesh import build_mesh
+from .mesh import CGrid, build_mesh
 from .meshio import read_mesh, write_su2
 from .metrics import build_metrics
 
@@ -53,6 +53,25 @@ def _add_geometry_options(parser: argparse.ArgumentParser) -> None:
 
 def _add_mesh_options(parser: argparse.ArgumentParser) -> None:
     d = Discretization
+    parser.add_argument(
+        "--topology",
+        choices=TOPOLOGIES,
+        default=d.topology,
+        help="'ogrid' wraps a loop round the section; 'cgrid' cuts along the wake "
+        "(default: %(default)s)",
+    )
+    parser.add_argument(
+        "--n-wake",
+        type=int,
+        default=d.n_wake,
+        help="cgrid: cells along each side of the wake cut (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--wake-length",
+        type=float,
+        default=d.wake_length,
+        help="cgrid: outflow plane, in chords (default: %(default)s)",
+    )
     parser.add_argument(
         "--n-radial",
         type=int,
@@ -93,6 +112,9 @@ def _add_mesh_options(parser: argparse.ArgumentParser) -> None:
 
 def _discretization(args: argparse.Namespace) -> Discretization:
     return Discretization(
+        topology=args.topology,
+        n_wake=args.n_wake,
+        wake_length=args.wake_length,
         n_surface=args.n_surface,
         n_radial=args.n_radial,
         far_field_radius=args.far_field_radius,
@@ -152,6 +174,8 @@ def cmd_mesh(args: argparse.Namespace) -> int:
         mesh, grid = build_mesh(airfoil, _discretization(args))
         heights = grid.first_cell_heights()
         print(f"  first cell height {heights.min():.3e} to {heights.max():.3e} chords")
+        if isinstance(grid, CGrid):
+            print(f"  first wake cell   {grid.first_wake_cell():.3e} chords")
     metrics = build_metrics(mesh)
     print(mesh.summary())
     print(f"  {metrics.summary()}")

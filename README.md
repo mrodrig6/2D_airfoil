@@ -41,8 +41,9 @@ cd 2D_airfoil
 install` adds them all. The other commands available today:
 
 ```bash
-./fv2d.sh geometry airfoil=2412 figure=section.png normals=yes
+./fv2d.sh geometry airfoil=23012 figure=section.png normals=yes
 ./fv2d.sh geometry airfoil=my_design.dat     # anything XFOIL wrote
+./fv2d.sh mesh topology=cgrid @transonic     # a C-grid instead
 ./fv2d.sh flow mach=0.8 alpha=1.25           # the non-dimensional free stream
 ./fv2d.sh mesh mesh=external.su2             # a mesh from somewhere else
 ```
@@ -68,15 +69,19 @@ that did run failed.
 
 ## What it does
 
-**Describes a section.** The NACA four-digit family generated analytically, or
-coordinates read from a file — Selig or Lednicer, which is what XFOIL and every
-airfoil database write. An externally designed section is a first-class input,
-not a special case. → [`docs/theory.md`](docs/theory.md#airfoil-geometry)
+**Describes a section.** The NACA **four- and five-digit** families generated
+analytically, or coordinates read from a file — Selig or Lednicer, which is
+what XFOIL and every airfoil database write. An externally designed section is
+a first-class input, not a special case.
+→ [`docs/theory.md`](docs/theory.md#airfoil-geometry)
 
-**Meshes it.** A body-fitted O-grid, wall-orthogonal at the surface and landing
-exactly on a circular far field, split into triangles. The MATLAB this replaces
-had no mesher — it called the PDE Toolbox — so this is the one genuinely new
-part of the port. → [`docs/theory.md`](docs/theory.md#mesh-generation)
+**Meshes it, two ways.** A body-fitted **O-grid** — wall-orthogonal at the
+surface, landing exactly on a circular far field — or a **C-grid**, which cuts
+along the wake so cells behind the trailing edge run *with* it instead of
+fanning out of it. Both split into triangles, and the solver sees only the
+triangles, so the topology is one option. The MATLAB this replaces had no
+mesher — it called the PDE Toolbox — so this is the one genuinely new part of
+the port. → [`docs/theory.md`](docs/theory.md#mesh-generation)
 
 **Reads someone else's mesh.** SU2 and Gmsh 2.2, with the boundary markers
 mapped onto this code's two boundary conditions, and a loud refusal rather than
@@ -115,7 +120,7 @@ solver *is*.
 | 4 | **Two-dimensional**, unit span | A section, not a wing. No induced drag, and no three-dimensional relief of the shock |
 | 5 | **Sharp trailing edge, no Kutta condition imposed** | Circulation is set by the discretisation at the trailing edge rather than by an explicit condition — which is standard for an Euler solver, and is the reason trailing-edge resolution affects lift |
 | 6 | **Non-dimensional throughout** | No SI anywhere. Compare runs with `cl` and `cd`, not raw forces |
-| 7 | **O-grid topology** | The wake is not wrapped by the grid the way a C-grid would wrap it, so cells downstream of the trailing edge are stretched. For an inviscid solve this costs far less than it would with viscosity, but it is a real limitation — see [`docs/theory.md`](docs/theory.md#limitations-of-the-o-grid) |
+| 7 | **The mesh is structured** | Resolution is set by `n_surface` and `n_radial`, not by an error indicator, so a shock is resolved by whatever the grid provides there. Both an O-grid and a C-grid are available — see [`docs/theory.md`](docs/theory.md#choosing-a-topology) |
 
 ---
 

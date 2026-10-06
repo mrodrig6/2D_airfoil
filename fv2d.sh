@@ -163,7 +163,10 @@ translate() {
                     no|false|off|0) continue ;;
                 esac ;;
         esac
-        out+=("--$key" "$value")
+        # `--key=value`, not `--key value`: a value that starts with a minus --
+        # a negative coordinate in `window=-0.6,2.6,-0.9,0.9`, say -- looks like
+        # another flag when it is a separate argument, and argparse rejects it.
+        out+=("--$key=$value")
     done
     TRANSLATED=(${out[@]+"${out[@]}"})
 }

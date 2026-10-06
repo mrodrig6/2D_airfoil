@@ -111,7 +111,8 @@ from src import load_airfoil, naca4, read_dat, resample, write_dat
 
 | | |
 |---|---|
-| `naca4("2412", 192)` | generate a four-digit section directly at 192 points |
+| `naca("2412", 192)` | generate a NACA section, four- or five-digit, at 192 points |
+| `naca4("2412", 192)` / `naca5("23012", 192)` | either family explicitly |
 | `read_dat("s1223.dat")` | read a Selig or Lednicer file, told apart automatically |
 | `load_airfoil(spec, n)` | either of the above, chosen by what `spec` looks like |
 | `resample(section, 256)` | redistribute an existing section |
@@ -128,6 +129,25 @@ True
 >>> upper, lower = section.sides()      # both run leading edge -> trailing edge
 ```
 
+### The five-digit family
+
+`LPSTT`: design lift $0.15L$, camber crest at $P/20$, plain (`S=0`) or reflexed
+(`S=1`), $TT$% thick. `naca5("23012")` is the canonical one.
+
+The tabulated camber positions are the only ones that exist — `P` of 1–5 plain,
+2–5 reflexed — and anything else is **refused rather than interpolated**, since
+an interpolated five-digit section is not a NACA section:
+
+```
+NACA 26012: camber position 6 is not tabulated for a plain five-digit camber
+line.  Available: [1, 2, 3, 4, 5], putting the crest at
+[0.05, 0.1, 0.15, 0.2, 0.25] chord.
+```
+
+The six-series (`63-012`) and modified four-digit (`0012-64`) sections have no
+closed form here. Read those from a coordinate file — every airfoil database
+publishes them.
+
 `closed_trailing_edge=False` selects the original open four-digit polynomial.
 The section then carries a **second** point at the trailing edge — the other
 corner of the base — so it comes back with `n_points + 1`.
@@ -138,7 +158,7 @@ default.
 
 | option | meaning | default |
 |---|---|---|
-| `airfoil` | a four-digit code, or a path to a `.dat` file | `0012` |
+| `airfoil` | a four- or five-digit NACA code, or a path to a `.dat` file | `0012` |
 | `n_surface` | points around the section; must be even | 192 |
 | `clustering` | `cosine` (clusters at both edges) or `uniform` | `cosine` |
 
@@ -178,6 +198,8 @@ Discretization(
     growth_limit=1.25,  # largest cell-to-cell radial growth
     orthogonality=2.0,  # wall-normal to radial blend exponent
     clustering="cosine",
+    n_wake=32,  # cgrid only: cells along each side of the cut
+    wake_length=20.0,  # cgrid only: the outflow plane, in chords
 )
 ```
 
