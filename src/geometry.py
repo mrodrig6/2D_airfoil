@@ -362,6 +362,57 @@ def _offset_from_camber(
     return normalise(_close_loop(upper, lower), name=name)
 
 
+def naca_section(
+    camber: float,
+    camber_position: float,
+    thickness: float,
+    n_points: int = 192,
+    *,
+    clustering: str = "cosine",
+    closed_trailing_edge: bool = True,
+    name: str | None = None,
+) -> Airfoil:
+    r"""A four-digit section from **continuous** parameters rather than digits.
+
+    :func:`naca4` is this with the three numbers parsed out of a code, and is
+    what to use when the section has a name.  This one exists because a shape
+    derivative needs :math:`m`, :math:`p` and :math:`t` to vary continuously --
+    ``"0012"`` cannot be perturbed by :math:`10^{-6}`.
+
+    Parameters
+    ----------
+    camber
+        Maximum camber :math:`m`, as a fraction of chord (the first digit / 100).
+    camber_position
+        Its chordwise position :math:`p` (the second digit / 10).
+    thickness
+        Thickness ratio :math:`t` (the last two digits / 100).
+    """
+    if thickness <= 0.0:
+        raise ValueError(f"thickness must be positive, got {thickness}")
+    if camber != 0.0 and not 0.0 < camber_position < 1.0:
+        raise ValueError(f"a cambered section needs 0 < camber_position < 1, got {camber_position}")
+    x = side_distribution(_check_n_points(n_points) // 2, clustering)
+    yt = _thickness(x, thickness, closed_trailing_edge)
+
+    if camber == 0.0:
+        yc = np.zeros_like(x)
+        theta = np.zeros_like(x)
+    else:
+        m, p = camber, camber_position
+        fore = x <= p
+        yc = np.where(
+            fore,
+            m / p**2 * (2.0 * p * x - x**2),
+            m / (1.0 - p) ** 2 * (1.0 - 2.0 * p + 2.0 * p * x - x**2),
+        )
+        dyc = np.where(fore, 2.0 * m / p**2 * (p - x), 2.0 * m / (1.0 - p) ** 2 * (p - x))
+        theta = np.arctan(dyc)
+
+    label = name or f"NACA m={camber:.4f} p={camber_position:.3f} t={thickness:.4f}"
+    return _offset_from_camber(x, yt, yc, theta, name=label)
+
+
 def naca4(
     code: str | int = "0012",
     n_points: int = 192,
@@ -394,29 +445,15 @@ def naca4(
         raise ValueError(f"NACA {text} has zero thickness")
     if m > 0.0 and not 0.0 < p < 1.0:
         raise ValueError(f"NACA {text} is cambered but its camber position is {p}")
-
-    x = side_distribution(_check_n_points(n_points) // 2, clustering)
-    yt = _thickness(x, t, closed_trailing_edge)
-
-    if m == 0.0:
-        yc = np.zeros_like(x)
-        theta = np.zeros_like(x)
-    else:
-        fore = x <= p
-        yc = np.where(
-            fore,
-            m / p**2 * (2.0 * p * x - x**2),
-            m / (1.0 - p) ** 2 * (1.0 - 2.0 * p + 2.0 * p * x - x**2),
-        )
-        # the surface is offset normal to the camber line, not vertically
-        dyc = np.where(
-            fore,
-            2.0 * m / p**2 * (p - x),
-            2.0 * m / (1.0 - p) ** 2 * (p - x),
-        )
-        theta = np.arctan(dyc)
-
-    return _offset_from_camber(x, yt, yc, theta, name=f"NACA {text}")
+    return naca_section(
+        m,
+        p if m > 0.0 else 0.4,
+        t,
+        n_points,
+        clustering=clustering,
+        closed_trailing_edge=closed_trailing_edge,
+        name=f"NACA {text}",
+    )
 
 
 #: NACA five-digit camber lines, tabulated by the second digit P.  Both tables

@@ -146,3 +146,43 @@ def test_batching_only_changes_where_the_march_stops(metrics):
     assert few.converged and many.converged
     assert abs(few.iterations - many.iterations) <= 200
     assert forces(few).cl == pytest.approx(forces(many).cl, rel=1e-4)
+
+
+# -- the traced backend -----------------------------------------------------
+@pytest.mark.jax
+@pytest.mark.parametrize("flux", ["roe", "hllc"])
+def test_the_jax_residual_matches_the_vectorised_one(metrics, flux):
+    """JAX runs the *same* ``src/assembly.py``, with ``jax.numpy`` injected, so
+    this is checking that the injection is complete -- that nothing fell back to
+    NumPy and silently broke the trace -- and that float64 is actually on.  At
+    single precision this test fails by about 1e-7, which is the point of
+    ``enable_double_precision``."""
+    import jax.numpy as jnp
+
+    flow = FlowConditions(mach=0.8, alpha_deg=1.25, flux=flux)
+    options = SolverOptions()
+    rng = np.random.default_rng(1)
+    U = initial_state(metrics, flow) * (1.0 + 0.05 * rng.standard_normal((metrics.n_elements, 4)))
+
+    reference, wave_ref = get_backend("numpy", metrics, flow, options).residual(U)
+    R, wave = get_backend("jax", metrics, flow, options).residual(U)
+    assert jnp.asarray(R).dtype == jnp.float64
+    assert np.abs(np.asarray(R) - reference).max() / np.abs(reference).max() < 1e-13
+    assert np.abs(np.asarray(wave) - wave_ref).max() / np.abs(wave_ref).max() < 1e-13
+
+
+@pytest.mark.jax
+def test_the_jax_residual_is_a_pure_function_of_the_state(metrics):
+    """What the adjoint needs from it: ``residual_fn`` must be differentiable,
+    which means no side effects and no NumPy array in the middle of it."""
+    import jax
+
+    flow = FlowConditions(mach=0.5, alpha_deg=2.0)
+    backend = get_backend("jax", metrics, flow, SolverOptions())
+    fn = backend.residual_fn()
+    U = initial_state(metrics, flow)
+    # one reverse-mode pass; it either traces end to end or it raises
+    _, vjp = jax.vjp(fn, U)
+    (seed,) = vjp(np.ones_like(U))
+    assert seed.shape == U.shape
+    assert np.all(np.isfinite(np.asarray(seed)))

@@ -19,8 +19,9 @@ print(result.report())
 
 ![Surface pressure at the legacy operating point: the upper-surface shock at 63% chord](docs/figures/cp_transonic.png)
 
-> **Two of five increments are done.** The solver runs, converges and is
-> verified; the fast backends and the adjoint arrive next.
+> **Four of five increments are done.** The solver runs, converges and is
+> verified; the compiled backend and the discrete adjoint are in. Adaptive
+> refinement and the lab material are what remain.
 > [`docs/roadmap.md`](docs/roadmap.md) says what lands when.
 
 ---
@@ -46,6 +47,17 @@ install` adds them all. The other commands available today:
 ./fv2d.sh mesh topology=cgrid @transonic     # a C-grid instead
 ./fv2d.sh flow mach=0.8 alpha=1.25           # the non-dimensional free stream
 ./fv2d.sh mesh mesh=external.su2             # a mesh from somewhere else
+./fv2d.sh solve @transonic cp=cp.png         # solve, and plot the pressure
+./fv2d.sh sweep @subcritical alphas=-4:8:2   # a polar from one mesh
+./fv2d.sh sensitivity @subcritical           # exact gradients, one adjoint
+```
+
+Four worked scripts live in [`examples/`](examples/) — one operating point, an
+angle-of-attack sweep, adjoint gradients, and a shape optimisation driven by
+them. Each runs with no arguments:
+
+```bash
+python examples/01_solve.py
 ```
 
 ### Checking it still works
@@ -102,6 +114,16 @@ converged transonic solve in 16 seconds rather than six minutes. The answer does
 not depend on which backend ran.
 → [`docs/performance.md`](docs/performance.md)
 
+**Takes exact design gradients.** The derivative of lift, drag or moment with
+respect to the angle of attack, the Mach number or the shape, by the **discrete
+adjoint** — one adjoint solve regardless of how many design variables there are,
+with both Jacobian actions from `jax.vjp` on the same residual the solver
+marches, so the gradient follows the scheme with nothing re-derived by hand.
+Checked against finite differences — the incidence derivative agrees in the
+eighth significant figure — and driving a two-variable inverse design to its
+target in eight flow solves.
+→ [`docs/workflows.md`](docs/workflows.md#exact-design-gradients)
+
 **Is non-dimensional throughout.** No SI anywhere: ρ∞ = |v∞| = c = 1 and
 R = γ − 1, so dynamic pressure is exactly 1/2 at every operating point and force
 coefficients compare across Mach numbers without rescaling.
@@ -114,6 +136,7 @@ coefficients compare across Mach numbers without rescaling.
 | If you want to | Read |
 |---|---|
 | Drive the code — launcher, Python API, every option | [`docs/usage.md`](docs/usage.md) |
+| Sweep, take sensitivities, optimise a shape | [`docs/workflows.md`](docs/workflows.md) |
 | Understand the formulation — equations, non-dimensionalisation, geometry, mesh, scheme | [`docs/theory.md`](docs/theory.md) |
 | Know whether to believe a result | [`docs/verification.md`](docs/verification.md) |
 | Know how fast it is, and why | [`docs/performance.md`](docs/performance.md) |

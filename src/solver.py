@@ -66,6 +66,19 @@ class SolveResult:
             f"scaled residual {self.residual:.3e}"
         )
 
+    def report(self) -> str:
+        """The full report -- convergence, free stream, loads, field extrema.
+
+        A method as well as :func:`src.postprocess.report` because this is what
+        the quick start shows, and a student should not have to know which
+        module a formatter lives in.  Imported here rather than at module scope:
+        post-processing reads a :class:`SolveResult`, so the dependency only
+        runs one way at import time.
+        """
+        from .postprocess import report as _report
+
+        return _report(self)
+
 
 def _step(U, metrics, flow, opts, xp=np):
     """One pseudo-time step.  Returns ``(U_new, scaled_rate, wave)``."""

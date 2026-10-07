@@ -1,8 +1,9 @@
 # Backends and performance
 
-Two backends compute the same residual by different routes. The answer does not
-depend on which one ran — they agree to $10^{-13}$ on the residual and to six
-significant figures on $c_\ell$ — so this page is only about speed.
+Three backends compute the same residual by different routes. The answer does
+not depend on which one ran — they agree to $10^{-13}$ on the residual and to six
+significant figures on $c_\ell$ — so this page is mostly about speed. The third,
+`jax`, is **not** here for speed at all; see [below](#the-jax-backend).
 
 ## Contents
 
@@ -10,6 +11,7 @@ significant figures on $c_\ell$ — so this page is only about speed.
 - [What makes it fast](#what-makes-it-fast)
 - [Gather, not scatter](#gather-not-scatter)
 - [What it cost](#what-it-cost)
+- [The JAX backend](#the-jax-backend)
 - [Choosing a backend](#choosing-a-backend)
 
 ---
@@ -112,6 +114,31 @@ only, and `backend='auto'` quietly gives NumPy when one of them is asked for
 rather than refusing. They exist for comparison; the local-time-step march to a
 steady state does not need them.
 
+## The JAX backend
+
+It exists to be **differentiated**, not to be fast. `src/sensitivity.py` needs
+the residual as a function it can take a vector–Jacobian product of, and that is
+the whole reason for it.
+
+It is also not a third implementation of the physics. `src/assembly.py` and
+`src/physics.py` take an `xp` array module, so the JAX backend runs the identical
+source under `jax.numpy`; the only thing that genuinely differs between NumPy and
+JAX is the scatter, and `assembly.accumulate` isolates that in four lines. A
+third copy of the Euler fluxes is precisely what a project this size cannot keep
+in step.
+
+For a plain march, Numba is and will stay faster: it compiles to one fused loop
+over scalars where this builds arrays. The adjoint march is accordingly several
+times slower per sweep than the forward march it mirrors, which is why
+[`workflows.md`](workflows.md#what-it-costs) puts the adjoint's break-even
+against finite differences at around nine design variables rather than two.
+
+**Float64 is forced at import.** JAX defaults to single precision, which is wrong
+here and silently so: a residual converging to $10^{-6}$ of its initial value
+needs more than seven digits to mean anything, and a finite-difference gradient
+check needs far more. `enable_double_precision()` runs when the module is
+imported, before any array exists.
+
 ## Choosing a backend
 
 ```bash
@@ -120,8 +147,9 @@ steady state does not need them.
 ./fv2d.sh check                             # says which are installed
 ```
 
-`auto` is the default and takes the fastest installed backend. Reach for
-`numpy` in exactly two situations: when a result looks wrong and you want the
+`auto` is the default and takes the fastest installed backend; it never picks
+`jax`, because nothing about a plain march is better there. Reach for `numpy` in
+exactly two situations: when a result looks wrong and you want the
 simplest possible implementation to check it against, and when you are changing
 the physics — write it in `src/physics.py` first, confirm it there, then port it
 to the kernels and let `tests/test_backends.py` tell you the two agree.

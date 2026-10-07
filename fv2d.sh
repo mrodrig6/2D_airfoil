@@ -157,7 +157,7 @@ translate() {
             *)                                 key=${key//_/-} ;;
         esac
         case $key in
-            normals)
+            normals|check)
                 case $value in
                     yes|true|on|1)  out+=("--$key"); continue ;;
                     no|false|off|0) continue ;;
@@ -193,6 +193,8 @@ Getting started
 
 Running
   solve [...]        solve one operating point and report the loads
+  sweep [...]        solve a range of incidences on one mesh
+  sensitivity [...]  exact design gradients by the adjoint (needs JAX)
   geometry [...]     inspect a section; no mesh, no flow
   mesh [...]         generate or read a mesh and report its quality
   flow [...]         print the non-dimensional free-stream state
@@ -211,6 +213,9 @@ Arguments are 'name=value', using the same names as the Python API:
   ./$SELF flow mach=0.8 alpha=1.25
   ./$SELF solve @transonic mach=0.8 alpha=1.25 cp=cp.png figure=mach.png
   ./$SELF solve @transonic flux=hllc convergence=hist.png
+  ./$SELF sweep @subcritical alphas=-4:8:2 figure=polar.png
+  ./$SELF sensitivity @subcritical objective=cl
+  ./$SELF sensitivity @subcritical variables=alpha,camber check=yes
 
 A '@name' argument is replaced by the lines of cases/name.fv.  Later arguments
 win, so a deck is a starting point you can override:
@@ -309,6 +314,8 @@ docs/theory.md      the formulation, the non-dimensionalisation and the mesh
                     generator -- equations in LaTeX, renders on GitHub with
                     nothing to build
 docs/usage.md       driving the code: the launcher, the Python API, every option
+docs/workflows.md   sweeps, adjoint sensitivities and shape optimisation, each
+                    with a runnable script in examples/
 docs/roadmap.md     what is built, what is not, and what lands when
 legacy/README.md    the MATLAB this was ported from, and what the port changed
 README.md           the quick start
@@ -332,7 +339,7 @@ main() {
         docs)      cmd_docs ;;
         test)      setup_import_path; cmd_test "$@" ;;
         verify)    setup_import_path; cmd_verify ${1+"$1"} ;;
-        check|geometry|mesh|flow|solve|bench)
+        check|geometry|mesh|flow|solve|sweep|sensitivity|bench)
                    setup_import_path; fvairfoil "$command" "$@" ;;
         *)         printf '%s: unknown command %s\n\n' "$SELF" "$command" >&2
                    cmd_help >&2

@@ -64,7 +64,7 @@ class Residual(NamedTuple):
     wave: object  #: ``(n_elem,)``, :math:`\sum_f (|v_n| + a)_f \ell_f`
 
 
-def residual(U, metrics: Metrics, flow: FlowConditions, *, xp=np) -> Residual:
+def residual(U, metrics: Metrics, flow: FlowConditions, *, xp=np, U_inf=None) -> Residual:
     r"""Assemble :math:`R_e = \sum_f \hat{\mathbf{F}}_f \ell_f` over every cell.
 
     Three kinds of face, one pass each:
@@ -75,6 +75,11 @@ def residual(U, metrics: Metrics, flow: FlowConditions, *, xp=np) -> Residual:
     * **wall** -- :func:`~src.physics.wall_flux`, pressure only;
     * **far field** -- :func:`~src.physics.farfield_flux`, the characteristic
       state and then the same Riemann solver across it.
+
+    ``U_inf`` overrides the free-stream state ``flow`` would supply.  That is
+    what lets :mod:`src.sensitivity` differentiate with respect to the angle of
+    attack and the Mach number: both enter the problem **only** through this
+    vector, so a traced value here is the whole dependence.
     """
     n = metrics.n_elements
     gamma = flow.gamma
@@ -93,7 +98,7 @@ def residual(U, metrics: Metrics, flow: FlowConditions, *, xp=np) -> Residual:
     element = metrics.boundary_element
     bnx = metrics.boundary_normal[:, 0]
     bny = metrics.boundary_normal[:, 1]
-    U_inf = xp.asarray(flow.state)
+    U_inf = xp.asarray(flow.state) if U_inf is None else U_inf
 
     for tag in (BoundaryTag.WALL, BoundaryTag.FARFIELD):
         s = metrics.tag_slice(tag)

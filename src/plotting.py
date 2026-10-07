@@ -215,9 +215,6 @@ def plot_mesh(
     return _finish(fig, path, dpi=100)
 
 
-__all__ = ["FIELD_CMAP", "field_cmap", "plot_airfoil", "plot_mesh"]
-
-
 def plot_surface_pressure(
     result,
     path: str | Path | None = None,
@@ -399,3 +396,61 @@ def plot_convergence(
     _style(ax)
     fig.tight_layout()
     return _finish(fig, path)
+
+
+def plot_polar(
+    angles,
+    loads,
+    path: str | Path | None = None,
+    *,
+    title: str | None = None,
+    **kwargs: Any,
+):
+    r"""The three load curves against incidence, as small multiples.
+
+    Three panels rather than three lines on one axis, because $c_\ell$, $c_d$ and
+    $c_m$ differ by an order of magnitude and a shared axis flattens two of them
+    into the baseline.  A twin axis would fix the scale and break the reading --
+    which curve belongs to which axis is then a legend lookup on every glance.
+
+    Parameters
+    ----------
+    angles
+        Incidences in degrees.
+    loads
+        One :class:`~src.postprocess.Forces` per angle, in the same order.
+    """
+    plt = _pyplot()
+
+    alpha = np.asarray(angles, dtype=float)
+    series = (
+        ("$c_\\ell$", np.array([load.cl for load in loads]), _SERIES[0]),
+        ("$c_d$", np.array([load.cd for load in loads]), _SERIES[1]),
+        ("$c_m$ about $c/4$", np.array([load.cm for load in loads]), _SERIES[2]),
+    )
+
+    fig, axes = plt.subplots(1, 3, figsize=(10.5, 3.4), **kwargs)
+    for ax, (label, value, colour) in zip(axes, series, strict=True):
+        ax.plot(alpha, value, color=colour, linewidth=1.8, marker="o", markersize=3.5)
+        ax.axhline(0.0, color=_MUTED, linewidth=0.8, linestyle=(0, (4, 3)))
+        ax.set_xlabel(r"$\alpha$  [deg]")
+        ax.set_title(label, color=_INK, fontsize=11, loc="left")
+        ax.grid(True, color=_MUTED, alpha=0.18, linewidth=0.6)
+        ax.set_axisbelow(True)
+        _style(ax)
+    if title:
+        fig.suptitle(title, color=_INK, fontsize=11, x=0.01, ha="left")
+    fig.tight_layout()
+    return _finish(fig, path)
+
+
+__all__ = [
+    "FIELD_CMAP",
+    "field_cmap",
+    "plot_airfoil",
+    "plot_convergence",
+    "plot_field",
+    "plot_mesh",
+    "plot_polar",
+    "plot_surface_pressure",
+]

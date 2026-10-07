@@ -30,17 +30,28 @@ Layout
                            connectivity
 :mod:`~src.meshio`         meshes generated elsewhere (SU2, Gmsh)
 :mod:`~src.metrics`        areas, face lengths and normals
-:mod:`~src.physics`        Euler fluxes, four approximate Riemann solvers,
-                           boundary conditions
+:mod:`~src.physics`        Euler fluxes, the Roe and HLLC approximate
+                           Riemann solvers, boundary conditions
 :mod:`~src.assembly`       the vectorised finite-volume residual
 :mod:`~src.solver`         the pseudo-time march to steady state
 :mod:`~src.postprocess`    lift, drag, moment, surface pressure, fields
 :mod:`~src.api`            :func:`~src.api.solve_airfoil`, the one call
+:mod:`~src.backends`       how the residual gets evaluated: vectorised NumPy,
+                           compiled Numba, or traceable JAX
+:mod:`~src.sensitivity`    exact design gradients by the discrete adjoint
 :mod:`~src.plotting`       matplotlib figures
 =========================  ==================================================
 
-The fast backends and the adjoint -- ``backends`` and ``sensitivity`` -- are
-not here yet; see ``docs/roadmap.md`` for what lands when.
+Take a design gradient -- one adjoint solve, however many design variables:
+
+>>> from src.sensitivity import differentiable_case     # doctest: +SKIP
+>>> case = differentiable_case("2412", mach=0.5, alpha=2.0)
+>>> cl, gradient = case.value_and_gradient("cl")
+
+``docs/workflows.md`` covers sweeps, sensitivities and shape optimisation, and
+``examples/`` has each of them as a script that runs with no arguments.
+Adaptive refinement is the one planned piece still outstanding; see
+``docs/roadmap.md``.
 """
 
 from __future__ import annotations
@@ -157,9 +168,15 @@ def __getattr__(name: str):
 
     ``plotting`` needs matplotlib.  Deferring it keeps ``import src`` working --
     and fast -- when matplotlib is not installed.
+
+    ``importlib`` rather than ``from . import plotting``: the ``from`` form asks
+    the parent package for the attribute, which lands straight back in this
+    function and recurses until the stack runs out.  Caching the module in
+    ``globals()`` also means this runs once.
     """
     if name == "plotting":
-        from . import plotting
+        import importlib
 
-        return plotting
+        globals()[name] = importlib.import_module(f"{__name__}.{name}")
+        return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

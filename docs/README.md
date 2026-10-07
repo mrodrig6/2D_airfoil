@@ -4,6 +4,7 @@
 |---|---|
 | [`theory.md`](theory.md) | **The formulation and the geometry definition.** Governing equations, the non-dimensional system, the NACA family, the O-grid generator, and — written ahead of the code — the finite-volume discretisation, the boundary conditions and the force integral. Markdown with LaTeX equations; it renders on GitHub, so there is nothing to build to read it. |
 | [`usage.md`](usage.md) | **Driving the code.** Launcher reference, the Python API, every option, and how to bring in a section or a mesh from elsewhere. |
+| [`workflows.md`](workflows.md) | **Sweeps, sensitivities and shape optimisation.** Reusing one mesh across an $\alpha$ sweep, the discrete adjoint — why it is an adjoint and not `jax.grad` — what a gradient costs, how to check one, and when not to trust it. Every snippet is a script in [`../examples/`](../examples/). |
 | [`performance.md`](performance.md) | **Backends and speed.** What the compiled backend buys, what made it fast, and the gather-versus-scatter trade behind it. |
 | [`verification.md`](verification.md) | **What is checked, and what the numbers came out as.** Free-stream preservation, lift against thin-airfoil theory, the transonic case against published values, the cost of first order, how far away the far field has to be, and troubleshooting. |
 | [`riemann_fluxes.md`](riemann_fluxes.md) | **The flux study.** All four approximate Riemann solvers measured on the same case: which converge, which do not, and what that does to the conclusion the companion nozzle code asked us to re-test. |

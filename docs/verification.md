@@ -8,6 +8,7 @@ with it.
 ## Contents
 
 - [What is checked automatically](#what-is-checked-automatically)
+- [The adjoint gradient](#the-adjoint-gradient)
 - [Free-stream preservation](#free-stream-preservation)
 - [Lift against thin-airfoil theory](#lift-against-thin-airfoil-theory)
 - [The transonic case](#the-transonic-case)
@@ -21,20 +22,54 @@ with it.
 
 ## What is checked automatically
 
-`./fv2d.sh verify` runs the whole suite. The fast half takes seconds and the
-slow half about two minutes; neither needs a network or a service.
+`./fv2d.sh verify` runs the whole suite. The fast half takes about 15 seconds
+and the slow half about a minute; neither needs a network or a service.
 
 | Property | Where |
 |---|---|
 | Every flux is consistent, conservative, fully upwind when supersonic, and survives a near-vacuum | `tests/test_physics.py` |
 | The far field reproduces the free stream exactly, at any angle of attack | `tests/test_physics.py` |
-| **A uniform free stream stays uniform**, for all four fluxes | `tests/test_solver.py` |
+| **A uniform free stream stays uniform**, for both fluxes | `tests/test_solver.py` |
 | The local time step equals the legacy's `CFL * d_h / s` | `tests/test_solver.py` |
 | A symmetric section at zero incidence makes exactly zero lift | `tests/test_solver.py` |
 | Lift is antisymmetric in angle of attack | `tests/test_solver.py` |
 | The transonic case puts a shock on the upper surface | `tests/test_solver.py` |
 | The discrete Gauss identity closes to round-off | `tests/test_mesh.py` |
 | NACA 0012 reproduces `legacy/nacageom.mat` | `tests/test_geometry.py` |
+| The compiled and the traced backends reproduce the vectorised residual | `tests/test_backends.py` |
+| **The adjoint gradient matches a finite difference**, for a flow variable and a shape variable | `tests/test_sensitivity.py` |
+| The traced free stream and the traced load integral equal the ones the solver reports | `tests/test_sensitivity.py` |
+
+## The adjoint gradient
+
+The gradient is of the **discrete** problem, so the reference is a central
+difference of this solver's own output — not of the exact Euler equations.
+Measured on a 4096-cell O-grid around a NACA 2412 at $M = 0.5$ and
+$2^\circ$, subcritical so that the objective is actually differentiable:
+
+| $d c_\ell/d$ | adjoint | central difference | relative |
+|---|---|---|---|
+| `alpha` | $+1.18547016 \times 10^{-1}$ | $+1.18547020 \times 10^{-1}$ | $3 \times 10^{-8}$ |
+| `mach` | $+2.42933313 \times 10^{-1}$ | $+2.42933500 \times 10^{-1}$ | $8 \times 10^{-7}$ |
+| `camber` | $+1.21783132 \times 10^{1}$ | $+1.21783114 \times 10^{1}$ | $2 \times 10^{-7}$ |
+| `camber_position` | $+1.73515107 \times 10^{-1}$ | $+1.73515127 \times 10^{-1}$ | $1 \times 10^{-7}$ |
+| `thickness` | $+1.52774973 \times 10^{-1}$ | $+1.52774872 \times 10^{-1}$ | $7 \times 10^{-7}$ |
+
+The two flow variables are exact adjoint derivatives; the three shape variables
+take the hybrid route, with the mesh term finite-differenced at a frozen state,
+which is why they sit an order of magnitude looser and still well inside what an
+optimiser needs. Reproduce it with
+
+```bash
+./fv2d.sh sensitivity @subcritical naca=2412 ns=64 nr=32 R=10 h1=0.02 \
+    tolerance=1e-10 max_iterations=60000 check=yes
+```
+
+**This will not agree at a transonic point**, and that is not a failure. The
+shock jumps from one cell to the next rather than sliding, so the discrete
+objective is only piecewise differentiable in the design variables and a small
+step measures the jump rather than a derivative. →
+[`workflows.md`](workflows.md#when-the-gradient-is-not-to-be-trusted)
 
 ## Free-stream preservation
 

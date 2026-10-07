@@ -52,7 +52,7 @@ from dataclasses import dataclass
 import numpy as np
 
 #: Backends the solver can execute on, fastest first.  See ``src.backends``.
-BACKENDS = ("numba", "numpy")
+BACKENDS = ("numba", "numpy", "jax")
 
 #: Mesh topologies.  See :mod:`src.mesh`.
 TOPOLOGIES = ("ogrid", "cgrid")

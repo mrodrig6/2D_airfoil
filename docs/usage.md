@@ -13,6 +13,7 @@ Everything available today, from both the launcher and Python.
 - [Using a section from XFOIL](#using-a-section-from-xfoil)
 - [Meshing it](#meshing-it)
 - [Using a mesh from elsewhere](#using-a-mesh-from-elsewhere)
+- [Sweeps, sensitivities and optimisation](#sweeps-sensitivities-and-optimisation)
 - [Units: the code is non-dimensional](#units-the-code-is-non-dimensional)
 - [Checking it still works](#checking-it-still-works)
 
@@ -33,6 +34,8 @@ directory.
 | command | what it does |
 |---|---|
 | `solve` | solve one operating point and report the loads |
+| `sweep` | solve a range of incidences on one mesh, and optionally plot the polar |
+| `sensitivity` | exact design gradients by the discrete adjoint (needs JAX) |
 | `check` | report the Python and which optional packages are present |
 | `geometry` | inspect a section — thickness, camber, area; optionally a figure or a `.dat` |
 | `mesh` | generate (or read) a mesh and report its quality; optionally a figure or a `.su2` |
@@ -347,6 +350,40 @@ because the solver still runs and the answer is merely wrong. Pass
 `wall_names=`/`farfield_names=` to name yours. Triangle winding is fixed on
 read, so a clockwise mesh is fine.
 
+## Sweeps, sensitivities and optimisation
+
+Three things have their own document, because each is a workflow rather than an
+option: reusing one mesh across an angle-of-attack sweep, taking exact design
+gradients by the discrete adjoint, and handing those gradients to an optimiser.
+
+From the launcher:
+
+```bash
+./fv2d.sh sweep @subcritical alphas=-4:8:2 figure=polar.png
+./fv2d.sh sweep @subcritical alphas=-2,0,2,6        # a list instead of a range
+./fv2d.sh sensitivity @subcritical objective=cl
+./fv2d.sh sensitivity @subcritical variables=alpha,camber check=yes
+```
+
+`sweep` builds the mesh once and warm-starts each angle from the last, and takes
+`alphas` rather than `alpha`. `sensitivity` prints every derivative the case
+offers from one adjoint solve; `check=yes` adds the finite differences it
+replaces, at two full flow solves **per variable**.
+
+From Python:
+
+```python
+from src.sensitivity import differentiable_case
+
+case = differentiable_case("2412", mach=0.5, alpha=2.0, tolerance=1e-10)
+cl, gradient = case.value_and_gradient("cl")
+# gradient: {'alpha': ..., 'mach': ..., 'camber': ..., 'camber_position': ...,
+#            'thickness': ...}  -- all five from one adjoint solve
+```
+
+→ **[`workflows.md`](workflows.md)**, and [`../examples/`](../examples/) for the
+same thing as scripts that run with no arguments.
+
 ## Units: the code is non-dimensional
 
 There is no SI anywhere. $\rho_\infty = |\vec v_\infty| = c = 1$ and
@@ -389,7 +426,7 @@ There is no CI. You check, on your own machine:
 ./fv2d.sh test -k normal      # one test by name
 ```
 
-The slow half runs real solves and takes about two minutes; `--fast` skips it.
+The slow half runs real solves and takes about a minute; `--fast` skips it.
 `pytest --fast` and `pytest --slow` select disjoint sets and work directly too.
 Each `verify` step is skipped with a note rather than failing if its tool is not
 installed — a missing linter is not a broken mesher — and the exit code is

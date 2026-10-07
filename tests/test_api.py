@@ -93,3 +93,37 @@ def test_every_flux_reaches_the_same_subcritical_answer(flux):
     )
     assert result.converged, f"{flux}: {result.message}"
     assert result.forces().cl == pytest.approx(0.247, rel=0.12)
+
+
+# -- the command line -------------------------------------------------------
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("-4,-2,0,2", [-4.0, -2.0, 0.0, 2.0]),
+        ("0:4:2", [0.0, 2.0, 4.0]),
+        ("-4:8:2", [-4.0, -2.0, 0.0, 2.0, 4.0, 6.0, 8.0]),
+        ("4:0:-2", [4.0, 2.0, 0.0]),
+        ("1.5", [1.5]),
+        ("0:5:2", [0.0, 2.0, 4.0]),  # stop not reached exactly, and not overshot
+    ],
+)
+def test_the_sweep_accepts_a_list_or_a_range(text, expected):
+    from src.cli import _angles
+
+    assert _angles(text) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("text", ["0:4:0", "0:4", "0:4:2:6"])
+def test_a_malformed_range_is_refused(text):
+    from src.cli import _angles
+
+    with pytest.raises(ValueError, match="start:stop:step"):
+        _angles(text)
+
+
+def test_a_range_stepping_the_wrong_way_is_refused():
+    """`-4:8:-2` is a typo, not an empty sweep, and reads as one either way."""
+    from src.cli import _angles
+
+    with pytest.raises(ValueError, match="points away"):
+        _angles("-4:8:-2")

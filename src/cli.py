@@ -6,14 +6,16 @@ is ``far_field_radius``.  ``fv2d.sh`` translates ``name=value`` into those flags
 which is why the launcher and this module never disagree about what an option is
 called.
 
-Three commands exist so far -- ``check``, ``geometry`` and ``mesh``.  ``solve``
-and ``sweep`` arrive with the solver.
+The commands are ``check``, ``geometry``, ``mesh``, ``flow``, ``solve``,
+``sweep``, ``sensitivity`` and ``bench``.  ``./fv2d.sh help`` lists them with
+examples.
 """
 
 from __future__ import annotations
 
 import argparse
 import importlib.util
+import math
 import sys
 from pathlib import Path
 
@@ -224,12 +226,6 @@ def _add_flow_options(parser: argparse.ArgumentParser) -> None:
         default=f.entropy_fix,
         help="roe only: Harten-Hyman delta (default: %(default)s)",
     )
-    parser.add_argument(
-        "--cutoff-mach",
-        type=float,
-        default=None,
-        help="ausm family only: Liou's M_co; defaults to the free stream",
-    )
 
 
 def _add_solver_options(parser: argparse.ArgumentParser) -> None:
@@ -347,6 +343,169 @@ def cmd_flow(args: argparse.Namespace) -> int:
     return 0
 
 
+def _angles(text: str) -> list[float]:
+    """``-4,-2,0,2`` or ``-4:8:2`` -- a list, or a ``start:stop:step`` range.
+
+    Both forms exist because both are natural: a few named angles are a list,
+    and a polar is a range.  The range is inclusive of ``stop`` when the step
+    divides the interval, which is what anyone writing ``-4:8:2`` means.
+    """
+    if ":" in text:
+        parts = [float(p) for p in text.split(":")]
+        if len(parts) != 3 or parts[2] == 0.0:
+            raise ValueError(f"expected start:stop:step with a non-zero step, got {text!r}")
+        start, stop, step = parts
+        n = int(math.floor((stop - start) / step + 1e-9))
+        if n < 0:
+            raise ValueError(f"the step in {text!r} points away from {stop:g}")
+        return [start + i * step for i in range(n + 1)]
+    return [float(p) for p in text.split(",") if p.strip()]
+
+
+def cmd_sweep(args: argparse.Namespace) -> int:
+    """Solve a range of incidences on **one** mesh, warm-starting each point.
+
+    The two savings are the point of the command.  Incidence enters through the
+    free-stream direction alone, so the mesh and every metric are built once;
+    and each solve starts from the previous angle's converged field, which is
+    already most of the way to the answer.
+    """
+    from .postprocess import forces
+
+    angles = _angles(args.alphas)
+    if not angles:
+        raise ValueError("no angles to sweep; pass --alphas")
+
+    case = (
+        build_case(
+            args.airfoil,
+            _discretization(args),
+            n_surface=args.n_surface,
+            clustering=args.clustering,
+        )
+        if args.mesh is None
+        else build_case(args.airfoil, mesh_file=args.mesh)
+    )
+    print(case.summary())
+    options = SolverOptions(
+        cfl=args.cfl,
+        tolerance=args.tolerance,
+        max_iterations=args.max_iterations,
+        scheme=args.scheme,
+        print_interval=args.print_interval,
+        backend=args.backend,
+    )
+
+    # A deck that sets `alpha` is a normal thing to sweep from, and silently
+    # dropping it would look like the deck had been applied.
+    if args.alpha != FlowConditions.alpha_deg:
+        print(f"note: a sweep takes --alphas, so alpha={args.alpha:g} is not used")
+
+    print(f"\nM = {args.mach:g}, {len(angles)} angles, one mesh\n")
+    print(f"{'alpha':>8}  {'cl':>10}  {'cd':>10}  {'cm(c/4)':>10}  {'its':>7}  {'s':>6}")
+    state, loads, solved, seconds, stalled = None, [], [], 0.0, 0
+    for alpha in angles:
+        flow = FlowConditions(
+            mach=args.mach,
+            alpha_deg=alpha,
+            gamma=args.gamma,
+            flux=args.flux,
+            entropy_fix=args.entropy_fix,
+        )
+        result = case.solve(flow, options, state=state)
+        seconds += result.seconds
+        if not result.converged:
+            print(f"{alpha:8.2f}  did not converge: {result.message}")
+            stalled += 1
+            continue
+        # warm start, but only from a converged field: seeding the next angle
+        # with a diverging one spreads the failure down the sweep
+        state = result.state
+        load = forces(result)
+        loads.append(load)
+        solved.append(alpha)
+        print(
+            f"{alpha:8.2f}  {load.cl:+10.5f}  {load.cd:+10.5f}  {load.cm:+10.5f}"
+            f"  {result.iterations:7d}  {result.seconds:6.1f}"
+        )
+
+    print(f"\n{len(solved)} of {len(angles)} converged, {seconds:.1f} s in total")
+    if args.figure and loads:
+        from .plotting import plot_polar
+
+        title = f"{case.airfoil.name} at M = {args.mach:g}"
+        print(f"  wrote {plot_polar(solved, loads, args.figure, title=title)}")
+    return 1 if stalled else 0
+
+
+def cmd_sensitivity(args: argparse.Namespace) -> int:
+    """Exact design gradients by the discrete adjoint.
+
+    One adjoint solve, however many design variables are asked for.
+    ``--check`` adds the finite differences it replaces, which costs two full
+    flow solves **per variable** and is a verification tool rather than a
+    workflow.
+    """
+    try:
+        from .sensitivity import OBJECTIVES, check_gradient, differentiable_case
+    except ImportError as exc:  # pragma: no cover - needs jax absent
+        raise ValueError(f"the adjoint needs JAX installed: pip install jax ({exc})") from exc
+
+    if args.objective not in OBJECTIVES:
+        raise ValueError(f"unknown objective {args.objective!r}; choose from {OBJECTIVES}")
+
+    case = build_case(
+        args.airfoil,
+        _discretization(args),
+        n_surface=args.n_surface,
+        clustering=args.clustering,
+    )
+    dc = differentiable_case(
+        case=case,
+        mach=args.mach,
+        alpha=args.alpha,
+        gamma=args.gamma,
+        flux=args.flux,
+        entropy_fix=args.entropy_fix,
+        cfl=args.cfl,
+        tolerance=args.tolerance,
+        max_iterations=args.max_iterations,
+        print_interval=args.print_interval,
+    )
+    # build_case took the section, so the four-digit parameters have to be
+    # recovered from what was asked for rather than from the Airfoil
+    from .sensitivity import four_digit_parameters
+
+    dc.shape = four_digit_parameters(args.airfoil)
+    print(case.summary())
+
+    variables = tuple(v.strip() for v in args.variables.split(",")) if args.variables else None
+    result = dc.solve()
+    print(f"\n{result.summary()}")
+
+    if args.check:
+        rows = check_gradient(dc, args.objective, variables, step=args.step)
+        print(f"\n{'d(' + args.objective + ')/d':<20}{'adjoint':>17}{'finite diff':>17}{'rel':>10}")
+        for name, row in rows.items():
+            print(
+                f"{name:<20}{row['adjoint']:+17.8e}{row['finite_difference']:+17.8e}"
+                f"{row['relative_error']:10.1e}"
+            )
+        print(
+            "\nThe two differ legitimately where the flow has a shock: it jumps from\n"
+            "one cell to the next rather than sliding, so the discrete objective is\n"
+            "only piecewise differentiable and a small step measures that jump."
+        )
+    else:
+        value, gradient = dc.value_and_gradient(args.objective, variables)
+        print(f"\n{args.objective} = {value:+.8f}\n")
+        for name, derivative in gradient.items():
+            unit = " per degree" if name == "alpha" else ""
+            print(f"  d({args.objective})/d {name:<16}{derivative:+.8e}{unit}")
+        print(f"\n  one adjoint solve for all {len(gradient)} of them")
+    return 0
+
+
 # --------------------------------------------------------------------------
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -409,6 +568,54 @@ def build_parser() -> argparse.ArgumentParser:
         "--convergence", type=Path, default=None, help="write the residual history here"
     )
     solve.set_defaults(run=cmd_solve)
+
+    sweep = sub.add_parser("sweep", help="solve a range of incidences on one mesh")
+    _add_geometry_options(sweep)
+    _add_mesh_options(sweep)
+    _add_flow_options(sweep)
+    _add_solver_options(sweep)
+    sweep.add_argument(
+        "--alphas",
+        default="-4:8:2",
+        help="angles in degrees: a list '-4,0,4' or a range 'start:stop:step' "
+        "(default: %(default)s).  This replaces --alpha, which a sweep ignores",
+    )
+    sweep.add_argument(
+        "--backend",
+        choices=("auto", *BACKENDS),
+        default=SolverOptions.backend,
+        help="execution strategy (default: %(default)s)",
+    )
+    sweep.add_argument("--figure", type=Path, default=None, help="write the three load curves here")
+    sweep.set_defaults(run=cmd_sweep)
+
+    sensitivity = sub.add_parser(
+        "sensitivity", help="exact design gradients by the discrete adjoint (needs JAX)"
+    )
+    _add_geometry_options(sensitivity)
+    _add_mesh_options(sensitivity)
+    _add_flow_options(sensitivity)
+    _add_solver_options(sensitivity)
+    sensitivity.add_argument(
+        "--objective",
+        default="cl",
+        help="cl, cd, cm or efficiency (default: %(default)s)",
+    )
+    sensitivity.add_argument(
+        "--variables",
+        default=None,
+        help="comma-separated; default is everything the case offers",
+    )
+    sensitivity.add_argument(
+        "--check",
+        action="store_true",
+        help="also take the finite differences the adjoint replaces -- two full "
+        "solves per variable",
+    )
+    sensitivity.add_argument(
+        "--step", type=float, default=1e-4, help="finite-difference step (default: %(default)s)"
+    )
+    sensitivity.set_defaults(run=cmd_sensitivity)
 
     bench = sub.add_parser("bench", help="time the backends against each other")
     _add_geometry_options(bench)
