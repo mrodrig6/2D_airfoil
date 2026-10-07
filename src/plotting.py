@@ -57,6 +57,18 @@ _WALL = "#1f2933"
 _MESH = "#5b6b7a"
 _ACCENT = "#eb6834"
 
+#: Axis and colour-bar labels for the fields :func:`~src.postprocess.scalar_field`
+#: can produce.  A colour bar labelled ``mach`` is a variable name leaking into a
+#: figure; these are what the quantity is called.
+SCALAR_LABELS = {
+    "mach": "Mach number",
+    "pressure": r"pressure  $p / \rho_\infty v_\infty^2$",
+    "density": r"density  $\rho / \rho_\infty$",
+    "velocity": r"speed  $|v| / v_\infty$",
+    "cp": "$c_p$",
+    "entropy": r"entropy  $\Delta s / c_v$",
+}
+
 #: Categorical series colours, assigned in this **fixed order** and never
 #: cycled: a colour follows the entity, not its rank, so filtering a flux out
 #: of a comparison must not repaint the others.
@@ -99,6 +111,16 @@ def field_cmap(name: str | None = None) -> str:
             f"from the shock.  Use {FIELD_CMAP!r}, 'viridis' or 'cividis'."
         )
     return name
+
+
+def _operating_point(flow, lead: str) -> str:
+    r"""``lead`` followed by the operating point, which every result figure needs.
+
+    A figure that does not say its own Mach number and incidence is useless the
+    moment it leaves the terminal it was made in -- which is the only place
+    these are ever looked at.
+    """
+    return f"{lead}  \u2014  $M_\\infty = {flow.mach:g}$, $\\alpha = {flow.alpha_deg:g}^\\circ$"
 
 
 def _style(ax, *, frame: bool = True) -> None:
@@ -269,7 +291,7 @@ def plot_surface_pressure(
     ax.set_ylabel("$-c_p$")
     ax.set_xlim(-0.02, 1.02)
     ax.set_title(
-        title or f"{result.flow.mach:g} Mach, {result.flow.alpha_deg:g}$^\\circ$",
+        title or _operating_point(result.flow, f"{result.mesh.n_elements} cells"),
         color=_INK,
         fontsize=11,
         loc="left",
@@ -330,7 +352,7 @@ def plot_field(
     bar = fig.colorbar(art, ax=ax, fraction=0.035, pad=0.02)
     bar.outline.set_visible(False)
     bar.ax.tick_params(colors=_MUTED, labelsize=9, width=0.8, length=3)
-    bar.set_label(scalar, color=_INK, fontsize=10)
+    bar.set_label(SCALAR_LABELS.get(scalar, scalar), color=_INK, fontsize=10)
 
     ax.set_xlim(window[0], window[1])
     ax.set_ylim(window[2], window[3])
@@ -338,7 +360,7 @@ def plot_field(
     ax.set_xlabel("$x/c$")
     ax.set_ylabel("$y/c$")
     ax.set_title(
-        title or f"{scalar}, {result.flow.mach:g} Mach, {result.flow.alpha_deg:g}$^\\circ$",
+        title or _operating_point(result.flow, SCALAR_LABELS.get(scalar, scalar)),
         color=_INK,
         fontsize=11,
         loc="left",
@@ -476,6 +498,7 @@ def plot_adaptation(history, path: str | Path | None = None, *, title: str | Non
 
 __all__ = [
     "FIELD_CMAP",
+    "SCALAR_LABELS",
     "field_cmap",
     "plot_adaptation",
     "plot_airfoil",

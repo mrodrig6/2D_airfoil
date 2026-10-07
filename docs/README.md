@@ -31,6 +31,14 @@ stops matching the code is a one-command fix:
     figure=docs/figures/adapted.png window=-0.2,1.2,-0.5,0.5
 ```
 
+The four *result* figures — surface pressure, the Mach field, the entropy field
+and the polar — all come from one script, because they all come from the same
+two solves:
+
+```bash
+python examples/06_postprocess.py docs/figures
+```
+
 There is no figure build step and no CI checking them, so this is a **manual
 step after changing the geometry or the mesh generator**. Nothing breaks if you
 forget: the committed PNG simply stops matching the code, which is a

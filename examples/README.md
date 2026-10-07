@@ -15,10 +15,17 @@ python examples/01_solve.py
 | **03** | [`03_sensitivity.py`](03_sensitivity.py) — exact gradients, and what they cost | `jax` | 45 s |
 | **04** | [`04_optimise.py`](04_optimise.py) — a shape optimisation driven by them | `jax`, `scipy` | 1.5 min |
 | **05** | [`05_adapt.py`](05_adapt.py) — adaptive against uniform refinement | nothing | 1.5 min |
+| **06** | [`06_postprocess.py`](06_postprocess.py) — every result figure: $c_p$, the Mach field, the polar | `matplotlib` | 1 min |
 
 Install what the last two need with `./fv2d.sh install` (or
 `pip install -e ".[all]"`).
 
-Every script prints its numbers; none writes a figure unless you ask, so they
-are safe to run over ssh. `docs/workflows.md` explains what each one is doing
+Every script prints its numbers, and only `06` writes figures — into
+`figures/`, or into a directory you name:
+
+```sh
+python examples/06_postprocess.py docs/figures
+```
+
+So the first five are safe to run over ssh with no display. `docs/workflows.md` explains what each one is doing
 and why it is done that way.
