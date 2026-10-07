@@ -17,7 +17,11 @@ result = solve_airfoil("0012", mach=0.8, alpha=1.25)
 print(result.report())
 ```
 
-![Surface pressure at the legacy operating point: the upper-surface shock at 63% chord](docs/figures/cp_transonic.png)
+![Mach number around a NACA 0012 at M 0.8 and 1.25 degrees: a supersonic pocket over the forward upper surface, closed by a shock at 63% chord, with the sonic line drawn in white](docs/figures/mach_transonic.png)
+
+*NACA 0012 at $M_\infty = 0.8$, $\alpha = 1.25^\circ$. The white line is sonic:
+inside it the flow is supersonic, and the shock that closes the pocket at 63%
+chord is the whole reason this case is the one everybody runs.*
 
 > **All five increments are done.** The solver runs, converges and is verified;
 > the compiled backend, the discrete adjoint and adaptive refinement are in, and
@@ -109,6 +113,15 @@ more were implemented, measured over 60 solves and removed, because neither is
 usable on this problem; the measurement is
 [kept](docs/riemann_fluxes.md) even though the code is not.
 → [`docs/theory.md`](docs/theory.md#6-the-finite-volume-discretisation)
+
+**Says what the answer is.** Surface pressure, field contours, and the loads
+against incidence, each one command or one function call.
+→ [`examples/06_postprocess.py`](examples/06_postprocess.py) draws all three
+
+| | |
+|---|---|
+| ![Surface pressure at M 0.8, 1.25 degrees, with the upper-surface shock at 63% chord](docs/figures/cp_transonic.png) | ![Lift, drag and quarter-chord moment of a NACA 0012 against angle of attack at Mach 0.5](docs/figures/polar.png) |
+| `./fv2d.sh solve @transonic cp=cp.png` | `./fv2d.sh sweep @subcritical alphas=-4:8:2 figure=polar.png` |
 
 **Runs fast.** A compiled Numba backend with the whole march fused into one
 `nopython` call — **23× the vectorised reference** on the production mesh, and a

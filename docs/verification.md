@@ -115,7 +115,8 @@ surface.
 ![Surface pressure at the legacy operating point, with the upper-surface shock at x/c = 0.63](figures/cp_transonic.png)
 
 192 × 64 O-grid, far field 20 chords, Roe flux, converged to $10^{-6}$ in
-17 909 iterations:
+17 925 iterations — the run that drew the figure above, reproduced by
+`python examples/06_postprocess.py`:
 
 | | this code | published inviscid |
 |---|---|---|
@@ -147,7 +148,18 @@ NACA 0012 at $M_\infty = 0.5$, $\alpha = 0$, where $c_d$ must be 0:
 | 192 × 72 | 27 648 | 0.0131 | 9.32e−5 |
 
 It falls roughly as $h$ — first order, which is exactly what a piecewise-constant
-reconstruction gives and no better. Two consequences worth taking seriously:
+reconstruction gives and no better.
+
+![Entropy rise around the transonic NACA 0012: a bright sheet along the whole wall, the shock, and the wake](figures/entropy_transonic.png)
+
+The entropy field says where that error is made. Entropy is conserved along
+streamlines in smooth flow, so everything bright here except the shock and the
+wake behind it is the scheme rather than the physics — and the brightest part is
+the **sheet along the entire wall**, which is numerical dissipation at the
+surface acting as a boundary layer nobody asked for. That sheet is the spurious
+drag in the table above, and it is why the loads converge so slowly.
+
+Two consequences worth taking seriously:
 
 * **Transonic drag is not usable at these resolutions.** The spurious drag at
   $\alpha = 0$ is 0.013, against a published wave drag of about 0.022 for the
@@ -156,9 +168,12 @@ reconstruction gives and no better. Two consequences worth taking seriously:
   that the numerical dissipation damages symmetrically. $c_\ell$ is within a
   few per cent where $c_d$ is out by half.
 
-This is the strongest argument for a higher-order reconstruction, which is the
-decision scheduled for increment 3 ([`roadmap.md`](roadmap.md)). It is also why
-the lift tests carry tight tolerances and there is no drag test.
+This is the strongest argument for a higher-order reconstruction, which was
+decided in increment 3 and deliberately deferred ([`roadmap.md`](roadmap.md)).
+It is also why the lift tests carry tight tolerances and there is no drag test.
+Adaptive refinement recovers part of it — [measured in
+`adaptation.md`](adaptation.md#does-it-pay) — but only part, and at a cost in
+iterations.
 
 ## How far away the far field has to be
 
