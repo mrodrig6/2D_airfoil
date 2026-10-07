@@ -1,0 +1,4 @@
+# the legacy case: NACA 0012 at M = 0.8, 1.25 deg -- a shock on the upper surface
+@grid
+mach=0.8
+alpha=1.25

@@ -1,0 +1,4 @@
+# shock free: the same section and mesh well below the critical Mach number
+@grid
+mach=0.5
+alpha=2.0

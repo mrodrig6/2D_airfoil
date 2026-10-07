@@ -1,0 +1,6 @@
+# the legacy case mesh, with no operating point -- for `mesh` and `geometry`
+airfoil=0012
+n_surface=192
+n_radial=64
+far_field_radius=20.0
+first_cell_height=2e-3

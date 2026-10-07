@@ -1,0 +1,5 @@
+# the same case on a C-grid, which aligns its cells with the wake
+@grid
+topology=cgrid
+n_wake=32
+wake_length=20.0
