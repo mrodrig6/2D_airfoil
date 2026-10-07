@@ -310,7 +310,8 @@ def plot_field(
     *,
     scalar: str = "mach",
     window: tuple[float, float, float, float] = (-0.6, 1.8, -0.8, 0.8),
-    levels: int = 24,
+    shading: str = "smooth",
+    levels: int = 32,
     cmap: str | None = None,
     title: str | None = None,
     **kwargs: Any,
@@ -320,6 +321,26 @@ def plot_field(
     Uses :data:`FIELD_CMAP` through :func:`field_cmap`, which refuses the
     non-monotonic maps -- see the module docstring for why that matters more on
     a transonic field than on most.
+
+    ``shading`` is a choice about honesty against legibility, and both answers
+    are defensible:
+
+    ``"flat"``
+        One constant colour per cell, which is **exactly what the solver
+        holds**.  It also draws the mesh: on a triangulated O-grid the radial
+        spokes and the two triangles of every quadrilateral are plainly visible,
+        and at a glance the picture is as much about the grid as about the flow.
+    ``"smooth"`` (the default)
+        Filled contours of the cell values averaged onto nodes.  The averaging
+        is an **interpolation that the solution does not contain**, so a smooth
+        field can make a coarse mesh look better resolved than it is.  What it
+        buys is that the flow is what you see: the supersonic pocket and the
+        shock that closes it, rather than a lattice.
+
+    Use ``"flat"`` when the question is about the discretisation -- checking a
+    refinement, or showing a student what a finite-volume solution actually is
+    -- and the default when the question is about the flow.  ``levels`` sets the
+    number of contour bands and is ignored by ``"flat"``.
     """
     plt = _pyplot()
     from matplotlib.collections import LineCollection
@@ -330,26 +351,35 @@ def plot_field(
     values = scalar_field(result.state, result.flow, scalar)
     mesh = result.mesh
     tri = Triangulation(mesh.node_coords[:, 0], mesh.node_coords[:, 1], mesh.elements)
+    nodal = _node_average(mesh, values)
 
     fig, ax = plt.subplots(figsize=(7.4, 5.0), **kwargs)
-    art = ax.tripcolor(
-        tri, facecolors=values, cmap=field_cmap(cmap), shading="flat", rasterized=True
-    )
+    if shading == "flat":
+        art = ax.tripcolor(
+            tri, facecolors=values, cmap=field_cmap(cmap), shading="flat", rasterized=True
+        )
+    elif shading == "smooth":
+        art = ax.tricontourf(tri, nodal, levels=levels, cmap=field_cmap(cmap))
+        # Contour fills are drawn as separate polygons, and a PDF viewer shows
+        # hairline seams between them unless they are told to overlap.
+        for collection in art.collections if hasattr(art, "collections") else []:
+            collection.set_edgecolor("face")
+    else:
+        raise ValueError(f"unknown shading {shading!r}; choose 'smooth' or 'flat'")
+
     if scalar == "mach":
         # the sonic line is the one contour worth naming on a transonic field
-        ax.tricontour(
-            tri,
-            _node_average(mesh, values),
-            levels=[1.0],
-            colors="white",
-            linewidths=1.2,
-        )
+        ax.tricontour(tri, nodal, levels=[1.0], colors="white", linewidths=1.2)
     wall = mesh.boundary_edges[mesh.tag_slice(BoundaryTag.WALL), 1:3]
     ax.add_collection(
         LineCollection(mesh.node_coords[wall], colors=_WALL, linewidths=1.6, zorder=3)
     )
 
-    bar = fig.colorbar(art, ax=ax, fraction=0.035, pad=0.02)
+    # Without this the ticks land on contour-band boundaries, so the colour bar
+    # reads 0.08, 0.24, 0.40 ... -- numbers about the plotting, not the flow.
+    from matplotlib.ticker import MaxNLocator
+
+    bar = fig.colorbar(art, ax=ax, fraction=0.035, pad=0.02, ticks=MaxNLocator(7))
     bar.outline.set_visible(False)
     bar.ax.tick_params(colors=_MUTED, labelsize=9, width=0.8, length=3)
     bar.set_label(SCALAR_LABELS.get(scalar, scalar), color=_INK, fontsize=10)
