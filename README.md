@@ -17,11 +17,13 @@ result = solve_airfoil("0012", mach=0.8, alpha=1.25)
 print(result.report())
 ```
 
-![Mach number around a NACA 0012 at M 0.8 and 1.25 degrees: a supersonic pocket over the forward upper surface, closed by a shock at 63% chord, with the sonic line drawn in white](docs/figures/mach_transonic.png)
+![Mach number around a NACA 0012 at Mach 0.85 and 1 degree incidence: supersonic flow over most of both surfaces, each pocket ending in a sharp shock front, with the sonic line drawn in white](docs/figures/mach_shock.png)
 
-*NACA 0012 at $M_\infty = 0.8$, $\alpha = 1.25^\circ$. The white line is sonic:
-inside it the flow is supersonic, and the shock that closes the pocket at 63%
-chord is the whole reason this case is the one everybody runs.*
+*NACA 0012 at $M_\infty = 0.85$, $\alpha = 1^\circ$. The free stream is
+subsonic; the flow over the section is not. The white line is sonic, and each
+pocket ends in a **shock** — the near-vertical fronts at 86% chord above and 66%
+below, where the flow jumps back to subsonic in the width of a cell or two.
+Peak Mach 1.41, $c_\ell = 0.334$, $c_d = 0.068$.*
 
 > **All five increments are done.** The solver runs, converges and is verified;
 > the compiled backend, the discrete adjoint and adaptive refinement are in, and
@@ -120,8 +122,8 @@ against incidence, each one command or one function call.
 
 | | |
 |---|---|
-| ![Surface pressure at M 0.8, 1.25 degrees, with the upper-surface shock at 63% chord](docs/figures/cp_transonic.png) | ![Lift, drag and quarter-chord moment of a NACA 0012 against angle of attack at Mach 0.5](docs/figures/polar.png) |
-| `./fv2d.sh solve @transonic cp=cp.png` | `./fv2d.sh sweep @subcritical alphas=-4:8:2 figure=polar.png` |
+| ![Surface pressure at Mach 0.85 and 1 degree: two sharp jumps, the upper surface at 86% chord and the lower at 66%, each crossing back through the sonic line](docs/figures/cp_shock.png) | ![Lift, drag and quarter-chord moment of a NACA 0012 against angle of attack at Mach 0.5](docs/figures/polar.png) |
+| The same two shocks, seen as pressure: `./fv2d.sh solve naca=0012 mach=0.85 alpha=1 cp=cp.png` | `./fv2d.sh sweep @subcritical alphas=-4:8:2 figure=polar.png` |
 
 **Runs fast.** A compiled Numba backend with the whole march fused into one
 `nopython` call — **23× the vectorised reference** on the production mesh, and a

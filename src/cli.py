@@ -277,7 +277,9 @@ def cmd_solve(args: argparse.Namespace) -> int:
     if args.figure:
         from .plotting import plot_field
 
-        print(f"  wrote {plot_field(result, args.figure, scalar=args.scalar)}")
+        print(
+            f"  wrote {plot_field(result, args.figure, scalar=args.scalar, shading=args.shading)}"
+        )
     if args.convergence:
         from .plotting import plot_convergence
 
@@ -612,6 +614,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     solve.add_argument("--figure", type=Path, default=None, help="write a field PNG here")
     solve.add_argument("--scalar", default="mach", help="which field (default: %(default)s)")
+    solve.add_argument(
+        "--shading",
+        choices=("smooth", "flat"),
+        default="smooth",
+        help="'flat' draws one colour per cell, which is what the solver holds and "
+        "also draws the mesh; 'smooth' contours it (default: %(default)s)",
+    )
     solve.add_argument(
         "--convergence", type=Path, default=None, help="write the residual history here"
     )

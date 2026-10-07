@@ -31,12 +31,28 @@ stops matching the code is a one-command fix:
     figure=docs/figures/adapted.png window=-0.2,1.2,-0.5,0.5
 ```
 
-The four *result* figures — surface pressure, the Mach field, the entropy field
-and the polar — all come from one script, because they all come from the same
-two solves:
+The *result* figures — surface pressure, the Mach field and the entropy field,
+at two operating points, plus the polar — all come from one script, because they
+all come from the same three solves:
 
 ```bash
 python examples/06_postprocess.py docs/figures
+```
+
+The `_transonic` figures are the legacy point, $M_\infty = 0.8$ at
+$1.25^\circ$, which [`verification.md`](verification.md) tabulates. The `_shock`
+figures are $M_\infty = 0.85$ at $1^\circ$, where both surfaces go supersonic
+and each pocket ends in a shock; those are the ones in the top-level README,
+because the shock is unmistakable in them.
+
+**Field figures are smooth-shaded by default**, which interpolates cell values
+onto nodes and contours them. That is a choice: `shading="flat"` draws one
+colour per cell, which is exactly what the solver holds — and draws the mesh
+with it, so the picture becomes as much about the grid as about the flow. Use
+`flat` when the question is about the discretisation:
+
+```bash
+./fv2d.sh solve naca=0012 mach=0.85 alpha=1 figure=cells.png shading=flat
 ```
 
 There is no figure build step and no CI checking them, so this is a **manual

@@ -132,6 +132,14 @@ order, and the next section measures what that costs.
 
 ![Mach field, with the sonic line drawn in white](figures/mach_transonic.png)
 
+Half a Mach number higher the picture is harder to miss. At $M_\infty = 0.85$,
+$\alpha = 1^\circ$ — `figures/mach_shock.png` and `figures/cp_shock.png`, also
+drawn by `examples/06_postprocess.py` — **both** surfaces go supersonic and each
+pocket ends in its own shock, at $x/c = 0.865$ above and $0.66$ below, with a
+peak Mach number of 1.412 and $c_\ell = 0.334$. It takes 33 500 iterations
+against this case's 17 925, which is the usual price of a stronger shock on an
+explicit march.
+
 ## Spurious drag, and what first order costs
 
 D'Alembert's paradox says an inviscid, shock-free, steady flow produces
