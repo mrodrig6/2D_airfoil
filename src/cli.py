@@ -506,6 +506,54 @@ def cmd_sensitivity(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_adapt(args: argparse.Namespace) -> int:
+    """Solve, flag the worst cells, refine, and solve again.
+
+    ``legacy/main.m``'s outer loop, with the same Mach-jump indicator and the
+    same 5% refinement fraction.
+    """
+    from .adapt import adaptive_solve
+
+    flow = FlowConditions(
+        mach=args.mach,
+        alpha_deg=args.alpha,
+        gamma=args.gamma,
+        flux=args.flux,
+        entropy_fix=args.entropy_fix,
+    )
+    options = SolverOptions(
+        cfl=args.cfl,
+        tolerance=args.tolerance,
+        max_iterations=args.max_iterations,
+        scheme=args.scheme,
+        print_interval=args.print_interval,
+        backend=args.backend,
+    )
+    history = adaptive_solve(
+        args.airfoil,
+        _discretization(args),
+        flow,
+        options,
+        cycles=args.cycles,
+        fraction=args.fraction,
+    )
+    print(f"\n{history.summary()}")
+    print(history.mesh.summary())
+
+    if args.figure:
+        from .plotting import plot_mesh
+
+        window = None if args.window == "all" else tuple(float(v) for v in args.window.split(","))
+        if window is not None and len(window) != 4:
+            raise SystemExit("--window needs four comma-separated numbers, or 'all'")
+        print(f"  wrote {plot_mesh(history.mesh, args.figure, window=window)}")
+    if args.history:
+        from .plotting import plot_adaptation
+
+        print(f"  wrote {plot_adaptation(history, args.history)}")
+    return 1 if history.stalled else 0
+
+
 # --------------------------------------------------------------------------
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -616,6 +664,37 @@ def build_parser() -> argparse.ArgumentParser:
         "--step", type=float, default=1e-4, help="finite-difference step (default: %(default)s)"
     )
     sensitivity.set_defaults(run=cmd_sensitivity)
+
+    adapt = sub.add_parser("adapt", help="solve, refine where the error is, and solve again")
+    _add_geometry_options(adapt)
+    _add_mesh_options(adapt)
+    _add_flow_options(adapt)
+    _add_solver_options(adapt)
+    adapt.add_argument(
+        "--cycles", type=int, default=5, help="solve-refine cycles (default: %(default)s)"
+    )
+    adapt.add_argument(
+        "--fraction",
+        type=float,
+        default=0.05,
+        help="fraction of cells refined per cycle (default: %(default)s)",
+    )
+    adapt.add_argument(
+        "--backend",
+        choices=("auto", *BACKENDS),
+        default=SolverOptions.backend,
+        help="execution strategy (default: %(default)s)",
+    )
+    adapt.add_argument("--figure", type=Path, default=None, help="write the final mesh here")
+    adapt.add_argument(
+        "--window",
+        default="-0.6,1.6,-0.7,0.7",
+        help="figure extent 'xmin,xmax,ymin,ymax', or 'all' (default: %(default)s)",
+    )
+    adapt.add_argument(
+        "--history", type=Path, default=None, help="write the loads against cell count here"
+    )
+    adapt.set_defaults(run=cmd_adapt)
 
     bench = sub.add_parser("bench", help="time the backends against each other")
     _add_geometry_options(bench)

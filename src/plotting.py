@@ -444,9 +444,40 @@ def plot_polar(
     return _finish(fig, path)
 
 
+def plot_adaptation(history, path: str | Path | None = None, *, title: str | None = None, **kwargs):
+    """Lift and drag against cell count over an adaptive run.
+
+    The cell count is the x axis, on a log scale, because the question an
+    adaptive run answers is *what did the cells buy* -- and the honest comparison
+    against a uniformly refined mesh is a comparison at equal cell count, not at
+    equal cycle number.
+    """
+    plt = _pyplot()
+
+    cells = np.array([c.n_elements for c in history.cycles], dtype=float)
+    panels = (
+        ("$c_\\ell$", np.array([c.loads.cl for c in history.cycles]), _SERIES[0]),
+        ("$c_d$", np.array([c.loads.cd for c in history.cycles]), _SERIES[1]),
+    )
+
+    fig, axes = plt.subplots(1, 2, figsize=(8.4, 3.4), **kwargs)
+    for ax, (label, value, colour) in zip(axes, panels, strict=True):
+        ax.semilogx(cells, value, color=colour, linewidth=1.8, marker="o", markersize=4)
+        ax.set_xlabel("cells")
+        ax.set_title(label, color=_INK, fontsize=11, loc="left")
+        ax.grid(True, which="both", color=_MUTED, alpha=0.18, linewidth=0.6)
+        ax.set_axisbelow(True)
+        _style(ax)
+    if title:
+        fig.suptitle(title, color=_INK, fontsize=11, x=0.01, ha="left")
+    fig.tight_layout()
+    return _finish(fig, path)
+
+
 __all__ = [
     "FIELD_CMAP",
     "field_cmap",
+    "plot_adaptation",
     "plot_airfoil",
     "plot_convergence",
     "plot_field",

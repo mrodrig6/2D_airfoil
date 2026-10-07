@@ -1,7 +1,9 @@
 # Roadmap
 
-The port is being done in five increments. Each one is a reviewable change that
-leaves the repository working, rather than one drop at the end.
+The port was done in five increments, each a reviewable change that left the
+repository working rather than one drop at the end. All five have landed; this
+page is now the record of what each one changed and what was deliberately left
+out.
 
 | | Increment | Status |
 |---|---|---|
@@ -11,7 +13,7 @@ leaves the repository working, rather than one drop at the end.
 | **3** | **Speed: the Numba backend** | **done** |
 | 3b | A higher-order reconstruction | deferred, see below |
 | **4** | **JAX, the adjoint, and design sensitivity** | **done** |
-| 5 | Adaptive refinement, and the lab material | next |
+| **5** | **Adaptive refinement, and the lab material** | **done** |
 
 The Riemann-flux study that increment 5 was to carry out
 [happened early](riemann_fluxes.md), in increment 2, because the answer was
@@ -117,13 +119,43 @@ forward solver is compiled Numba while the adjoint march runs in JAX. The
 scaling is what the adjoint buys, not the constant.
 → [`workflows.md`](workflows.md#what-it-costs)
 
-## 5. Adaptation, and the lab material
+## 5. Adaptation, and the lab material — done
 
-**Adaptive refinement** last, because conforming red–green refinement trades
-away the fixed array shapes that make increments 3 and 4 fast. The legacy
-Mach-jump indicator from `legacy/post_calc.m` is what drives it.
+**Adaptive refinement** came last, because conforming refinement trades away the
+fixed array shapes that make increments 3 and 4 fast — an adapted mesh is no
+longer structured, so the O-grid's $(i, j)$ layout is gone and only the
+triangulation remains. The legacy Mach-jump indicator from `legacy/post_calc.m`
+drives it unchanged, including its wall term.
 
-The examples landed early, with increment 4 — [`../examples/`](../examples/)
-and [`workflows.md`](workflows.md) — because a gradient nobody can run is not a
-feature. What remains for increment 5 is the refinement, the lab guide and the
-remaining figures.
+The implementation keeps a **tree of red subdivisions** and recomputes green
+closure every cycle rather than storing it, so a green triangle is never refined
+— the classic way an adaptive code quietly fills itself with slivers. New
+boundary nodes are projected back onto the section, without which refining the
+wall only adds points to its chords.
+→ [`adaptation.md`](adaptation.md)
+
+**The result is not the textbook one**, and it is the most interesting thing in
+this increment: against uniform refinement at equal cell count, adaptation wins
+on drag and loses on lift. [`adaptation.md`](adaptation.md#does-it-pay) has the
+measurement and the reason, which is that the indicator is a jump rather than an
+error estimate and nothing in it knows which functional is being computed.
+
+**[`lab.md`](lab.md)** is the lab guide: seven exercises, each with the number
+this code actually gives, so a student can tell a result from a mistake.
+
+The examples landed early, with increment 4 — [`../examples/`](../examples/) and
+[`workflows.md`](workflows.md) — because a gradient nobody can run is not a
+feature.
+
+## What was left out, on purpose
+
+* **A higher-order reconstruction** (increment 3b). Deferred by decision, not by
+  omission; it is the single most valuable thing still undone, and
+  [`verification.md`](verification.md) measures what it would buy.
+* **Hicks–Henne bumps.** The four-digit parameters were enough to demonstrate
+  and verify the shape route; a richer parameterisation plugs into the same
+  `_shape_partials` without touching the adjoint.
+* **A goal-oriented (adjoint-weighted) error indicator.** The pieces are all
+  here — `sensitivity.py` already solves the adjoint this would weight by — and
+  [`adaptation.md`](adaptation.md#what-would-change-the-answer) says what it
+  would change.

@@ -13,7 +13,7 @@ Everything available today, from both the launcher and Python.
 - [Using a section from XFOIL](#using-a-section-from-xfoil)
 - [Meshing it](#meshing-it)
 - [Using a mesh from elsewhere](#using-a-mesh-from-elsewhere)
-- [Sweeps, sensitivities and optimisation](#sweeps-sensitivities-and-optimisation)
+- [Sweeps, sensitivities, optimisation and adaptation](#sweeps-sensitivities-optimisation-and-adaptation)
 - [Units: the code is non-dimensional](#units-the-code-is-non-dimensional)
 - [Checking it still works](#checking-it-still-works)
 
@@ -36,6 +36,7 @@ directory.
 | `solve` | solve one operating point and report the loads |
 | `sweep` | solve a range of incidences on one mesh, and optionally plot the polar |
 | `sensitivity` | exact design gradients by the discrete adjoint (needs JAX) |
+| `adapt` | solve, refine the worst cells, and solve again |
 | `check` | report the Python and which optional packages are present |
 | `geometry` | inspect a section — thickness, camber, area; optionally a figure or a `.dat` |
 | `mesh` | generate (or read) a mesh and report its quality; optionally a figure or a `.su2` |
@@ -350,11 +351,12 @@ because the solver still runs and the answer is merely wrong. Pass
 `wall_names=`/`farfield_names=` to name yours. Triangle winding is fixed on
 read, so a clockwise mesh is fine.
 
-## Sweeps, sensitivities and optimisation
+## Sweeps, sensitivities, optimisation and adaptation
 
-Three things have their own document, because each is a workflow rather than an
-option: reusing one mesh across an angle-of-attack sweep, taking exact design
-gradients by the discrete adjoint, and handing those gradients to an optimiser.
+Four things have their own documents, because each is a workflow rather than
+an option: reusing one mesh across an angle-of-attack sweep, taking exact
+design gradients by the discrete adjoint, handing those gradients to an
+optimiser, and refining the mesh where the solution needs it.
 
 From the launcher:
 
@@ -363,6 +365,10 @@ From the launcher:
 ./fv2d.sh sweep @subcritical alphas=-2,0,2,6        # a list instead of a range
 ./fv2d.sh sensitivity @subcritical objective=cl
 ./fv2d.sh sensitivity @subcritical variables=alpha,camber check=yes
+```
+
+```bash
+./fv2d.sh adapt @transonic cycles=6 figure=adapted.png history=loads.png
 ```
 
 `sweep` builds the mesh once and warm-starts each angle from the last, and takes
@@ -381,8 +387,10 @@ cl, gradient = case.value_and_gradient("cl")
 #            'thickness': ...}  -- all five from one adjoint solve
 ```
 
-→ **[`workflows.md`](workflows.md)**, and [`../examples/`](../examples/) for the
-same thing as scripts that run with no arguments.
+→ **[`workflows.md`](workflows.md)** for the first three and
+**[`adaptation.md`](adaptation.md)** for the fourth, and
+[`../examples/`](../examples/) for all of them as scripts that run with no
+arguments.  [`lab.md`](lab.md) is the exercise set built on top.
 
 ## Units: the code is non-dimensional
 

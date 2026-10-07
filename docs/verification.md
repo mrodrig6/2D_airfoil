@@ -39,6 +39,9 @@ and the slow half about a minute; neither needs a network or a service.
 | The compiled and the traced backends reproduce the vectorised residual | `tests/test_backends.py` |
 | **The adjoint gradient matches a finite difference**, for a flow variable and a shape variable | `tests/test_sensitivity.py` |
 | The traced free stream and the traced load integral equal the ones the solver reports | `tests/test_sensitivity.py` |
+| A refined mesh still closes the discrete Gauss identity, and every leaf has at most one split edge | `tests/test_adapt.py` |
+| **Repeated refinement does not produce slivers** — the smallest angle falls once and then holds | `tests/test_adapt.py` |
+| Refining the wall makes the section rounder, towards its true area and not past it | `tests/test_adapt.py` |
 
 ## The adjoint gradient
 

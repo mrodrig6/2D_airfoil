@@ -39,6 +39,7 @@ Layout
 :mod:`~src.backends`       how the residual gets evaluated: vectorised NumPy,
                            compiled Numba, or traceable JAX
 :mod:`~src.sensitivity`    exact design gradients by the discrete adjoint
+:mod:`~src.adapt`          error indicator and adaptive mesh refinement
 :mod:`~src.plotting`       matplotlib figures
 =========================  ==================================================
 
@@ -50,8 +51,7 @@ Take a design gradient -- one adjoint solve, however many design variables:
 
 ``docs/workflows.md`` covers sweeps, sensitivities and shape optimisation, and
 ``examples/`` has each of them as a script that runs with no arguments.
-Adaptive refinement is the one planned piece still outstanding; see
-``docs/roadmap.md``.
+``docs/lab.md`` is the exercise set built on all of it.
 """
 
 from __future__ import annotations

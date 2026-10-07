@@ -554,11 +554,11 @@ then the O-grid is the default because it is the smaller of the two.
 
 ### What a structured mesh costs
 
-* **Resolution is uniform in index, not in error.** There is no flagged
-  refinement, so a shock is resolved by whatever `n_surface` and `n_radial`
-  provide there. Adaptive refinement is on the roadmap for last, precisely
-  because it trades away the fixed array shapes that make the fast backends
-  fast.
+* **Resolution is uniform in index, not in error.** A shock is resolved by
+  whatever `n_surface` and `n_radial` happen to provide there.
+  [`adaptation.md`](adaptation.md) lifts this, at the price the bullet predicted:
+  an adapted mesh is no longer structured, the $(i, j)$ layout is gone, and only
+  the triangulation remains.
 * **The far-field boundary is a polygon**, not a circle. The O-grid's area is
   $\tfrac12 N R^2 \sin(2\pi/N)$, which is what the area test compares against —
   $\pi R^2$ would be wrong by $0.02\%$ at $N = 192$.

@@ -14,6 +14,7 @@ python examples/01_solve.py
 | **02** | [`02_alpha_sweep.py`](02_alpha_sweep.py) — a lift curve from one mesh | nothing | 30 s |
 | **03** | [`03_sensitivity.py`](03_sensitivity.py) — exact gradients, and what they cost | `jax` | 45 s |
 | **04** | [`04_optimise.py`](04_optimise.py) — a shape optimisation driven by them | `jax`, `scipy` | 1.5 min |
+| **05** | [`05_adapt.py`](05_adapt.py) — adaptive against uniform refinement | nothing | 1.5 min |
 
 Install what the last two need with `./fv2d.sh install` (or
 `pip install -e ".[all]"`).

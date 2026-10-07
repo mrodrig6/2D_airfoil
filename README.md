@@ -19,10 +19,11 @@ print(result.report())
 
 ![Surface pressure at the legacy operating point: the upper-surface shock at 63% chord](docs/figures/cp_transonic.png)
 
-> **Four of five increments are done.** The solver runs, converges and is
-> verified; the compiled backend and the discrete adjoint are in. Adaptive
-> refinement and the lab material are what remain.
-> [`docs/roadmap.md`](docs/roadmap.md) says what lands when.
+> **All five increments are done.** The solver runs, converges and is verified;
+> the compiled backend, the discrete adjoint and adaptive refinement are in, and
+> [`docs/lab.md`](docs/lab.md) is the exercise set built on them.
+> [`docs/roadmap.md`](docs/roadmap.md) records what each increment changed, and
+> what was deliberately left out.
 
 ---
 
@@ -50,6 +51,7 @@ install` adds them all. The other commands available today:
 ./fv2d.sh solve @transonic cp=cp.png         # solve, and plot the pressure
 ./fv2d.sh sweep @subcritical alphas=-4:8:2   # a polar from one mesh
 ./fv2d.sh sensitivity @subcritical           # exact gradients, one adjoint
+./fv2d.sh adapt @transonic cycles=6          # refine where the error is
 ```
 
 Four worked scripts live in [`examples/`](examples/) — one operating point, an
@@ -124,6 +126,16 @@ eighth significant figure — and driving a two-variable inverse design to its
 target in eight flow solves.
 → [`docs/workflows.md`](docs/workflows.md#exact-design-gradients)
 
+**Refines where the error is.** The legacy's Mach-jump indicator, unchanged,
+driving conforming red–green refinement with new boundary nodes projected back
+onto the section — so refining the wall makes the airfoil rounder rather than
+just adding points on its chords. Green closure is regenerated from a tree of
+red subdivisions every cycle, which is what stops repeated refinement producing
+slivers. Whether it actually pays on this case is
+[measured rather than asserted](docs/adaptation.md#does-it-pay), and the answer
+is more interesting than the textbook one.
+→ [`docs/adaptation.md`](docs/adaptation.md)
+
 **Is non-dimensional throughout.** No SI anywhere: ρ∞ = |v∞| = c = 1 and
 R = γ − 1, so dynamic pressure is exactly 1/2 at every operating point and force
 coefficients compare across Mach numbers without rescaling.
@@ -141,6 +153,8 @@ coefficients compare across Mach numbers without rescaling.
 | Know whether to believe a result | [`docs/verification.md`](docs/verification.md) |
 | Know how fast it is, and why | [`docs/performance.md`](docs/performance.md) |
 | See which flux to use, and why | [`docs/riemann_fluxes.md`](docs/riemann_fluxes.md) |
+| Work through it as a course | [`docs/lab.md`](docs/lab.md) |
+| Refine a mesh where the solution needs it | [`docs/adaptation.md`](docs/adaptation.md) |
 | Know what is built and what is not | [`docs/roadmap.md`](docs/roadmap.md) |
 | See the MATLAB this came from, and what the port changed | [`legacy/README.md`](legacy/README.md) |
 
