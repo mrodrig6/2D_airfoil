@@ -109,11 +109,13 @@ a silent one when a marker cannot be mapped.
 → [`docs/usage.md`](docs/usage.md#using-a-mesh-from-elsewhere)
 
 **Solves.** Cell-centred finite volume on triangles, marched to steady state
-with a local time step. Two approximate Riemann solvers supply the upwinding —
-Roe with the Harten–Hyman entropy fix and HLLC with Batten's wave speeds. Two
-more were implemented, measured over 60 solves and removed, because neither is
-usable on this problem; the measurement is
-[kept](docs/riemann_fluxes.md) even though the code is not.
+with a local time step. Three approximate Riemann solvers supply the upwinding —
+Roe with the Harten–Hyman entropy fix, HLLC with Batten's wave speeds, and
+AUSM⁺-up, which splits the flux rather than decomposing the jump into waves. A
+fourth, SLAU2, was implemented, measured over 60 solves and removed; the
+measurement is [kept](docs/riemann_fluxes.md) even though the code is not —
+along with the retraction of a conclusion about AUSM⁺-up that turned out to be
+about a bug in its implementation rather than about the scheme.
 → [`docs/theory.md`](docs/theory.md#6-the-finite-volume-discretisation)
 
 **Says what the answer is.** Surface pressure, field contours, and the loads

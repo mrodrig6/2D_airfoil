@@ -60,7 +60,7 @@ TOPOLOGIES = ("ogrid", "cgrid")
 #: Interface fluxes.  Both are approximate Riemann solvers: they take a left and
 #: a right state and return a single upwind face flux.  Two AUSM-family schemes
 #: were also implemented, measured and removed -- see ``docs/riemann_fluxes.md``.
-FLUXES = ("roe", "hllc")
+FLUXES = ("roe", "hllc", "ausmup")
 
 
 @dataclass(frozen=True)

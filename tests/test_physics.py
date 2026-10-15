@@ -98,14 +98,114 @@ def test_the_wall_flux_carries_pressure_and_nothing_else(states, normals):
     assert np.allclose(out.flux[:, 1] * ny, out.flux[:, 2] * nx)  # force along n
 
 
-def test_only_the_two_fluxes_that_work_are_shipped():
-    """AUSM+-up and SLAU2 were implemented, measured and removed; see
-    docs/riemann_fluxes.md.  This pins that they stayed removed."""
-    assert set(ph.SOLVERS) == {"roe", "hllc"}
-    for gone in ("ausmup", "slau2"):
-        assert not hasattr(ph, f"{gone}_flux")
-        with pytest.raises(ValueError, match="unknown flux"):
-            ph.interface_flux(gone, np.zeros((1, 4)), np.zeros((1, 4)), 1.0, 0.0, GAMMA)
+def test_only_the_fluxes_that_work_are_shipped():
+    """SLAU2 was implemented, measured and removed, and stays removed.
+
+    AUSM+-up came back: the first attempt carried a tunable cutoff Mach number
+    and only converged inside a narrow window of it, which is what got it
+    removed.  The formulation here has no such constant.  See
+    docs/riemann_fluxes.md.
+    """
+    assert set(ph.SOLVERS) == {"roe", "hllc", "ausmup"}
+    assert not hasattr(ph, "slau2_flux")
+    with pytest.raises(ValueError, match="unknown flux"):
+        ph.interface_flux("slau2", np.zeros((1, 4)), np.zeros((1, 4)), 1.0, 0.0, GAMMA)
+
+
+# -- AUSM+-up ---------------------------------------------------------------
+@pytest.mark.parametrize("beta", [0.0, ph._AUSM_BETA, 0.3])
+def test_the_split_mach_polynomials_sum_to_the_mach_number(beta):
+    r"""``M+_(4)(M) + M-_(4)(M) = M``, for every M and *every* beta.
+
+    One of the two identities that pin the AUSM splittings.  It holds
+    independently of beta because the cross terms cancel, so a wrong beta
+    would not show up here -- which is the point of also checking the closed
+    forms below.
+    """
+    m = np.linspace(-3.0, 3.0, 1001)
+    total = ph._m4_plus(m, beta) + ph._m4_minus(m, beta)
+    assert np.abs(total - m).max() < 1e-14
+
+
+@pytest.mark.parametrize("alpha", [0.0, ph._AUSM_ALPHA, 0.5])
+def test_the_pressure_splittings_sum_to_one(alpha):
+    r"""``P+_(5)(M) + P-_(5)(M) = 1``, for every M and every alpha.
+
+    This is what makes the pressure splitting consistent: at a uniform state
+    the two halves return exactly the one pressure.
+    """
+    m = np.linspace(-3.0, 3.0, 1001)
+    total = ph._p5_plus(m, alpha) + ph._p5_minus(m, alpha)
+    assert np.abs(total - 1.0).max() < 1e-14
+
+
+def test_the_split_polynomials_match_their_closed_forms():
+    """The identities above are blind to alpha and beta, so pin the values too.
+
+    These are the expanded forms quoted in the reference implementation, and
+    they are what fixes beta = 1/8 and alpha = 3/16.
+    """
+    m = np.linspace(-0.999, 0.999, 999)
+    assert np.abs(ph._m4_plus(m, ph._AUSM_BETA) - (m**4 / 8 + m / 2 + 3 / 8)).max() < 1e-14
+    closed = 3 * m**5 / 16 - 5 * m**3 / 8 + 15 * m / 16 + 0.5
+    assert np.abs(ph._p5_plus(m, ph._AUSM_ALPHA) - closed).max() < 1e-14
+
+
+def test_the_pressure_splitting_is_finite_at_zero_mach():
+    """Its supersonic branch divides by M, and a vectorised `where` evaluates
+    both branches -- so an unguarded denominator puts a NaN in the half that is
+    thrown away, and JAX would carry it into the gradient anyway."""
+    m = np.array([-2.0, -1.0, -1e-300, 0.0, 1e-300, 1.0, 2.0])
+    for split in (ph._p5_plus, ph._p5_minus):
+        assert np.all(np.isfinite(split(m, ph._AUSM_ALPHA)))
+
+
+def test_ausm_moves_mass_across_a_pressure_jump_from_rest():
+    r"""The K_p term, which is the whole reason this is AUSM+-**up**.
+
+    With both normal velocities zero, ``M+_(4)(0) + M-_(4)(0) = 0`` exactly, so
+    plain AUSM+ gives *no* mass flux however large the pressure jump.  Momentum
+    still feels the jump, the energy flux stays zero, and the internal energy on
+    the light side goes negative within one step.  The pressure-diffusion term
+    supplies the missing coupling, and it must point from high pressure to low.
+    """
+    left = ph.conservative(
+        np.array([1.0]), np.array([0.0]), np.array([0.0]), np.array([1.0]), GAMMA
+    )
+    right = ph.conservative(
+        np.array([0.125]), np.array([0.0]), np.array([0.0]), np.array([0.1]), GAMMA
+    )
+    nx, ny = np.array([1.0]), np.array([0.0])
+    flux = ph.ausmup_flux(left, right, nx, ny, GAMMA).flux
+    assert flux[0, 0] > 0.0  # mass moves, and towards the low-pressure side
+    assert flux[0, 3] > 0.0  # so does energy
+
+    # and with no pressure jump it is exactly zero again, as the splitting says
+    still = ph.ausmup_flux(left, left, nx, ny, GAMMA).flux
+    assert still[0, 0] == pytest.approx(0.0, abs=1e-15)
+
+
+def test_ausm_carries_a_moving_contact_without_touching_the_pressure():
+    """The guard on the two diffusion coefficients.
+
+    A contact has uniform pressure and velocity with a density jump, and the
+    exact answer is that the pressure stays put.  The consistency identities
+    above constrain the split polynomials but say nothing about K_p and K_u, so
+    this is what catches those drifting -- a K_u too large is anti-dissipative
+    here and amplifies round-off until the pressure is visibly wrong.
+    """
+    p0, v0 = 1.0, 0.7
+    left = ph.conservative(np.array([1.0]), np.array([v0]), np.array([0.0]), np.array([p0]), GAMMA)
+    right = ph.conservative(np.array([0.2]), np.array([v0]), np.array([0.0]), np.array([p0]), GAMMA)
+    nx, ny = np.array([1.0]), np.array([0.0])
+    flux = ph.ausmup_flux(left, right, nx, ny, GAMMA).flux
+
+    # uniform pressure and velocity: the momentum flux is rho v^2 + p with the
+    # upwind density, and the pressure part must be exactly p0
+    assert flux[0, 1] - flux[0, 0] * v0 == pytest.approx(p0, rel=1e-12)
+    # the contact moves right, so everything is drawn from the left state
+    exact = ph.normal_flux(left, nx, ny, GAMMA)
+    assert np.abs(flux - exact).max() < 1e-12
 
 
 def test_the_wall_pressure_removes_only_the_normal_velocity():

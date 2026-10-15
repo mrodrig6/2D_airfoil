@@ -28,8 +28,10 @@ and the slow half about a minute; neither needs a network or a service.
 | Property | Where |
 |---|---|
 | Every flux is consistent, conservative, fully upwind when supersonic, and survives a near-vacuum | `tests/test_physics.py` |
+| **AUSM⁺-up's split polynomials satisfy their two exact identities**, match their closed forms, and stay finite at zero Mach | `tests/test_physics.py` |
+| AUSM⁺-up moves mass across a pressure jump from rest, and carries a moving contact at constant pressure | `tests/test_physics.py` |
 | The far field reproduces the free stream exactly, at any angle of attack | `tests/test_physics.py` |
-| **A uniform free stream stays uniform**, for both fluxes | `tests/test_solver.py` |
+| **A uniform free stream stays uniform**, for every flux | `tests/test_solver.py` |
 | The local time step equals the legacy's `CFL * d_h / s` | `tests/test_solver.py` |
 | A symmetric section at zero incidence makes exactly zero lift | `tests/test_solver.py` |
 | Lift is antisymmetric in angle of attack | `tests/test_solver.py` |

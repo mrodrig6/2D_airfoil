@@ -1,7 +1,13 @@
 # The approximate Riemann solvers, measured
 
-Four interface fluxes were implemented and measured. **Two ship and two were
+Four interface fluxes were implemented and measured. **Three ship and one was
 removed.** This is the record of why.
+
+> **2026-10-15: AUSM⁺-up is back, and the first verdict on it was wrong.**
+> It was removed for needing a tuned cutoff Mach number. It turned out the
+> implementation had a coefficient 7.5 times too large, and the tuning was
+> compensating for that. With the coefficient right it needs no tuning at all.
+> → [AUSM⁺-up: the first verdict was about a bug](#ausm-up-the-first-verdict-was-about-a-bug)
 
 It exists because the companion nozzle code measured the same four, reached a
 conclusion, and **said explicitly that the conclusion should not be carried
@@ -26,7 +32,7 @@ across** — so it was re-measured here rather than inherited.
 - [First: are the implementations right?](#first-are-the-implementations-right)
 - [The result](#the-result)
 - [Do the ones that converge agree?](#do-the-ones-that-converge-agree)
-- [AUSM⁺-up has a narrow window, and it is not where Liou says](#ausm-up-has-a-narrow-window-and-it-is-not-where-liou-says)
+- [AUSM⁺-up: the first verdict was about a bug](#ausm-up-the-first-verdict-was-about-a-bug)
 - [SLAU2 reproduces the nozzle's limit cycle exactly](#slau2-reproduces-the-nozzles-limit-cycle-exactly)
 - [What this does and does not establish](#what-this-does-and-does-not-establish)
 - [Open questions](#open-questions)
@@ -36,23 +42,23 @@ across** — so it was re-measured here rather than inherited.
 
 ## Short answer
 
-Four fluxes, five operating points, three meshes — 60 converged-or-not solves on
-a NACA 0012.
-
 | flux | works? | | shipped? |
 |---|---|---|---|
 | **`roe`** | **yes** | 15 / 15 | **yes**, the default |
 | **`hllc`** | **yes** | 15 / 15 | **yes** |
-| `ausmup` | yes, conditionally | 15 / 15 at $M_{co} = 0.4$; **diverges** at Liou's recommended $M_{co}\sim M_\infty$ | **removed** |
+| **`ausmup`** | **yes transonic**, limit-cycles at low Mach | 12 / 12 transonic; fails at $M_\infty \le 0.5$ on fine meshes | **yes**, with the caveat below |
 | `slau2` | **no**, above a threshold | 7 / 15 — converges below peak Mach ≈ 0.91, fails above | **removed** |
 
-Roe and HLLC are unconditional and both ship.
+Roe and HLLC are unconditional and both ship. Roe stays the default.
 
-AUSM⁺-up does converge on every case tried — but only inside a narrow window in
-its one tunable constant, and **not where its author's own guidance puts that
-window**. A scheme that works only if you already know the answer to a question
-the literature gets wrong for this geometry is a trap in a teaching code, so it
-was removed rather than shipped with a warning.
+**AUSM⁺-up ships again**, re-ported from
+[`mrodrig6/approximate_riemann_solver`](https://github.com/mrodrig6/approximate_riemann_solver),
+whose coefficients come from the group's EMS solver where they are benchmarked.
+It has **no tunable constant**, converges on every transonic case tried, and
+costs about 12% more drag than Roe at the same resolution — it is the more
+dissipative of the three. It does **not** converge at low free-stream Mach
+number on a fine mesh, where it settles into a limit cycle; see below for what
+is measured and what is still a hypothesis.
 
 SLAU2 fails on everything transonic and was removed outright.
 
@@ -143,7 +149,7 @@ below $10^{-6}$.
 |---|---|---|---|---|---|
 | **`roe`** | **yes** | +0.2831 | +0.0402 | 0.629 | 9 042 |
 | **`hllc`** | **yes** | +0.2743 | +0.0402 | 0.629 | 8 989 |
-| `ausmup` | **no** — diverged | — | — | — | 195 |
+| `ausmup` (as then implemented) | **no** — diverged | — | — | — | 195 |
 | `slau2` | **no** — limit cycle | +0.1957 | +0.0423 | 0.533 | 30 000 (stopped) |
 
 ![Residual history by flux](figures/flux_convergence.png)
@@ -151,6 +157,12 @@ below $10^{-6}$.
 Roe and HLLC agree on the shock position to within one cell and on $c_\ell$ to
 3%, which is the right order for two different schemes at first order. The two
 AUSM-family schemes fail, in two different ways.
+
+> **The `ausmup` row is of a broken implementation**, kept because the rest of
+> the table and the figure come from the same run. The scheme as it now stands
+> converges on this case in 8 275 iterations with
+> $c_\ell = +0.2703$, $c_d = +0.0477$ — see
+> [below](#ausm-up-the-first-verdict-was-about-a-bug).
 
 ## Do the ones that converge agree?
 
@@ -192,42 +204,122 @@ quantity where they must differ most. It is also shrinking — 17.9% to 16.7%
 subcritical, 15.3% to 10.5% transonic — which is what it should do if the
 difference is dissipation that is itself vanishing with $h$.
 
-## AUSM⁺-up has a narrow window, and it is not where Liou says
+## AUSM⁺-up: the first verdict was about a bug
 
-The run above used $M_{co} = M_\infty = 0.8$, following Liou's own guidance.
-That is what diverged, so the one tunable constant was swept.
+This section used to report that AUSM⁺-up converged only inside a narrow window
+of its cutoff Mach number $M_{co}$ — 0.30 to 0.45 — and diverged at the
+$M_{co} \sim M_\infty$ its author recommends. That measurement was real. The
+conclusion drawn from it was wrong, and the reason is worth keeping.
 
-| $M_{co}$ | transonic ($M_\infty = 0.8$) | subcritical ($M_\infty = 0.5$) |
+### What was actually wrong
+
+The scheme has two diffusion coefficients. The removed implementation had
+
+```python
+kp, ku, sigma = 0.25, 0.75, 1.0
+p_half = ... - ku * p5p * p5m * (rhoL + rhoR) * (fa * a_half) * (vnR - vnL)
+```
+
+against the benchmarked values — $K_u = 0.2$ applied to
+$\rho_{1/2} = (\rho_L + \rho_R)/2$. Writing 0.75 against the *sum* rather than
+0.2 against the *mean* makes that term
+
+$$\frac{0.75 \times 2}{0.2} = 7.5\ \text{times too large.}$$
+
+$K_u$ sets the velocity diffusion in the interface pressure. Too large, it stops
+being diffusive: the companion repository measures it amplifying round-off by
+about 1.5 per step on a plain moving contact until the pressure error reaches
+50%. Sweeping $M_{co}$ was partly compensating for that — $f_a$ multiplies the
+same term — which is why a window existed at all, and why it sat where no
+physical argument put it.
+
+**Every consistency identity passed throughout.** $M^{+}_{(4)} + M^{-}_{(4)} = M$
+and $P^{+}_{(5)} + P^{-}_{(5)} = 1$ hold for *any* $K_p$ and $K_u$, because they
+constrain the split polynomials and the diffusion terms are not part of them.
+Identity tests cannot catch a wrong diffusion coefficient; only a physical
+invariant can. `test_ausm_carries_a_moving_contact_without_touching_the_pressure`
+is now that guard.
+
+### The current implementation
+
+Ported from [`mrodrig6/approximate_riemann_solver`](https://github.com/mrodrig6/approximate_riemann_solver),
+`riemann/fluxes.py`, whose coefficients come from EMS
+(`src/riemann_solvers/ausm6.cpp`) where they are benchmarked:
+
+| | value | tunable? |
 |---|---|---|
-| 0.02 – 0.20 | **diverges in < 35 iterations** | diverges |
-| 0.30 | converged, $c_\ell$ = 0.2672 | converged, $c_\ell$ = 0.2384 |
-| 0.35 | converged, 0.2694 | converged, 0.2406 |
-| **0.40** | **converged, 0.2713** | **converged, 0.2424** |
-| 0.45 | converged, 0.2729 | converged, 0.2439 |
-| 0.50 | stalls at 9.5e−2 | stalls at 5.2e−1 |
-| 0.80 | diverges at 195 iterations | diverges |
+| $\beta$ | 1/8 | no — fixed by smoothness at $\lvert M\rvert = 1$ |
+| $\alpha$ | 3/16 | no — likewise |
+| $K_p$ | 0.4 | yes, benchmarked |
+| $K_u$ | 0.2, against $\rho_{1/2}$ | yes, benchmarked |
+| $a_{1/2}$ | $(a_L + a_R)/2$ | — arithmetic mean, not Liou's critical speed |
+| $f_a$ | **absent** | — no all-speed scaling, hence no $M_{co}$ |
 
-Three things follow, and the third is the surprise.
+There is no cutoff Mach number to get wrong. The objection that removed it is
+gone.
 
-**The low-$M_{co}$ divergence is the documented trap.** $f_a = M_0(2 - M_0)$
-appears as $K_p/f_a$ in the pressure-diffusion term, so driving $M_{co}$ towards
-zero makes that coefficient blow up. The nozzle recorded the same failure.
+### What it does on the airfoil
 
-**The high-$M_{co}$ failure is the opposite problem.** As $M_{co} \to 1$,
-$f_a \to 1$ and the low-Mach enhancement switches off, recovering plain AUSM⁺ —
-which has the well-known pressure–velocity decoupling as $M \to 0$. An airfoil
-has a **stagnation point**, so there is always a region at $M \approx 0$ for that
-to bite. A nozzle has no stagnation point in its interior, which is plausibly
-why the nozzle never saw this end of the failure.
+36 solves — four operating points, three meshes, three fluxes:
 
-**The window does not move with the free stream.** It is 0.30–0.45 at
-$M_\infty = 0.8$ *and* at $M_\infty = 0.5$. Liou's guidance is
-$M_{co} \sim M_\infty$, and that would predict the window to shift by a factor
-of 1.6 between the two. It does not shift at all. Whatever sets the window here,
-it is not the free-stream Mach number — which is consistent with it being set at
-the other end of the range, by the stagnation region that both cases share.
+| case | peak Mach | `roe` | `hllc` | `ausmup` |
+|---|---|---|---|---|
+| $M$ 0.80, $\alpha$ 1.25° | 1.29–1.34 | 3/3 | 3/3 | **3/3** |
+| $M$ 0.85, $\alpha$ 1.0° | 1.38–1.41 | 3/3 | 3/3 | **3/3** |
+| $M$ 0.80, $\alpha$ 3.0° | 1.41–1.46 | 3/3 | 3/3 | **3/3** |
+| $M$ 0.50, $\alpha$ 2.0° | 0.65–0.68 | 3/3 | 3/3 | **2/3** |
 
-The shipped default is therefore **0.4**, measured, not 0.8 inherited.
+Everything transonic converges. Loads agree with Roe to about 1% on lift; drag
+runs consistently higher, by 12–17% on the coarsest meshes and 11% at 144×56 —
+AUSM⁺-up is the most dissipative of the three here, which is the honest cost of
+its robustness.
+
+| 144×56, $M$ 0.8, $\alpha$ 1.25° | $c_\ell$ | $c_d$ |
+|---|---|---|
+| `roe` | 0.28936 | 0.03782 |
+| `hllc` | 0.28229 | 0.03773 |
+| `ausmup` | 0.28421 | 0.04240 |
+
+### Where it fails, and what is and is not established
+
+The one failure is **not** transonic. It is the *subcritical* case on the
+*finest* mesh — $M_\infty = 0.5$, $\alpha = 2°$, 144×56, peak Mach 0.68 — and it
+is a limit cycle, not a divergence:
+
+| iteration | scaled residual |
+|---|---|
+| 75 | $1.18 \times 10^{-1}$ ← the minimum |
+| 18 000 | $2.715 \times 10^{-1}$ |
+| 100 000 | $2.715 \times 10^{-1}$ |
+| 200 000 | $2.715 \times 10^{-1}$ |
+
+It oscillates between $2.7149 \times 10^{-1}$ and $2.7168 \times 10^{-1}$
+indefinitely. The lift it sits at, 0.2489, is within 1.5% of Roe's converged
+0.24525, so the *state* is close to right; it simply will not settle.
+
+Dropping to $M_\infty = 0.3$ makes it worse and earlier: it fails at 96×40
+(residual $4.4 \times 10^{-2}$) and at 144×56 ($9.0 \times 10^{-1}$), where Roe
+converges on both.
+
+**Established:** the failure is at low free-stream Mach number, gets worse as
+the mesh is refined, and is a limit cycle rather than a blow-up.
+
+**Hypothesis, not established:** this is the missing $f_a$. The all-speed
+scaling is precisely the part of Liou 2006 that keeps the pressure–velocity
+coupling correct as $M \to 0$, and it is the part EMS omits — reasonably, since
+EMS and the 1-D reference both run at $O(1)$ Mach where it does not matter. An
+airfoil has a stagnation point, so there is always a low-Mach region for it to
+bite. **This has not been tested.** Restoring $f_a$ with the correct $K_u$ is
+the obvious experiment and it has not been run; it would also reintroduce
+$M_{co}$, which is a design decision rather than a bug fix, and one for the
+owner of the scheme to make.
+
+### What this means for using it
+
+Use `ausmup` transonically, where it is solid and gives a genuinely independent
+second opinion — it shares no machinery at all with Roe or HLLC, which decompose
+the jump into waves where this splits the flux. Below about $M_\infty = 0.6$ on
+a fine mesh, expect it to stall, and use Roe or HLLC.
 
 ## SLAU2 reproduces the nozzle's limit cycle exactly
 
@@ -307,8 +399,11 @@ conclusion.
 
 * Roe with the Harten–Hyman entropy fix and HLLC both converge on this problem
   and agree with each other.
-* AUSM⁺-up converges only inside a narrow $M_{co}$ window, and that window is
-  not predicted by Liou's guidance for this geometry.
+* AUSM⁺-up, with the benchmarked coefficients and no tunable constant,
+  converges on every transonic case tried and limit-cycles at low free-stream
+  Mach number on a fine mesh.
+* The earlier finding that AUSM⁺-up needs a tuned $M_{co}$ **does not hold**:
+  it was an artefact of a $K_u$ 7.5 times too large.
 * SLAU2 does not converge here, with no constant available to blame.
 * The nozzle's ranking **transfers** to a problem with a surface shock, which
   that project explicitly expected it might not.
@@ -318,15 +413,20 @@ conclusion.
 * *Why*. The mechanism behind the AUSM-family limit cycle is no better
   understood than it was in the nozzle, and nothing here was designed to find
   it.
-* Whether the window moves with the mesh, the CFL, or the section. One mesh,
-  one section, two operating points.
+* **Whether the missing $f_a$ explains AUSM⁺-up's low-Mach limit cycle.** The
+  hypothesis fits — $f_a$ is exactly the all-speed term, it is absent here, and
+  the failure is at low Mach — but the experiment has not been run.
+* Whether AUSM⁺-up's low-Mach threshold moves with the CFL or the section. Two
+  Mach numbers, three meshes, one section.
 * Whether a second-order reconstruction changes any of it. Everything here is
   first order; the AUSM family's published advantages are largely about
   *shock capturing*, which first order smears anyway.
 
-**No remedy has been added to the solver.** The two schemes that fail are
-shipped failing, with no extra damping, no scheme-specific CFL, and no smoothing
-to paper over it — which is what makes this page checkable rather than a story.
+**No remedy has been added to the solver.** Where a scheme fails it fails in
+the open, with no extra damping, no scheme-specific CFL and no smoothing to
+paper over it — which is what makes this page checkable rather than a story.
+AUSM⁺-up ships with its low-Mach limit cycle intact and documented, not
+patched.
 
 ## Open questions
 
@@ -350,19 +450,23 @@ For increment 5, written down now so the null results are not lost:
 
 ## Recommendation
 
-**Use `roe` (the default) or `hllc`.** Both converge on every case tried, they
-agree with each other, and HLLC has no entropy-fix parameter to choose.
+**Use `roe` (the default) or `hllc`.** Both converge on every case tried at
+every Mach number tried, they agree with each other, and HLLC has no
+entropy-fix parameter to choose.
 
-**`ausmup` works**, at $M_{co}$ near 0.4, on all fifteen cases, and gives $c_\ell$
-within 4% of Roe's. The window is narrow enough that it should not be used
-without checking that the run converged — and it is not where its author's own
-guidance points, which is the thing to remember about it.
+**Use `ausmup` transonically, as a second opinion.** It converges on every
+transonic case tried, needs no tuning, and is built from a completely different
+idea — a flux split rather than a wave decomposition — so when it agrees with
+Roe that agreement means something. It costs about 12% more drag at the same
+resolution, and it stalls below roughly $M_\infty = 0.6$ on a fine mesh. Check
+that the run converged.
 
-**`slau2` is usable below a peak Mach of about 0.9** and not above, which rules
-it out for any transonic case on this geometry. It is shipped for the
-comparison, not for use.
+**`slau2` is not available.** It was removed: usable below a peak Mach of about
+0.9 and not above, which rules out every transonic case on this geometry.
 
-That is the same practical conclusion the nozzle reached, for a problem with a
-surface shock that the nozzle could not test. What is new is that the failure
-is **not about the shock at all**: it begins in flow that is subsonic
-everywhere, which neither project would have predicted.
+Two things are new against the nozzle's conclusion. The nozzle's ranking
+**transfers** to a problem with a surface shock, which that project explicitly
+doubted it would. And the failure that does remain is **not about the shock at
+all** — SLAU2 begins failing in flow that is subsonic everywhere, and
+AUSM⁺-up's limit cycle is at *low* Mach number, not high. Neither project would
+have predicted either.

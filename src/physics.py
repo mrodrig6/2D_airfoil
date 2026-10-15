@@ -279,11 +279,172 @@ def hllc_flux(UL, UR, nx, ny, gamma: float, *, xp=np) -> FluxResult:
     return FluxResult(flux, xp.maximum(xp.abs(SL), xp.abs(SR)))
 
 
+# --------------------------------------------------------------------------
+# AUSM+-up
+# --------------------------------------------------------------------------
+# beta = 1/8 and alpha = 3/16 are **not** tunable: they are the unique values
+# that make the split polynomials of the stated degrees smooth at |M| = 1
+# (Liou, J. Comput. Phys. 129:364, 1996).
+_AUSM_BETA = 0.125
+_AUSM_ALPHA = 0.1875
+
+#: The two "-up" diffusion coefficients (Liou, J. Comput. Phys. 214:137, 2006).
+#: These *are* tunable, and these values are not guesses: they are the ones
+#: benchmarked in EMS, the group's Eulerian Multicomponent Solver, carried over
+#: through ``mrodrig6/approximate_riemann_solver``.  That repository records
+#: what happens when they are reconstructed from memory instead -- a ``K_u``
+#: 7.5 times too large, anti-dissipative on a moving contact -- which is why
+#: they are quoted here rather than re-derived.
+_AUSM_KP = 0.4
+_AUSM_KU = 0.2
+
+
+def _m4_plus(m, beta, xp=np):
+    r""":math:`M^{+}_{(4)}`: :math:`M^{+}_{(1)}` supersonic, else the quartic."""
+    m1 = 0.5 * (m + xp.abs(m))
+    m2p = 0.25 * (m + 1.0) ** 2
+    m2m = -0.25 * (m - 1.0) ** 2
+    return xp.where(xp.abs(m) >= 1.0, m1, m2p * (1.0 - 16.0 * beta * m2m))
+
+
+def _m4_minus(m, beta, xp=np):
+    r""":math:`M^{-}_{(4)}`."""
+    m1 = 0.5 * (m - xp.abs(m))
+    m2p = 0.25 * (m + 1.0) ** 2
+    m2m = -0.25 * (m - 1.0) ** 2
+    return xp.where(xp.abs(m) >= 1.0, m1, m2m * (1.0 + 16.0 * beta * m2p))
+
+
+def _p5_plus(m, alpha, xp=np):
+    r""":math:`P^{+}_{(5)}`: 1 upstream, 0 downstream, the quintic between.
+
+    The supersonic branch is :math:`M^{+}_{(1)}/M`, which divides by zero at
+    :math:`M = 0`.  Both branches of an ``xp.where`` are evaluated, so the
+    denominator is guarded even though that branch is never selected there --
+    otherwise a NaN appears in the unused half and propagates straight through
+    into a JAX gradient.
+    """
+    supersonic = xp.abs(m) >= 1.0
+    safe = xp.where(supersonic, m, 1.0)
+    m2p = 0.25 * (m + 1.0) ** 2
+    m2m = -0.25 * (m - 1.0) ** 2
+    return xp.where(
+        supersonic,
+        0.5 * (m + xp.abs(m)) / safe,
+        m2p * ((2.0 - m) - 16.0 * alpha * m * m2m),
+    )
+
+
+def _p5_minus(m, alpha, xp=np):
+    r""":math:`P^{-}_{(5)}`; see :func:`_p5_plus` for the guarded denominator."""
+    supersonic = xp.abs(m) >= 1.0
+    safe = xp.where(supersonic, m, 1.0)
+    m2p = 0.25 * (m + 1.0) ** 2
+    m2m = -0.25 * (m - 1.0) ** 2
+    return xp.where(
+        supersonic,
+        0.5 * (m - xp.abs(m)) / safe,
+        m2m * ((-2.0 - m) + 16.0 * alpha * m * m2p),
+    )
+
+
+def ausmup_flux(UL, UR, nx, ny, gamma: float, *, xp=np) -> FluxResult:
+    r"""AUSM\ :sup:`+`-up (Liou, J. Comput. Phys. **214**:137, 2006).
+
+    Neither Roe nor HLLC's idea.  Where those decompose the jump into waves,
+    AUSM splits the *flux* into a convective part carried bodily by one
+    interface velocity and a pressure part handled separately:
+
+    .. math::
+        \mathbf{F} = u_{1/2}\,\mathbf{\Psi}_{\text{upwind}}
+                   + p_{1/2}\,[0,\ n_x,\ n_y,\ 0]^{T},
+        \qquad
+        \mathbf{\Psi} = [\rho,\ \rho v_x,\ \rho v_y,\ \rho E + p]^{T}
+
+    with :math:`\mathbf{\Psi}` taken from whichever side :math:`u_{1/2}` blows
+    from.  Because all the pressure lives in :math:`p_{1/2}`, the convective
+    part carries no pressure dissipation and a contact -- stationary or moving
+    -- comes through exactly.
+
+    The interface velocity and pressure are polynomial splittings of each
+    side's normal Mach number :math:`M_K = v_{nK}/a_{1/2}`, plus the two terms
+    that put the "up" in the name:
+
+    .. math::
+        u_{1/2} = a_{1/2}\left[M^{+}_{(4)}(M_L) + M^{-}_{(4)}(M_R)\right]
+                + K_p \max(1 - \bar{M}^2, 0)
+                  \frac{p_L - p_R}{\rho_{1/2} a_{1/2}}
+
+    .. math::
+        p_{1/2} = P^{+}_{(5)} p_L + P^{-}_{(5)} p_R
+                + K_u P^{+}_{(5)} P^{-}_{(5)} \rho_{1/2} a_{1/2}
+                  (v_{nL} - v_{nR})
+
+    with :math:`a_{1/2}` and :math:`\rho_{1/2}` plain arithmetic means and
+    :math:`\bar{M}^2 = (M_L^2 + M_R^2)/2`.
+
+    **The** :math:`K_p` **term is not optional.**  Without it -- plain AUSM+ --
+    the mass flux is identically zero whenever :math:`v_{nL} = v_{nR} = 0`,
+    because :math:`M^{+}_{(4)}(0) + M^{-}_{(4)}(0) = 0` exactly, however large
+    the pressure jump across the face.  Momentum still feels the jump and
+    accelerates the gas while the energy flux stays zero, so the growing
+    kinetic energy is taken out of a fixed total and the internal energy goes
+    negative on the light side.  It supplies the missing pressure--velocity
+    coupling.
+
+    **On this geometry it is the dissipative choice**, not a free upgrade: on
+    the transonic NACA 0012 it gives about 15% more drag than Roe at the same
+    resolution.  ``docs/riemann_fluxes.md`` measures that.  What it buys is
+    robustness where Roe's linearisation is least comfortable, and a second
+    opinion from a completely different construction.
+    """
+    rhoL, vxL, vyL, pL, _ = primitives(UL, gamma, xp=xp)
+    rhoR, vxR, vyR, pR, _ = primitives(UR, gamma, xp=xp)
+    vnL = vxL * nx + vyL * ny
+    vnR = vxR * nx + vyR * ny
+    aL = sound_speed(rhoL, pL, gamma, xp=xp)
+    aR = sound_speed(rhoR, pR, gamma, xp=xp)
+
+    # Arithmetic means, as EMS uses -- *not* Liou's critical-speed
+    # construction, and with no f_a all-speed scaling.  That matters: this
+    # formulation has no tunable cutoff Mach number, which is what an earlier
+    # attempt in this repository foundered on.
+    a_half = 0.5 * (aL + aR)
+    rho_half = 0.5 * (rhoL + rhoR)
+
+    machL = vnL / a_half
+    machR = vnR / a_half
+    mbar_sq = 0.5 * (machL * machL + machR * machR)
+
+    # max(1 - Mbar^2, 0) switches the pressure diffusion off once the interface
+    # is supersonic, where the upwinding is dissipative enough on its own.
+    u_half = a_half * (
+        _m4_plus(machL, _AUSM_BETA, xp=xp) + _m4_minus(machR, _AUSM_BETA, xp=xp)
+    ) + _AUSM_KP * xp.maximum(1.0 - mbar_sq, 0.0) * (pL - pR) / (rho_half * a_half)
+
+    p5p = _p5_plus(machL, _AUSM_ALPHA, xp=xp)
+    p5m = _p5_minus(machR, _AUSM_ALPHA, xp=xp)
+    p_half = p5p * pL + p5m * pR + _AUSM_KU * p5p * p5m * rho_half * a_half * (vnL - vnR)
+
+    # Psi = [rho, rho vx, rho vy, rho E + p], upwinded on the sign of u_1/2.
+    psiL = xp.stack([rhoL, UL[..., 1], UL[..., 2], UL[..., 3] + pL], axis=-1)
+    psiR = xp.stack([rhoR, UR[..., 1], UR[..., 2], UR[..., 3] + pR], axis=-1)
+    psi = xp.where((u_half > 0.0)[..., None], psiL, psiR)
+
+    zero = xp.zeros_like(p_half)
+    pressure_term = xp.stack([zero, p_half * nx, p_half * ny, zero], axis=-1)
+
+    flux = u_half[..., None] * psi + pressure_term
+    speed = xp.maximum(xp.abs(vnL) + aL, xp.abs(vnR) + aR)
+    return FluxResult(flux, speed)
+
+
 #: The approximate Riemann solvers, by the name :class:`~src.config.FlowConditions`
 #: uses.
 SOLVERS = {
     "roe": roe_flux,
     "hllc": hllc_flux,
+    "ausmup": ausmup_flux,
 }
 
 
@@ -402,6 +563,7 @@ def farfield_flux(
 __all__ = [
     "FLOOR",
     "SOLVERS",
+    "ausmup_flux",
     "FluxResult",
     "conservative",
     "euler_flux",
