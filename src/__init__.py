@@ -30,8 +30,8 @@ Layout
                            connectivity
 :mod:`~src.meshio`         meshes generated elsewhere (SU2, Gmsh)
 :mod:`~src.metrics`        areas, face lengths and normals
-:mod:`~src.physics`        Euler fluxes, the Roe and HLLC approximate
-                           Riemann solvers, boundary conditions
+:mod:`~src.physics`        Euler fluxes, the Roe, HLLC and AUSM+-up
+                           approximate Riemann solvers, boundary conditions
 :mod:`~src.assembly`       the vectorised finite-volume residual
 :mod:`~src.solver`         the pseudo-time march to steady state
 :mod:`~src.postprocess`    lift, drag, moment, surface pressure, fields

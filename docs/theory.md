@@ -597,6 +597,8 @@ upwind flux. Four will be available, all with the same signature:
 | `roe` | Roe's linearised Riemann solver with the Harten–Hyman entropy fix — the legacy default, and what `legacy/residual_calc.m` implements |
 | `hllc` | HLLC with Batten's wave speeds; positivity-preserving, no tunable constant |
 
+| `ausmup` | AUSM⁺-up (Liou 2006): a flux split into a convective and a pressure part rather than a wave decomposition; no tunable constant |
+
 Two more — AUSM⁺-up and SLAU2 — were implemented and then **removed**. The
 companion nozzle code had found that Roe-with-entropy-fix converged while the
 AUSM-family pair did not, and said explicitly that its own domain being
@@ -606,9 +608,15 @@ inherited.
 
 The ranking transferred, and for a reason neither project predicted: SLAU2
 stops converging above a peak Mach number of about **0.91**, on flow that is
-still subsonic everywhere, so it is not about shock capturing at all. AUSM⁺-up
-works only inside a narrow window in its one tunable constant and not where its
-author's guidance puts that window. Neither is usable here, so neither ships.
+still subsonic everywhere, so it is not about shock capturing at all. SLAU2 is
+still out.
+
+**AUSM⁺-up came back**, and the reason is worth reading: the measurement that
+removed it was of an implementation with a diffusion coefficient 7.5 times too
+large, and the "narrow window in a tunable constant" was the tuning
+compensating for that. Re-ported from the group's own reference code it has no
+tunable constant, converges on every transonic case, and fails instead at *low*
+Mach number — the opposite end from where it was first blamed.
 → [`riemann_fluxes.md`](riemann_fluxes.md)
 
 ### Time integration

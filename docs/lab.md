@@ -181,9 +181,10 @@ your fit — of how many cells a drag accurate to 0.001 would need.
 Riemann solver. Does the choice matter?
 
 ```bash
-./fv2d.sh solve @transonic flux=roe  convergence=roe.png
-./fv2d.sh solve @transonic flux=hllc convergence=hllc.png
-./fv2d.sh solve @transonic flux=roe  entropy_fix=0
+./fv2d.sh solve @transonic flux=roe    convergence=roe.png
+./fv2d.sh solve @transonic flux=hllc   convergence=hllc.png
+./fv2d.sh solve @transonic flux=ausmup convergence=ausmup.png
+./fv2d.sh solve @transonic flux=roe    entropy_fix=0
 ```
 
 **What to look for.** Roe and HLLC agree on the loads to about 2% and differ in
@@ -192,11 +193,23 @@ shock, a solution that satisfies the conservation laws and violates the second
 law, and the Harten–Hyman entropy fix is what rules it out. Setting it to zero
 is a *physics* failure, not a numerical one, and it shows up near the sonic line.
 
-**Reference.** Both fluxes converge on all 15 transonic cases in the study;
-AUSM⁺-up and SLAU2 were implemented, measured and removed — SLAU2 stalls from a
-peak Mach of 0.924 with **zero supersonic cells**, which disproved the
-explanation we first offered for it. The retraction is left visible in
-[`riemann_fluxes.md`](riemann_fluxes.md) on purpose.
+**Reference.** Roe and HLLC converge on every transonic case in the study, and
+so does `ausmup` — try it as a third run. SLAU2 was implemented, measured and
+removed: it stalls from a peak Mach of 0.924 with **zero supersonic cells**,
+which disproved the explanation we first offered for it.
+
+**Worth reading alongside this lab**, because it is the better lesson:
+[`riemann_fluxes.md`](riemann_fluxes.md) carries two retractions, left visible
+on purpose. One is that SLAU2 explanation. The other is larger — AUSM⁺-up was
+removed on a measurement that turned out to be of a buggy implementation, and
+the bug was a kind the test suite could not catch, because consistency
+identities constrain the split polynomials and say nothing about the diffusion
+coefficients. Ask yourself what test *would* have caught it before reading the
+answer.
+
+**Push it further.** Run `flux=ausmup` at $M_\infty = 0.3$ on a 144×56 mesh and
+watch the residual. It does not diverge — it stalls at a fixed level and stays
+there forever. What is the difference, and which one should worry you more?
 
 **Hand in.** The two convergence histories on one pair of axes, the loads from
 each flux, and what changed when you turned the entropy fix off.

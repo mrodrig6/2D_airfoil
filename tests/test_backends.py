@@ -16,6 +16,7 @@ from src import Discretization, FlowConditions, SolverOptions, build_mesh, build
 from src.backends import available_backends, element_faces, get_backend
 from src.backends.base import FARFIELD, WALL
 from src.mesh import BoundaryTag
+from src.physics import SOLVERS
 from src.postprocess import forces
 from src.solver import initial_state, resolve_backend, solve_steady
 
@@ -80,7 +81,7 @@ def test_an_unknown_backend_is_refused():
 
 
 @pytest.mark.numba
-@pytest.mark.parametrize("flux", ["roe", "hllc"])
+@pytest.mark.parametrize("flux", tuple(SOLVERS))
 @pytest.mark.parametrize("alpha", [0.0, 2.0])
 def test_the_compiled_residual_matches_the_vectorised_one(metrics, flux, alpha):
     flow = FlowConditions(mach=0.8, alpha_deg=alpha, flux=flux)
@@ -150,7 +151,7 @@ def test_batching_only_changes_where_the_march_stops(metrics):
 
 # -- the traced backend -----------------------------------------------------
 @pytest.mark.jax
-@pytest.mark.parametrize("flux", ["roe", "hllc"])
+@pytest.mark.parametrize("flux", tuple(SOLVERS))
 def test_the_jax_residual_matches_the_vectorised_one(metrics, flux):
     """JAX runs the *same* ``src/assembly.py``, with ``jax.numpy`` injected, so
     this is checking that the injection is complete -- that nothing fell back to

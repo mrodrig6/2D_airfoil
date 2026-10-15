@@ -109,19 +109,23 @@ is a result worth looking at, and for the flux comparison it is *the* result.
 
 ## Choosing a flux
 
-Two approximate Riemann solvers supply the upwinding. In a finite-volume scheme
-the Riemann solver **is** the upwinding — there is no separate upwind operator —
-so this is the single most consequential option after the mesh.
+Three approximate Riemann solvers supply the upwinding. In a finite-volume
+scheme the Riemann solver **is** the upwinding — there is no separate upwind
+operator — so this is the single most consequential option after the mesh.
 
 | `flux=` | scheme | on this problem |
 |---|---|---|
-| `roe` | Roe + Harten–Hyman entropy fix | **converges**; the default, and what the legacy used |
-| `hllc` | HLLC with Batten's wave speeds | **converges**; agrees with Roe to 3%, and has no entropy-fix parameter |
+| `roe` | Roe + Harten–Hyman entropy fix | **converges everywhere**; the default, and what the legacy used |
+| `hllc` | HLLC with Batten's wave speeds | **converges everywhere**; agrees with Roe to 3%, and has no entropy-fix parameter |
+| `ausmup` | AUSM⁺-up (Liou 2006) | **converges transonically**; ~12% more drag, and **stalls below about $M_\infty = 0.6$ on a fine mesh** |
 
-Two others — AUSM⁺-up and SLAU2 — were implemented, measured over 60 solves and
-then **removed**, because neither is usable here: AUSM⁺-up only inside a narrow
-window in its one tunable constant, and SLAU2 not at all above a peak Mach of
-about 0.91. → [`riemann_fluxes.md`](riemann_fluxes.md)
+Roe and HLLC both decompose the jump into waves. AUSM⁺-up splits the *flux*
+instead, into a convective part and a pressure part, so it shares no machinery
+with the other two — which is what makes it a useful second opinion when a
+transonic result looks suspicious.
+
+SLAU2 was also implemented, measured over 60 solves and **removed**: it does not
+converge above a peak Mach of about 0.91.
 → [`riemann_fluxes.md`](riemann_fluxes.md)
 
 ## Decks: a case in a file

@@ -35,7 +35,15 @@ from numba import njit, prange
 FLOOR = 1e-10
 
 #: Flux selector, matching :data:`src.config.FLUXES` by index.
-ROE, HLLC = 0, 1
+# Flux codes, which are indices into `src.config.FLUXES` -- the backend passes
+# `FLUXES.index(name)`, so these must stay in that order.
+ROE, HLLC, AUSMUP = 0, 1, 2
+
+# AUSM+-up constants; see `src.physics.ausmup_flux` for provenance.
+_AUSM_BETA = 0.125
+_AUSM_ALPHA = 0.1875
+_AUSM_KP = 0.4
+_AUSM_KU = 0.2
 
 #: Neighbour codes for a face that has no neighbouring element.
 WALL, FARFIELD = -1, -2
@@ -180,6 +188,89 @@ def _hllc(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma):
 
 
 @njit(**_FAST)
+def _m4_plus(m, beta):
+    if abs(m) >= 1.0:
+        return 0.5 * (m + abs(m))
+    m2p = 0.25 * (m + 1.0) * (m + 1.0)
+    m2m = -0.25 * (m - 1.0) * (m - 1.0)
+    return m2p * (1.0 - 16.0 * beta * m2m)
+
+
+@njit(**_FAST)
+def _m4_minus(m, beta):
+    if abs(m) >= 1.0:
+        return 0.5 * (m - abs(m))
+    m2p = 0.25 * (m + 1.0) * (m + 1.0)
+    m2m = -0.25 * (m - 1.0) * (m - 1.0)
+    return m2m * (1.0 + 16.0 * beta * m2p)
+
+
+@njit(**_FAST)
+def _p5_plus(m, alpha):
+    if abs(m) >= 1.0:
+        return 0.5 * (m + abs(m)) / m
+    m2p = 0.25 * (m + 1.0) * (m + 1.0)
+    m2m = -0.25 * (m - 1.0) * (m - 1.0)
+    return m2p * ((2.0 - m) - 16.0 * alpha * m * m2m)
+
+
+@njit(**_FAST)
+def _p5_minus(m, alpha):
+    if abs(m) >= 1.0:
+        return 0.5 * (m - abs(m)) / m
+    m2p = 0.25 * (m + 1.0) * (m + 1.0)
+    m2m = -0.25 * (m - 1.0) * (m - 1.0)
+    return m2m * ((-2.0 - m) + 16.0 * alpha * m * m2p)
+
+
+@njit(**_FAST)
+def _ausmup(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma):
+    """AUSM+-up; see :func:`src.physics.ausmup_flux`.
+
+    A scalar branch where the vectorised one needs a guarded `where`: the
+    supersonic branch of P+-_(5) divides by M, and here the division simply is
+    not reached when |M| < 1.
+    """
+    rhoL, vxL, vyL, pL, _ = _primitives(lr, lru, lrv, lrE, gamma)
+    rhoR, vxR, vyR, pR, _ = _primitives(rr, rru, rrv, rrE, gamma)
+    vnL = vxL * nx + vyL * ny
+    vnR = vxR * nx + vyR * ny
+    aL = np.sqrt(max(gamma * pL / rhoL, FLOOR))
+    aR = np.sqrt(max(gamma * pR / rhoR, FLOOR))
+
+    a_half = 0.5 * (aL + aR)
+    rho_half = 0.5 * (rhoL + rhoR)
+    machL = vnL / a_half
+    machR = vnR / a_half
+    mbar_sq = 0.5 * (machL * machL + machR * machR)
+
+    u_half = a_half * (_m4_plus(machL, _AUSM_BETA) + _m4_minus(machR, _AUSM_BETA)) + _AUSM_KP * max(
+        1.0 - mbar_sq, 0.0
+    ) * (pL - pR) / (rho_half * a_half)
+
+    p5p = _p5_plus(machL, _AUSM_ALPHA)
+    p5m = _p5_minus(machR, _AUSM_ALPHA)
+    p_half = p5p * pL + p5m * pR + _AUSM_KU * p5p * p5m * rho_half * a_half * (vnL - vnR)
+
+    speed = max(abs(vnL) + aL, abs(vnR) + aR)
+    if u_half > 0.0:
+        return (
+            u_half * rhoL,
+            u_half * lru + p_half * nx,
+            u_half * lrv + p_half * ny,
+            u_half * (lrE + pL),
+            speed,
+        )
+    return (
+        u_half * rhoR,
+        u_half * rru + p_half * nx,
+        u_half * rrv + p_half * ny,
+        u_half * (rrE + pR),
+        speed,
+    )
+
+
+@njit(**_FAST)
 def _wall(r, ru, rv, rE, nx, ny, gamma):
     rho = max(r, FLOOR)
     vx = ru / rho
@@ -225,7 +316,9 @@ def _farfield_state(r, ru, rv, rE, ir, iru, irv, irE, nx, ny, gamma):
 def _interface(kind, lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma, efix):
     if kind == ROE:
         return _roe(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma, efix)
-    return _hllc(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma)
+    if kind == HLLC:
+        return _hllc(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma)
+    return _ausmup(lr, lru, lrv, lrE, rr, rru, rrv, rrE, nx, ny, gamma)
 
 
 @njit(fastmath=True, cache=True, parallel=True)
