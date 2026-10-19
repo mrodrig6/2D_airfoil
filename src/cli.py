@@ -230,7 +230,13 @@ def _add_flow_options(parser: argparse.ArgumentParser) -> None:
 
 def _add_solver_options(parser: argparse.ArgumentParser) -> None:
     o = SolverOptions
-    parser.add_argument("--cfl", type=float, default=o.cfl)
+    parser.add_argument(
+        "--cfl",
+        type=float,
+        default=o.cfl,
+        help="Courant number; omit for the scheme's recommended value "
+        "(0.9 for euler, 1.18 for ssprk3)",
+    )
     parser.add_argument("--tolerance", type=float, default=o.tolerance)
     parser.add_argument("--max-iterations", type=int, default=o.max_iterations)
     parser.add_argument("--scheme", choices=SCHEMES, default=o.scheme)
@@ -311,9 +317,9 @@ def cmd_bench(args: argparse.Namespace) -> int:
         # measurable at all, and fewer would be dominated by the call overhead
         steps = args.steps if name != "numpy" else max(args.steps // 10, 20)
         if hasattr(backend, "warm_up"):
-            print(f"  {name}: compiled in {backend.warm_up():.1f} s (cached on disk)")
+            print(f"  {name}: compiled in {backend.warm_up(options.scheme):.1f} s (cached on disk)")
         started = time.perf_counter()
-        backend.run(np.array(U0), steps, 1.0)
+        backend.run(np.array(U0), steps, options.scheme)
         timings[name] = (steps, time.perf_counter() - started)
 
     # always relative to the reference backend, so the number means "times

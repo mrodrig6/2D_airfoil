@@ -142,8 +142,8 @@ independently in two codebases, and not artefacts of this port.
 
 NACA 0012, $M_\infty = 0.8$, $\alpha = 1.25^\circ$ — a shock at 63% chord on the
 upper surface and a weaker one at 38% on the lower. 96 × 40 O-grid, 7 680 cells,
-far field 15 chords, CFL 0.9, forward Euler, converged means a scaled residual
-below $10^{-6}$.
+far field 15 chords, CFL 0.9, forward Euler (the default when this study was
+run), converged means a scaled residual below $10^{-6}$.
 
 | flux | converged | $c_\ell$ | $c_d$ | shock $x/c$ | iterations |
 |---|---|---|---|---|---|

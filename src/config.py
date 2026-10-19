@@ -299,8 +299,14 @@ class Discretization:
         return self.n_surface * (self.n_radial + 1)
 
 
-#: Pseudo-time integrators.  ``euler`` is what ``legacy/main.m`` used.
-SCHEMES = ("euler", "ssprk3", "rk4")
+#: Pseudo-time integrators, implemented once in :mod:`src.backends.base` and
+#: inherited by every backend.  ``euler`` is what ``legacy/main.m`` used;
+#: ``ssprk3`` is the strong-stability-preserving three-stage method, and the
+#: default because its stages are convex combinations of Euler steps, which is
+#: what a positivity argument needs.  Classical ``rk4`` was removed: it costs a
+#: fourth residual per step, buys no time accuracy in a march whose time step
+#: is already element-local, and has no strong-stability property.
+SCHEMES = ("euler", "ssprk3")
 
 
 @dataclass(frozen=True)
@@ -313,7 +319,15 @@ class SolverOptions:
         Courant number for the **local** time step.  Each cell advances at its
         own stable rate, which is legitimate because only the fixed point is
         wanted and it is what makes an explicit march to steady state
-        affordable at all on a mesh whose cells span six orders of magnitude.
+        affordable at all: the cells on this mesh span six orders of magnitude
+        in area, and a single global step would be set by the smallest of them.
+
+        ``None``, the default, takes
+        :func:`~src.timestepping.step.recommended_cfl` for the chosen scheme --
+        0.9 for ``euler`` and 1.18 for ``ssprk3``, both a fifth below the
+        measured stability limit.  One number cannot carry the same margin for
+        a one-stage and a three-stage method, so the default holds the margin
+        rather than the number.
     tolerance
         Convergence threshold on the residual **scaled by its own initial
         value**, so the number means the same thing on every mesh and at every
@@ -324,20 +338,24 @@ class SolverOptions:
         than raise -- a stalled run is a result worth looking at, and for the
         flux comparison it is *the* result.
     scheme
-        ``euler`` is forward Euler, what the legacy used.  ``ssprk3`` and
-        ``rk4`` cost three and four residuals per step and take a
-        correspondingly larger one.
+        ``ssprk3``, the default, is the strong-stability-preserving three-stage
+        method: three residual evaluations per step, and a stable step roughly
+        1.5 times Euler's.  ``euler`` is forward Euler, one residual per step,
+        what the legacy used, and still the cheapest route to steady state on
+        this problem -- see ``docs/performance.md`` for the measurement and for
+        why the default is the slower one anyway.
     backend
         ``auto`` takes the fastest installed, ``numpy`` the vectorised
         reference, ``numba`` the compiled one.  They agree to :math:`10^{-13}`
         and the answer does not depend on the choice.
     batch
-        Steps the compiled backend runs per call, and so how often convergence
-        is tested.  The whole point of that backend is not returning to Python
+        Steps a backend runs per call, and so how often convergence is tested.
+        The whole point of the compiled backend is not returning to Python
         every iteration, so this cannot be 1 without giving the speed back; it
         means a run can overshoot the tolerance by up to ``batch`` steps, which
-        costs a fraction of a second and nothing else.  Ignored by ``numpy``,
-        which checks every step.
+        costs a fraction of a second and nothing else.  Every backend is
+        chunked the same way, so the iteration count does not depend on which
+        one ran.
     print_interval
         Iterations between progress lines; 0 is silent.
     divergence_factor
@@ -347,10 +365,10 @@ class SolverOptions:
 
     backend: str = "auto"
     batch: int = 25
-    cfl: float = 0.9
+    cfl: float | None = None
     tolerance: float = 1e-6
     max_iterations: int = 20_000
-    scheme: str = "euler"
+    scheme: str = "ssprk3"
     print_interval: int = 500
     divergence_factor: float = 1e4
 
@@ -359,7 +377,7 @@ class SolverOptions:
             raise ValueError(f"unknown backend {self.backend!r}; choose auto or one of {BACKENDS}")
         if self.batch < 1:
             raise ValueError(f"batch must be at least 1, got {self.batch}")
-        if self.cfl <= 0.0:
+        if self.cfl is not None and self.cfl <= 0.0:
             raise ValueError(f"cfl must be positive, got {self.cfl}")
         if self.tolerance <= 0.0:
             raise ValueError(f"tolerance must be positive, got {self.tolerance}")

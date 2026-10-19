@@ -62,46 +62,66 @@ class JaxBackend(Backend):
 
     def __init__(self, metrics: Metrics, flow: FlowConditions, options: SolverOptions):
         super().__init__(metrics, flow, options)
-        if options.scheme != "euler":
-            raise ValueError(
-                f"the jax backend implements forward Euler only, not {options.scheme!r}"
-            )
         import jax
         import jax.numpy as jnp
 
         self._jax = jax
         self._jnp = jnp
-        self._area = jnp.asarray(metrics.area)
-        self._weight = jnp.asarray(ts.component_weights(flow))
-        self._step = jax.jit(self._one_step)
+        self._area = jnp.asarray(metrics.area)[:, None]
+        self._weight = jnp.asarray(self.component_weight)
+        # one compiled program per scheme, built on first use
+        self._compiled: dict[str, object] = {}
 
-    # -- the pieces, written once and shared with the other backends -------
-    def _residual(self, U):
-        return asm.residual(U, self.metrics, self.flow, xp=self._jnp)
-
-    def _one_step(self, U):
-        out = self._residual(U)
-        dt = ts.local_time_step(out.wave, self.metrics, self.options.cfl, xp=self._jnp)
-        rate = out.R / self._area[:, None]
-        norm = self._jnp.sqrt(self._jnp.mean((rate * self._weight) ** 2))
-        return U - dt[:, None] * rate, norm
-
-    # -- the Backend interface ---------------------------------------------
+    # -- the five primitives, in jnp so the steppers above trace ----------
     def residual(self, U):
-        out = self._residual(self._jnp.asarray(U))
-        return np.asarray(out.R), np.asarray(out.wave)
+        out = asm.residual(U, self.metrics, self.flow, xp=self._jnp)
+        return out.R, out.wave
 
-    def run(self, U, n_steps: int, scale: float):
-        """Advance ``n_steps`` inside one compiled ``fori_loop``."""
+    def inverse_mass(self, R):
+        return R / self._area
+
+    def time_step(self, wave):
+        dt = ts.local_time_step(wave, self.metrics, self.cfl, xp=self._jnp)
+        return dt[:, None]
+
+    def norm(self, A):
+        """A traced scalar, not a ``float``.
+
+        The inherited steppers call this inside ``jax.jit``, where coercing to
+        a Python float would end the trace.  :meth:`run` converts once, at the
+        end, outside the compiled region.
+        """
+        return self._jnp.sqrt(self._jnp.mean((A * self._weight) ** 2))
+
+    def asarray(self, A):
+        return self._jnp.asarray(A)
+
+    def to_numpy(self, A) -> np.ndarray:
+        return np.asarray(A)
+
+    # -- the march, as one compiled program --------------------------------
+    def run(self, U, n_steps: int, scheme: str):
+        """Advance ``n_steps`` inside one ``fori_loop``.
+
+        Overridden rather than inherited because the gain here is not avoiding
+        Python: it is that the trace stays *one* program however many steps it
+        runs.  A Python loop would unroll into one copy of the residual graph
+        per step, which is a memory problem long before it is a speed one.
+        """
         jnp = self._jnp
-        state = jnp.asarray(U)
+        step = self._compiled.get(scheme)
+        if step is None:
+            step = self._jax.jit(self.make_step(scheme))
+            self._compiled[scheme] = step
 
         def body(_, carry):
-            U_i, _norm = carry
-            return self._step(U_i)
+            U_i, _res = carry
+            return step(U_i)
 
-        final, norm = self._jax.lax.fori_loop(0, int(n_steps), body, (state, jnp.asarray(0.0)))
-        return np.asarray(final), float(norm) / scale
+        final, res = self._jax.lax.fori_loop(
+            0, int(n_steps), body, (jnp.asarray(U), jnp.asarray(0.0))
+        )
+        return np.asarray(final), float(res)
 
     # -- what the adjoint needs --------------------------------------------
     def residual_fn(self):
@@ -111,4 +131,4 @@ class JaxBackend(Backend):
         follows the scheme automatically: change the flux or the reconstruction
         and the gradient changes with it, with nothing to re-derive by hand.
         """
-        return lambda U: self._residual(U).R
+        return lambda U: asm.residual(U, self.metrics, self.flow, xp=self._jnp).R

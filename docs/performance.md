@@ -109,10 +109,49 @@ overshoot the tolerance by up to 25 iterations. At 1 100 it/s that is 0.02
 seconds. The test suite pins that batching changes only where the march stops,
 not what it converges to.
 
-**Forward Euler only.** The multi-stage schemes (`ssprk3`, `rk4`) are vectorised
-only, and `backend='auto'` quietly gives NumPy when one of them is asked for
-rather than refusing. They exist for comparison; the local-time-step march to a
-steady state does not need them.
+**Every backend runs every scheme.** The time steppers live once, in
+`src/backends/base.py`, and all three backends inherit them, so the scheme no
+longer constrains the backend choice and the three cannot drift apart
+numerically.
+
+## Which scheme, and what the default costs
+
+Two schemes ship: `euler` (one residual evaluation per step) and `ssprk3`
+(three). `ssprk3` is the default. It is also the slower of the two, and it is
+worth being blunt about by how much.
+
+The explicit stability limit in `cfl`, bisected to about 3% over four cases:
+
+| scheme | measured limit | recommended `cfl` |
+|---|---|---|
+| `euler` | 1.15 | 0.90 |
+| `ssprk3` | 1.51 | 1.18 |
+
+SSP-RK3 buys **1.31× the step for 3× the work**. NACA 0012 at M 0.8, α 1.25°,
+192 × 64, tolerance 1e-8, one Numba process:
+
+| scheme | `cfl` | iterations | residual evals | wall |
+|---|---|---|---|---|
+| `euler` | 0.90 | 26 750 | 26 750 | 44.7 s |
+| `ssprk3` | 1.18 | 20 375 | 61 125 | 95.7 s |
+
+So the default is **2.14× slower** than `euler` on this case, and converges to
+the same answer: the two agree to $2\times10^{-8}$ on $c_\ell$ and
+$3\times10^{-9}$ on $c_d$, with the same shock position. There is no accuracy
+to be gained at a steady state — the fixed point does not know how it was
+reached, and the local time step has already given up time accuracy by putting
+every cell on its own clock.
+
+The default is `ssprk3` anyway, for one reason: each of its stages is a convex
+combination of forward-Euler updates, which is the hypothesis a positivity
+limiter needs in order to guarantee anything. `euler` is the faster default
+today and remains one command-line flag away (`--scheme euler`); it is the
+right choice for a mesh-convergence sweep, where the only thing being measured
+is the fixed point.
+
+Classical `rk4` was removed. It cost a fourth residual per step, bought no
+time accuracy in a march whose step is already element-local, and had no
+strong-stability property to justify the expense.
 
 ## The JAX backend
 

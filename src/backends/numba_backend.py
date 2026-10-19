@@ -17,8 +17,7 @@ import time
 
 import numpy as np
 
-from ..config import FLUXES, FlowConditions, SolverOptions
-from ..spatial import assembly as asm
+from ..config import FLUXES, SCHEMES, FlowConditions, SolverOptions
 from ..spatial.metrics import Metrics
 from ..timestepping import step as ts
 from . import _numba_kernels as kernels
@@ -32,21 +31,28 @@ class NumbaBackend(Backend):
 
     def __init__(self, metrics: Metrics, flow: FlowConditions, options: SolverOptions):
         super().__init__(metrics, flow, options)
-        if options.scheme != "euler":
-            raise ValueError(
-                f"the numba backend implements forward Euler only, not {options.scheme!r}; "
-                f"use backend='numpy' for the multi-stage schemes"
-            )
         faces = element_faces(metrics)
         self.neighbour = faces.neighbour
         self.length = np.ascontiguousarray(faces.length)
         self.normal = faces.normal
         self.area = np.ascontiguousarray(metrics.area)
         self.U_inf = np.ascontiguousarray(flow.state)
-        self.weight = np.ascontiguousarray(ts.component_weights(flow))
+        self.weight = np.ascontiguousarray(self.component_weight)
         self.kind = FLUXES.index(flow.flux)
         self.entropy_fix = float(flow.entropy_fix)
         self.compile_seconds = 0.0
+
+        # Scratch space, allocated once per backend rather than once per step.
+        # A chunk of several hundred steps then performs two array copies in
+        # total instead of a handful of fresh allocations per stage, which is
+        # what makes the staged orchestration below cost what a fused loop
+        # costs.
+        n = metrics.n_elements
+        self._R = np.empty((n, 4))
+        self._wave = np.empty(n)
+        self._dt = np.empty(n)
+        self._F = np.empty((3, n, 4))  # one rate buffer per SSP-RK3 stage
+        self._S = np.empty((3, n, 4))  # current, next, and one work array
 
     def _args(self):
         return (
@@ -59,6 +65,7 @@ class NumbaBackend(Backend):
             self.entropy_fix,
         )
 
+    # -- the five primitives ----------------------------------------------
     def residual(self, U):
         U = np.ascontiguousarray(U, dtype=float)
         R = np.empty_like(U)
@@ -66,34 +73,82 @@ class NumbaBackend(Backend):
         kernels.residual_gather(U, *self._args(), R, wave)
         return R, wave
 
-    def run(self, U, n_steps: int, scale: float):
-        """Advance ``n_steps`` inside one compiled call."""
-        U = np.ascontiguousarray(U, dtype=float)
+    def inverse_mass(self, R):
+        return R / self.area[:, None]
+
+    def time_step(self, wave):
+        return ts.local_time_step(wave, self.metrics, self.cfl)[:, None]
+
+    def norm(self, A) -> float:
+        return float(kernels.rms_weighted(np.ascontiguousarray(A, dtype=float), self.weight))
+
+    # -- the march, staged through the scratch buffers ---------------------
+    def _rate_into(self, U, F):
+        """``F = -R(U)/area``, and leave the wave-speed sum in ``self._wave``."""
+        kernels.residual_gather(U, *self._args(), self._R, self._wave)
+        kernels.rate_into(self._R, self.area, F)
+
+    def _euler_into(self, U, out) -> float:
+        """One forward-Euler step: ``U`` in, ``out`` written, norm returned."""
+        F = self._F
+        self._rate_into(U, F[0])
+        kernels.dt_into(self._wave, self.area, self.cfl, self._dt)
+        res = float(kernels.rms_weighted(F[0], self.weight))
+        kernels.stage(U, F[0], 1.0, self._dt, out)
+        return res
+
+    def _ssprk3_into(self, U, out) -> float:
+        """One three-stage SSP-RK3 step, with ``dt`` frozen at the first stage."""
+        F = self._F
+        self._rate_into(U, F[0])
+        kernels.dt_into(self._wave, self.area, self.cfl, self._dt)
+        res = float(kernels.rms_weighted(F[0], self.weight))
+
+        U1 = self._S[2]
+        kernels.stage(U, F[0], 1.0, self._dt, U1)
+        self._rate_into(U1, F[1])
+
+        # out = 0.75 U + 0.25 (U1 + dt F1)
+        kernels.combine_ssp(U, U1, F[1], self._dt, 0.75, 0.25, out)
+        self._rate_into(out, F[2])
+
+        # U1 = U/3 + 2/3 (out + dt F2), then copy back into out
+        kernels.combine_ssp(U, out, F[2], self._dt, 1.0 / 3.0, 2.0 / 3.0, U1)
+        out[...] = U1
+        return res
+
+    def run(self, U, n_steps: int, scheme: str):
+        """Advance ``n_steps`` through the preallocated buffers.
+
+        Overridden rather than inherited so that the state never leaves the
+        scratch arrays: ``U`` is copied in once and out once, whatever the
+        chunk length, and no stage allocates.
+        """
+        if scheme == "euler":
+            step = self._euler_into
+        elif scheme == "ssprk3":
+            step = self._ssprk3_into
+        else:
+            raise ValueError(f"unknown scheme {scheme!r}; choose from {SCHEMES}")
+
+        cur, nxt = self._S[0], self._S[1]
+        cur[...] = np.ascontiguousarray(U, dtype=float)
         started = time.perf_counter()
-        norm = kernels.march(
-            U,
-            self.neighbour,
-            self.length,
-            self.normal,
-            self.U_inf,
-            self.area,
-            self.flow.gamma,
-            self.kind,
-            self.entropy_fix,
-            self.options.cfl,
-            self.weight,
-            scale,
-            n_steps,
-        )
+        res = float("nan")
+        with np.errstate(over="ignore", invalid="ignore"):
+            for _ in range(n_steps):
+                res = step(cur, nxt)
+                cur, nxt = nxt, cur
         if not self.compile_seconds:
             # the first call includes the compile; record it so a benchmark can
             # report it separately instead of hiding it in the first batch
             self.compile_seconds = time.perf_counter() - started
-        return U, float(norm)
+        return cur.copy(), res
 
-    def warm_up(self) -> float:
+    def warm_up(self, scheme: str = "euler") -> float:
         """Compile the kernels now, on a single throwaway step.  Returns the seconds."""
         started = time.perf_counter()
-        self.run(np.ascontiguousarray(asm.np.zeros((self.area.size, 4)) + self.U_inf), 1, 1.0)
+        U = np.broadcast_to(self.U_inf, (self.area.size, 4)).copy()
+        self.run(U, 1, scheme)
         self.compile_seconds = time.perf_counter() - started
         return self.compile_seconds

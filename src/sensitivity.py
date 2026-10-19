@@ -323,7 +323,12 @@ class DifferentiableCase:
         _, vjp = jax.vjp(lambda state: self._residual(state, params), U)
 
         wave = asm.residual(result.state, metrics, self.flow).wave
-        dt = ts.local_time_step(wave, metrics, self.options.cfl)
+        cfl = (
+            ts.recommended_cfl(self.options.scheme)
+            if self.options.cfl is None
+            else self.options.cfl
+        )
+        dt = ts.local_time_step(wave, metrics, cfl)
         step = jnp.asarray(dt / metrics.area)[:, None]
 
         # Batched exactly like the forward march, and for the same reason: a
