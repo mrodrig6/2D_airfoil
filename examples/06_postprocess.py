@@ -36,8 +36,8 @@ from src import (  # noqa: E402
     build_case,
     naca4,
 )
-from src.plotting import plot_field, plot_polar, plot_surface_pressure  # noqa: E402
-from src.postprocess import forces, shock_location  # noqa: E402
+from src.post.plotting import plot_field, plot_polar, plot_surface_pressure  # noqa: E402
+from src.post.postprocess import forces, shock_location  # noqa: E402
 
 SECTION = "0012"
 

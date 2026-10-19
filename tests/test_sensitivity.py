@@ -23,7 +23,7 @@ import pytest
 
 from src import FlowConditions, SolverOptions, build_case, naca4
 from src.geometry import naca_section
-from src.postprocess import forces
+from src.post.postprocess import forces
 from src.sensitivity import (
     DESIGN_VARIABLES,
     FLOW_VARIABLES,
@@ -33,7 +33,7 @@ from src.sensitivity import (
     freestream_state,
     wall_loads,
 )
-from src.solver import SolveResult, initial_state
+from src.time.march import SolveResult, initial_state
 
 jax = pytest.importorskip("jax", reason="the adjoint is JAX only")
 

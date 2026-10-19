@@ -15,10 +15,10 @@ import pytest
 from src import Discretization, FlowConditions, SolverOptions, build_mesh, build_metrics, naca4
 from src.backends import available_backends, element_faces, get_backend
 from src.backends.base import FARFIELD, WALL
-from src.mesh import BoundaryTag
+from src.geometry.mesh import BoundaryTag
 from src.physics import SOLVERS
-from src.postprocess import forces
-from src.solver import initial_state, resolve_backend, solve_steady
+from src.post.postprocess import forces
+from src.time.march import initial_state, resolve_backend, solve_steady
 
 TINY = Discretization(
     n_surface=48, n_radial=24, far_field_radius=10.0, first_cell_height=0.02, growth_limit=1.3

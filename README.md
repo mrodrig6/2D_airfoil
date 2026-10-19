@@ -171,6 +171,7 @@ coefficients compare across Mach numbers without rescaling.
 | Know how fast it is, and why | [`docs/performance.md`](docs/performance.md) |
 | See which flux to use, and why | [`docs/riemann_fluxes.md`](docs/riemann_fluxes.md) |
 | Work through it as a course | [`docs/lab.md`](docs/lab.md) |
+| Find your way around the source, or add to it | [`src/hierarchy.md`](src/hierarchy.md) |
 | Refine a mesh where the solution needs it | [`docs/adaptation.md`](docs/adaptation.md) |
 | Know what is built and what is not | [`docs/roadmap.md`](docs/roadmap.md) |
 | See the MATLAB this came from, and what the port changed | [`legacy/README.md`](legacy/README.md) |

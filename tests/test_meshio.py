@@ -11,8 +11,8 @@ import numpy as np
 import pytest
 
 from src import build_metrics, read_mesh, write_su2
-from src.mesh import BoundaryTag
-from src.meshio import read_gmsh, read_su2
+from src.geometry.mesh import BoundaryTag
+from src.geometry.meshio import read_gmsh, read_su2
 
 
 def write_gmsh22(mesh, path, *, clockwise=False):

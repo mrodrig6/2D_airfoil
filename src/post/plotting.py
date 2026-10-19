@@ -40,8 +40,8 @@ from typing import Any
 
 import numpy as np
 
-from .geometry import Airfoil, surface_normals
-from .mesh import BoundaryTag, MeshTopology
+from ..geometry.mesh import BoundaryTag, MeshTopology
+from ..geometry.section import Airfoil, surface_normals
 
 #: Sequential map for a scalar field.  See the module docstring.
 FIELD_CMAP = "magma"
@@ -57,7 +57,7 @@ _WALL = "#1f2933"
 _MESH = "#5b6b7a"
 _ACCENT = "#eb6834"
 
-#: Axis and colour-bar labels for the fields :func:`~src.postprocess.scalar_field`
+#: Axis and colour-bar labels for the fields :func:`~src.post.postprocess.scalar_field`
 #: can produce.  A colour bar labelled ``mach`` is a variable name leaking into a
 #: figure; these are what the quantity is called.
 SCALAR_LABELS = {
@@ -470,7 +470,7 @@ def plot_polar(
     angles
         Incidences in degrees.
     loads
-        One :class:`~src.postprocess.Forces` per angle, in the same order.
+        One :class:`~src.post.postprocess.Forces` per angle, in the same order.
     """
     plt = _pyplot()
 

@@ -32,7 +32,7 @@ $$
 \;+\; \sum_{f \in \text{wall}} |M_n|\,\ell_f
 $$
 
-`src/adapt.py` reproduces it exactly, including the second term, and refines the
+`src/spatial/adapt.py` reproduces it exactly, including the second term, and refines the
 worst 5% of elements per cycle — the same `f = 0.05`.
 
 **The second term is not a jump**, and it is the more interesting half. The wall
@@ -178,7 +178,7 @@ Three things, in increasing order of interest:
 
 ```python
 from src import Discretization, FlowConditions, SolverOptions
-from src.adapt import adaptive_solve
+from src.spatial.adapt import adaptive_solve
 
 history = adaptive_solve(
     "0012",

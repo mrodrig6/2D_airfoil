@@ -305,7 +305,7 @@ plausible explanation is refuted by the data.
 
 **The MATLAB is in [`legacy/`](../legacy/)** and still readable. Asking students
 to find the force integral in `legacy/post_calc.m` and compare it to
-`src/postprocess.py` is a good exercise in its own right: the legacy formula uses
+`src/post/postprocess.py` is a good exercise in its own right: the legacy formula uses
 `sign(n_x)` and `sign(n_y)` in place of the normal components, which is a
 projection onto the axes rather than an integral of the traction, and
 [`verification.md`](verification.md#the-legacy-force-formula-measured) measures

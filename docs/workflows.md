@@ -31,7 +31,7 @@ reuse it:
 
 ```python
 from src import Discretization, FlowConditions, SolverOptions, build_case, naca4
-from src.postprocess import forces
+from src.post.postprocess import forces
 
 mesh = Discretization(n_surface=128, n_radial=48, far_field_radius=20.0)
 case = build_case(naca4("2412", mesh.n_surface), mesh)
@@ -56,7 +56,7 @@ angles converge to $10^{-7}$ in **30 s in total**, about 4.3 s each.
 *Three panels rather than three curves on one axis: $c_\ell$, $c_d$ and $c_m$
 differ by an order of magnitude, and a shared axis flattens two of them into the
 baseline. From the launcher, `./fv2d.sh sweep @subcritical alphas=-4:8:2
-figure=polar.png`; from Python, `src.plotting.plot_polar`.*
+figure=polar.png`; from Python, `src.post.plotting.plot_polar`.*
 
 The curve is also the first check worth making on a new mesh. Thin-aerofoil
 theory with the Prandtl–Glauert factor gives a lift slope of
@@ -99,7 +99,7 @@ $$
 Only the converged state appears. Both Jacobian actions come from `jax.vjp` on
 the residual, so no matrix is ever assembled, and — the part worth internalising
 — **the adjoint follows the scheme**. It differentiates whatever
-`src/assembly.py` computes, so changing the flux, or adding a higher-order
+`src/spatial/assembly.py` computes, so changing the flux, or adding a higher-order
 reconstruction later, changes the gradient with nothing to re-derive by hand.
 
 The adjoint system itself is marched in pseudo-time, exactly like the flow:

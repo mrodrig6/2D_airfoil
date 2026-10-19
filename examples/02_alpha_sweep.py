@@ -20,7 +20,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src import Discretization, FlowConditions, SolverOptions, build_case, naca4  # noqa: E402
-from src.postprocess import forces  # noqa: E402
+from src.post.postprocess import forces  # noqa: E402
 
 ANGLES = (-4.0, -2.0, 0.0, 2.0, 4.0, 6.0, 8.0)
 MACH = 0.5  # subcritical, so the curve is the clean linear one

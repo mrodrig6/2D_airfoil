@@ -3,7 +3,7 @@ r"""The pseudo-time march to steady state.
 The steady Euler equations are mixed elliptic-hyperbolic, so they are not
 marched in physical time but in a **pseudo-time** whose only purpose is to
 reach the fixed point :math:`R(\vec{U}) = 0`.  Each cell therefore takes its
-own step -- see :func:`~src.assembly.local_time_step` -- which on a mesh whose
+own step -- see :func:`~src.time.stepping.local_time_step` -- which on a mesh whose
 cells span six orders of magnitude in area is the difference between a run that
 finishes and one that does not.
 
@@ -33,9 +33,10 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from . import assembly as asm
-from .config import FlowConditions, SolverOptions
-from .metrics import Metrics
+from ..config import FlowConditions, SolverOptions
+from ..spatial import assembly as asm
+from ..spatial.metrics import Metrics
+from . import stepping as ts
 
 
 @dataclass
@@ -69,13 +70,13 @@ class SolveResult:
     def report(self) -> str:
         """The full report -- convergence, free stream, loads, field extrema.
 
-        A method as well as :func:`src.postprocess.report` because this is what
+        A method as well as :func:`src.post.postprocess.report` because this is what
         the quick start shows, and a student should not have to know which
         module a formatter lives in.  Imported here rather than at module scope:
         post-processing reads a :class:`SolveResult`, so the dependency only
         runs one way at import time.
         """
-        from .postprocess import report as _report
+        from ..post.postprocess import report as _report
 
         return _report(self)
 
@@ -83,8 +84,8 @@ class SolveResult:
 def _step(U, metrics, flow, opts, xp=np):
     """One pseudo-time step.  Returns ``(U_new, scaled_rate, wave)``."""
     out = asm.residual(U, metrics, flow, xp=xp)
-    dt = asm.local_time_step(out.wave, metrics, opts.cfl, xp=xp)
-    rate = asm.residual_norm(out.R, metrics, flow, xp=xp)
+    dt = ts.local_time_step(out.wave, metrics, opts.cfl, xp=xp)
+    rate = ts.residual_norm(out.R, metrics, flow, xp=xp)
     area = metrics.area[:, None]
     step = (dt / metrics.area)[:, None]
 
@@ -109,7 +110,7 @@ def resolve_backend(options: SolverOptions) -> str:
     The multi-stage schemes are vectorised only, so asking for ``auto`` with
     ``scheme='rk4'`` gives NumPy rather than an error.
     """
-    from .backends import available_backends
+    from ..backends import available_backends
 
     if options.backend != "auto":
         return options.backend
@@ -153,7 +154,7 @@ def solve_steady(
     # regardless of where the march was started -- which is what makes warm
     # starting worth doing in a sweep.  For a cold start the two are identical.
     reference = max(
-        asm.residual_norm(
+        ts.residual_norm(
             asm.residual(initial_state(metrics, flow), metrics, flow).R, metrics, flow
         ),
         asm.ph.FLOOR,
@@ -162,7 +163,7 @@ def solve_steady(
     backend_name = resolve_backend(opts)
     compiled = None
     if backend_name != "numpy":
-        from .backends import get_backend
+        from ..backends import get_backend
 
         compiled = get_backend(backend_name, metrics, flow, opts)
 

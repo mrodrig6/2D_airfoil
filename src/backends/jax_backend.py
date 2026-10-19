@@ -1,9 +1,9 @@
 r"""The JAX backend: the same vectorised code, differentiable.
 
-This is deliberately **not** a third implementation.  :mod:`src.assembly` and
+This is deliberately **not** a third implementation.  :mod:`src.spatial.assembly` and
 :mod:`src.physics` both take an ``xp`` array module, so this backend runs the
 identical source under ``jax.numpy`` -- the only thing that genuinely differs
-between NumPy and JAX is the scatter, and :func:`src.assembly.accumulate`
+between NumPy and JAX is the scatter, and :func:`src.spatial.assembly.accumulate`
 isolates that in four lines.  A third copy of the Euler fluxes is exactly what
 a project like this cannot afford to keep in step.
 
@@ -33,9 +33,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from .. import assembly as asm
 from ..config import FlowConditions, SolverOptions
-from ..metrics import Metrics
+from ..spatial import assembly as asm
+from ..spatial.metrics import Metrics
+from ..time import stepping as ts
 from .base import Backend
 
 
@@ -71,7 +72,7 @@ class JaxBackend(Backend):
         self._jax = jax
         self._jnp = jnp
         self._area = jnp.asarray(metrics.area)
-        self._weight = jnp.asarray(asm.component_weights(flow))
+        self._weight = jnp.asarray(ts.component_weights(flow))
         self._step = jax.jit(self._one_step)
 
     # -- the pieces, written once and shared with the other backends -------
@@ -80,7 +81,7 @@ class JaxBackend(Backend):
 
     def _one_step(self, U):
         out = self._residual(U)
-        dt = asm.local_time_step(out.wave, self.metrics, self.options.cfl, xp=self._jnp)
+        dt = ts.local_time_step(out.wave, self.metrics, self.options.cfl, xp=self._jnp)
         rate = out.R / self._area[:, None]
         norm = self._jnp.sqrt(self._jnp.mean((rate * self._weight) ** 2))
         return U - dt[:, None] * rate, norm

@@ -32,10 +32,10 @@ from .config import (
     FlowConditions,
     SolverOptions,
 )
-from .geometry import CLUSTERINGS, load_airfoil, write_dat
-from .mesh import CGrid, build_mesh
-from .meshio import read_mesh, write_su2
-from .metrics import build_metrics
+from .geometry.mesh import CGrid, build_mesh
+from .geometry.meshio import read_mesh, write_su2
+from .geometry.section import CLUSTERINGS, load_airfoil, write_dat
+from .spatial.metrics import build_metrics
 
 
 # --------------------------------------------------------------------------
@@ -169,7 +169,7 @@ def cmd_geometry(args: argparse.Namespace) -> int:
     if args.dat:
         print(f"  wrote {write_dat(airfoil, args.dat)}")
     if args.figure:
-        from .plotting import plot_airfoil
+        from .post.plotting import plot_airfoil
 
         print(f"  wrote {plot_airfoil(airfoil, args.figure, normals=args.normals)}")
     return 0
@@ -195,7 +195,7 @@ def cmd_mesh(args: argparse.Namespace) -> int:
     if args.su2:
         print(f"  wrote {write_su2(mesh, args.su2)}")
     if args.figure:
-        from .plotting import plot_mesh
+        from .post.plotting import plot_mesh
 
         window = None if args.window == "all" else tuple(float(v) for v in args.window.split(","))
         if window is not None and len(window) != 4:
@@ -239,7 +239,7 @@ def _add_solver_options(parser: argparse.ArgumentParser) -> None:
 
 def cmd_solve(args: argparse.Namespace) -> int:
     """Solve one operating point and report the loads."""
-    from .postprocess import report
+    from .post.postprocess import report
 
     case = (
         build_case(
@@ -271,17 +271,17 @@ def cmd_solve(args: argparse.Namespace) -> int:
     print(report(result))
 
     if args.cp:
-        from .plotting import plot_surface_pressure
+        from .post.plotting import plot_surface_pressure
 
         print(f"  wrote {plot_surface_pressure(result, args.cp)}")
     if args.figure:
-        from .plotting import plot_field
+        from .post.plotting import plot_field
 
         print(
             f"  wrote {plot_field(result, args.figure, scalar=args.scalar, shading=args.shading)}"
         )
     if args.convergence:
-        from .plotting import plot_convergence
+        from .post.plotting import plot_convergence
 
         print(f"  wrote {plot_convergence(result, args.convergence)}")
     return 0 if result.converged else 1
@@ -294,7 +294,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
     import numpy as np
 
     from .backends import available_backends, get_backend
-    from .solver import initial_state
+    from .time.march import initial_state
 
     case = build_case(
         args.airfoil, _discretization(args), n_surface=args.n_surface, clustering=args.clustering
@@ -372,7 +372,7 @@ def cmd_sweep(args: argparse.Namespace) -> int:
     and each solve starts from the previous angle's converged field, which is
     already most of the way to the answer.
     """
-    from .postprocess import forces
+    from .post.postprocess import forces
 
     angles = _angles(args.alphas)
     if not angles:
@@ -433,7 +433,7 @@ def cmd_sweep(args: argparse.Namespace) -> int:
 
     print(f"\n{len(solved)} of {len(angles)} converged, {seconds:.1f} s in total")
     if args.figure and loads:
-        from .plotting import plot_polar
+        from .post.plotting import plot_polar
 
         title = f"{case.airfoil.name} at M = {args.mach:g}"
         print(f"  wrote {plot_polar(solved, loads, args.figure, title=title)}")
@@ -514,7 +514,7 @@ def cmd_adapt(args: argparse.Namespace) -> int:
     ``legacy/main.m``'s outer loop, with the same Mach-jump indicator and the
     same 5% refinement fraction.
     """
-    from .adapt import adaptive_solve
+    from .spatial.adapt import adaptive_solve
 
     flow = FlowConditions(
         mach=args.mach,
@@ -543,14 +543,14 @@ def cmd_adapt(args: argparse.Namespace) -> int:
     print(history.mesh.summary())
 
     if args.figure:
-        from .plotting import plot_mesh
+        from .post.plotting import plot_mesh
 
         window = None if args.window == "all" else tuple(float(v) for v in args.window.split(","))
         if window is not None and len(window) != 4:
             raise SystemExit("--window needs four comma-separated numbers, or 'all'")
         print(f"  wrote {plot_mesh(history.mesh, args.figure, window=window)}")
     if args.history:
-        from .plotting import plot_adaptation
+        from .post.plotting import plot_adaptation
 
         print(f"  wrote {plot_adaptation(history, args.history)}")
     return 1 if history.stalled else 0

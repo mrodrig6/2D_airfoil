@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from src import Discretization, build_mesh, build_metrics, naca4
-from src.mesh import BoundaryTag, enforce_ccw, radial_distribution
+from src.geometry.mesh import BoundaryTag, enforce_ccw, radial_distribution
 
 
 # -- the radial distribution ------------------------------------------------
@@ -236,7 +236,7 @@ def test_the_cgrid_resolves_the_wake_without_the_ogrid_fan(section):
 def test_the_fan_is_made_monotone_only_where_it_has_to_be():
     """Enforcing monotonicity must not disturb the leading edge, which is where
     wall orthogonality earns its keep."""
-    from src.mesh import fan_monotonically
+    from src.geometry.mesh import fan_monotonically
 
     turning = np.array([90.0, 90.0, 85.9, 81.7, 81.8, 100.0, 140.0, 180.0])
     angles = np.radians(turning)

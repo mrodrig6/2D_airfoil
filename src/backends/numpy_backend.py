@@ -1,13 +1,14 @@
 """The vectorised reference backend.
 
-Thin, on purpose: it is :mod:`src.assembly` with a backend's interface around
+Thin, on purpose: it is :mod:`src.spatial.assembly` with a backend's interface around
 it.  Everything else is checked against this, so it is the one place where
 being obviously correct matters more than being fast.
 """
 
 from __future__ import annotations
 
-from .. import assembly as asm
+from ..spatial import assembly as asm
+from ..time import stepping as ts
 from .base import Backend
 
 
@@ -24,7 +25,7 @@ class NumpyBackend(Backend):
         norm = float("nan")
         for _ in range(n_steps):
             R, wave = self.residual(U)
-            dt = asm.local_time_step(wave, metrics, opts.cfl)
-            norm = asm.residual_norm(R, metrics, flow) / scale
+            dt = ts.local_time_step(wave, metrics, opts.cfl)
+            norm = ts.residual_norm(R, metrics, flow) / scale
             U = U - (dt[:, None] / area) * R
         return U, norm

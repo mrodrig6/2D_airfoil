@@ -11,7 +11,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src import geometry as geo
+from src.geometry import section as geo
 
 LEGACY_MAT = "legacy/nacageom.mat"
 
@@ -127,7 +127,7 @@ def test_load_airfoil_resolves_a_code_and_a_path(section, tmp_path):
 # -- the five-digit family --------------------------------------------------
 def naca5_camber(code, x):
     """The five-digit camber line, written out so the test is independent."""
-    from src.geometry import _NACA5_PLAIN, _NACA5_REFLEXED
+    from src.geometry.section import _NACA5_PLAIN, _NACA5_REFLEXED
 
     lift, position, reflexed = int(code[0]), int(code[1]), int(code[2])
     scale = 0.15 * lift / 0.3

@@ -26,13 +26,13 @@ describes a section and meshes it, and nothing more:
 
 * `src/config.py` — the free stream, the gas, the mesh resolution, and the
   non-dimensionalisation
-* `src/geometry.py` — the NACA four- and five-digit families; Selig and
+* `src/geometry/section.py` — the NACA four- and five-digit families; Selig and
   Lednicer coordinate files; resampling
-* `src/mesh.py` — the O-grid and the C-grid, their triangulation, and
+* `src/geometry/mesh.py` — the O-grid and the C-grid, their triangulation, and
   connectivity
-* `src/meshio.py` — SU2 and Gmsh 2.2 meshes from elsewhere
-* `src/metrics.py` — areas, face lengths and normals
-* `src/plotting.py`, `src/cli.py`, `fv2d.sh`
+* `src/geometry/meshio.py` — SU2 and Gmsh 2.2 meshes from elsewhere
+* `src/spatial/metrics.py` — areas, face lengths and normals
+* `src/post/plotting.py`, `src/cli.py`, `fv2d.sh`
 
 Nothing solves anything yet, on purpose: the geometry and the mesh are what the
 solver is built *on*, and they are worth getting exactly right while they are

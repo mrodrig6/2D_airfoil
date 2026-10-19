@@ -1,6 +1,6 @@
 r"""Read a triangular mesh someone else generated.
 
-The solver core takes a :class:`~src.mesh.MeshTopology` and does not care where
+The solver core takes a :class:`~src.geometry.mesh.MeshTopology` and does not care where
 it came from, so an externally generated mesh is a first-class input alongside
 the built-in O-grid.  That matters for two cases this code expects:
 
@@ -24,7 +24,7 @@ says what to run:
 Boundary markers
 ----------------
 A mesh file names its boundaries; this code has exactly two
-(:class:`~src.mesh.BoundaryTag`), so the names have to be mapped onto them.  The
+(:class:`~src.geometry.mesh.BoundaryTag`), so the names have to be mapped onto them.  The
 defaults in :data:`WALL_NAMES` and :data:`FARFIELD_NAMES` cover the usual
 spellings, matched case-insensitively.  An unrecognised marker is an **error
 naming every marker in the file**, not a silently dropped boundary -- a boundary
@@ -41,10 +41,10 @@ import numpy as np
 
 from .mesh import BoundaryTag, MeshTopology, build_edges, enforce_ccw
 
-#: Marker names mapped to :attr:`~src.mesh.BoundaryTag.WALL`.
+#: Marker names mapped to :attr:`~src.geometry.mesh.BoundaryTag.WALL`.
 WALL_NAMES = ("airfoil", "wall", "body", "surface", "profile", "solid")
 
-#: Marker names mapped to :attr:`~src.mesh.BoundaryTag.FARFIELD`.
+#: Marker names mapped to :attr:`~src.geometry.mesh.BoundaryTag.FARFIELD`.
 FARFIELD_NAMES = ("farfield", "far_field", "far-field", "outer", "freestream", "external")
 
 

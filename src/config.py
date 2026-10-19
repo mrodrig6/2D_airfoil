@@ -54,7 +54,7 @@ import numpy as np
 #: Backends the solver can execute on, fastest first.  See ``src.backends``.
 BACKENDS = ("numba", "numpy", "jax")
 
-#: Mesh topologies.  See :mod:`src.mesh`.
+#: Mesh topologies.  See :mod:`src.geometry.mesh`.
 TOPOLOGIES = ("ogrid", "cgrid")
 
 #: Interface fluxes.  Both are approximate Riemann solvers: they take a left and
@@ -187,7 +187,7 @@ class Discretization:
         and back down the cut, so cells **behind** the trailing edge are aligned
         with the wake rather than fanning out of it.  The C-grid costs
         ``2 * n_wake`` extra columns and is the better topology when the wake
-        matters; the O-grid is smaller and simpler.  See :mod:`src.mesh`.
+        matters; the O-grid is smaller and simpler.  See :mod:`src.geometry.mesh`.
     n_wake
         C-grid only: cells along the wake cut, on each side of it.
     wake_length

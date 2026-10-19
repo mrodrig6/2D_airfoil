@@ -202,7 +202,7 @@ by a sonic line that the solution itself determines.
 
 ## 4. Airfoil geometry
 
-Implemented in `src/geometry.py`. A section is stored as a closed loop of
+Implemented in `src/geometry/section.py`. A section is stored as a closed loop of
 points, and everything downstream takes that loop without caring where it came
 from — which is what makes an externally designed section a first-class input.
 
@@ -353,7 +353,7 @@ read those from a coordinate file.
 
 ## 5. Mesh generation
 
-Implemented in `src/mesh.py`.
+Implemented in `src/geometry/mesh.py`.
 
 ### Why this is new code
 
@@ -647,7 +647,7 @@ save nothing.
 
 ## 7. Boundary conditions
 
-Two boundaries, matching `src.mesh.BoundaryTag`.
+Two boundaries, matching `src.geometry.mesh.BoundaryTag`.
 
 **Inviscid wall** ($\hat n$ pointing into the section). No flow through the
 surface, so the normal velocity vanishes and the flux carries pressure only:

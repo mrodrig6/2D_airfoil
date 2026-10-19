@@ -17,9 +17,10 @@ import time
 
 import numpy as np
 
-from .. import assembly as asm
 from ..config import FLUXES, FlowConditions, SolverOptions
-from ..metrics import Metrics
+from ..spatial import assembly as asm
+from ..spatial.metrics import Metrics
+from ..time import stepping as ts
 from . import _numba_kernels as kernels
 from .base import Backend, element_faces
 
@@ -42,7 +43,7 @@ class NumbaBackend(Backend):
         self.normal = faces.normal
         self.area = np.ascontiguousarray(metrics.area)
         self.U_inf = np.ascontiguousarray(flow.state)
-        self.weight = np.ascontiguousarray(asm.component_weights(flow))
+        self.weight = np.ascontiguousarray(ts.component_weights(flow))
         self.kind = FLUXES.index(flow.flux)
         self.entropy_fix = float(flow.entropy_fix)
         self.compile_seconds = 0.0

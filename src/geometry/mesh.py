@@ -87,8 +87,8 @@ from enum import IntEnum
 
 import numpy as np
 
-from .config import Discretization
-from .geometry import Airfoil, signed_area, surface_normals
+from ..config import Discretization
+from .section import Airfoil, signed_area, surface_normals
 
 #: Largest aspect ratio allowed for a first cell whose height is not set by a
 #: wall.  Only the C-grid's wake cut is affected; see :func:`generate_cgrid`.
@@ -349,7 +349,7 @@ class MeshTopology:
     """A conforming triangular mesh with tagged boundaries.
 
     The solver core sees only this, never the O-grid, so an externally generated
-    mesh (see :mod:`src.meshio`) is interchangeable with a generated one.
+    mesh (see :mod:`src.geometry.meshio`) is interchangeable with a generated one.
 
     Attributes
     ----------

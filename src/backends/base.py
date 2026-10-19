@@ -2,11 +2,11 @@ r"""What a backend is, and the per-element face data every backend needs.
 
 A backend is one execution strategy for one fixed mesh and operating point.  It
 owns no physics -- the equations live in :mod:`src.physics` and the assembly in
-:mod:`src.assembly` -- only the question of *how* those get evaluated.
+:mod:`src.spatial.assembly` -- only the question of *how* those get evaluated.
 
 The gather layout
 -----------------
-:func:`element_faces` turns the edge lists in :class:`~src.metrics.Metrics`
+:func:`element_faces` turns the edge lists in :class:`~src.spatial.metrics.Metrics`
 into a per-element view: for each element, its three faces with the neighbour
 on the other side, the face length, and the outward normal.  The vectorised
 assembly does not need this; the compiled one does, because it is what lets
@@ -22,8 +22,8 @@ from typing import NamedTuple
 import numpy as np
 
 from ..config import FlowConditions, SolverOptions
-from ..mesh import BoundaryTag
-from ..metrics import Metrics
+from ..geometry.mesh import BoundaryTag
+from ..spatial.metrics import Metrics
 
 #: Neighbour codes for a face with no element on the far side.
 WALL, FARFIELD = -1, -2
@@ -98,7 +98,7 @@ class Backend(ABC):
 
     @abstractmethod
     def residual(self, U):
-        """Return ``(R, wave)``, matching :func:`src.assembly.residual`."""
+        """Return ``(R, wave)``, matching :func:`src.spatial.assembly.residual`."""
 
     @abstractmethod
     def run(self, U, n_steps: int, scale: float):

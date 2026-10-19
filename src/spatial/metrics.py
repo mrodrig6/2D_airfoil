@@ -58,7 +58,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .mesh import BoundaryTag, MeshTopology
+from ..geometry.mesh import BoundaryTag, MeshTopology
 
 
 def element_geometry(

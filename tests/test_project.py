@@ -15,7 +15,10 @@ from src.cli import main
 
 ROOT = Path(__file__).resolve().parent.parent
 MARKDOWN = (
-    sorted(ROOT.glob("*.md")) + sorted(ROOT.glob("docs/**/*.md")) + [ROOT / "legacy" / "README.md"]
+    sorted(ROOT.glob("*.md"))
+    + sorted(ROOT.glob("docs/**/*.md"))
+    + sorted(ROOT.glob("src/**/*.md"))
+    + [ROOT / "legacy" / "README.md"]
 )
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 

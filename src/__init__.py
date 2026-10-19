@@ -21,27 +21,32 @@ Read an externally designed section -- from XFOIL, or from anywhere:
 
 Layout
 ------
-=========================  ==================================================
-:mod:`~src.config`         the free stream, the gas, and the mesh resolution;
-                           the non-dimensionalisation is documented here
-:mod:`~src.geometry`       the NACA four- and five-digit families, and
-                           coordinates read from a file
-:mod:`~src.mesh`           O-grid and C-grid generation, triangulation,
-                           connectivity
-:mod:`~src.meshio`         meshes generated elsewhere (SU2, Gmsh)
-:mod:`~src.metrics`        areas, face lengths and normals
-:mod:`~src.physics`        Euler fluxes, the Roe, HLLC and AUSM+-up
-                           approximate Riemann solvers, boundary conditions
-:mod:`~src.assembly`       the vectorised finite-volume residual
-:mod:`~src.solver`         the pseudo-time march to steady state
-:mod:`~src.postprocess`    lift, drag, moment, surface pressure, fields
-:mod:`~src.api`            :func:`~src.api.solve_airfoil`, the one call
-:mod:`~src.backends`       how the residual gets evaluated: vectorised NumPy,
-                           compiled Numba, or traceable JAX
-:mod:`~src.sensitivity`    exact design gradients by the discrete adjoint
-:mod:`~src.adapt`          error indicator and adaptive mesh refinement
-:mod:`~src.plotting`       matplotlib figures
-=========================  ==================================================
+``src/hierarchy.md`` draws the dependency tree; the subpackages are
+
+=============================  ==============================================
+:mod:`~src.config`             the free stream, the gas, and the mesh
+                               resolution; the non-dimensionalisation is
+                               documented here
+:mod:`~src.geometry`           sections and meshes: the NACA four- and
+                               five-digit families, coordinates read from a
+                               file, O-grid and C-grid generation,
+                               triangulation, and meshes built elsewhere
+                               (SU2, Gmsh)
+:mod:`~src.physics`            the equations: thermodynamics, the Roe, HLLC
+                               and AUSM+-up approximate Riemann solvers, and
+                               the boundary fluxes
+:mod:`~src.spatial`            the right-hand side: areas, face lengths and
+                               normals, the vectorised finite-volume
+                               residual, and adaptive mesh refinement
+:mod:`~src.time`               how far to step and when to stop, and the
+                               pseudo-time march to steady state
+:mod:`~src.backends`           how the residual gets evaluated: vectorised
+                               NumPy, compiled Numba, or traceable JAX
+:mod:`~src.post`               lift, drag, moment, surface pressure, fields,
+                               and matplotlib figures
+:mod:`~src.api`                :func:`~src.api.solve_airfoil`, the one call
+:mod:`~src.sensitivity`        exact design gradients by the discrete adjoint
+=============================  ==============================================
 
 Take a design gradient -- one adjoint solve, however many design variables:
 
@@ -59,7 +64,6 @@ from __future__ import annotations
 __version__ = "0.1.0"
 
 from .api import Case, build_case, solve_airfoil
-from .assembly import residual
 from .config import (
     BACKENDS,
     FLUXES,
@@ -69,7 +73,19 @@ from .config import (
     FlowConditions,
     SolverOptions,
 )
-from .geometry import (
+from .geometry.mesh import (
+    BoundaryTag,
+    CGrid,
+    MeshTopology,
+    OGrid,
+    build_mesh,
+    generate_cgrid,
+    generate_ogrid,
+    radial_distribution,
+    triangulate,
+)
+from .geometry.meshio import read_mesh, write_su2
+from .geometry.section import (
     CLUSTERINGS,
     Airfoil,
     load_airfoil,
@@ -81,21 +97,8 @@ from .geometry import (
     surface_normals,
     write_dat,
 )
-from .mesh import (
-    BoundaryTag,
-    CGrid,
-    MeshTopology,
-    OGrid,
-    build_mesh,
-    generate_cgrid,
-    generate_ogrid,
-    radial_distribution,
-    triangulate,
-)
-from .meshio import read_mesh, write_su2
-from .metrics import Metrics, build_metrics
 from .physics import SOLVERS, interface_flux
-from .postprocess import (
+from .post.postprocess import (
     Forces,
     entropy_error,
     forces,
@@ -104,7 +107,9 @@ from .postprocess import (
     shock_location,
     surface_pressure,
 )
-from .solver import SolveResult, solve_steady
+from .spatial.assembly import residual
+from .spatial.metrics import Metrics, build_metrics
+from .time.march import SolveResult, solve_steady
 
 __all__ = [
     "__version__",
@@ -169,14 +174,14 @@ def __getattr__(name: str):
     ``plotting`` needs matplotlib.  Deferring it keeps ``import src`` working --
     and fast -- when matplotlib is not installed.
 
-    ``importlib`` rather than ``from . import plotting``: the ``from`` form asks
-    the parent package for the attribute, which lands straight back in this
-    function and recurses until the stack runs out.  Caching the module in
+    ``importlib`` rather than ``from .post import plotting``: the ``from`` form
+    asks the parent package for the attribute, which lands straight back in
+    this function and recurses until the stack runs out.  Caching the module in
     ``globals()`` also means this runs once.
     """
     if name == "plotting":
         import importlib
 
-        globals()[name] = importlib.import_module(f"{__name__}.{name}")
+        globals()[name] = importlib.import_module(f"{__name__}.post.plotting")
         return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

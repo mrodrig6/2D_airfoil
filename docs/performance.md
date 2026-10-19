@@ -120,8 +120,8 @@ It exists to be **differentiated**, not to be fast. `src/sensitivity.py` needs
 the residual as a function it can take a vector–Jacobian product of, and that is
 the whole reason for it.
 
-It is also not a third implementation of the physics. `src/assembly.py` and
-`src/physics.py` take an `xp` array module, so the JAX backend runs the identical
+It is also not a third implementation of the physics. `src/spatial/assembly.py` and
+`src/physics/fluxes.py` take an `xp` array module, so the JAX backend runs the identical
 source under `jax.numpy`; the only thing that genuinely differs between NumPy and
 JAX is the scatter, and `assembly.accumulate` isolates that in four lines. A
 third copy of the Euler fluxes is precisely what a project this size cannot keep
@@ -151,5 +151,5 @@ imported, before any array exists.
 `jax`, because nothing about a plain march is better there. Reach for `numpy` in
 exactly two situations: when a result looks wrong and you want the
 simplest possible implementation to check it against, and when you are changing
-the physics — write it in `src/physics.py` first, confirm it there, then port it
+the physics — write it in `src/physics/fluxes.py` first, confirm it there, then port it
 to the kernels and let `tests/test_backends.py` tell you the two agree.
