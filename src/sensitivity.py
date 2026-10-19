@@ -109,8 +109,8 @@ from .geometry.mesh import BoundaryTag
 from .physics import FLOOR
 from .spatial import assembly as asm
 from .spatial.metrics import Metrics
-from .time import stepping as ts
-from .time.march import SolveResult
+from .timestepping import step as ts
+from .timestepping.march import SolveResult
 
 #: Design variables that enter through the free stream alone, so their
 #: derivatives need no geometric differentiation at all.
@@ -146,7 +146,7 @@ def wall_loads(U, alpha_rad, metrics: Metrics, gamma: float, xp):
 
     The same formula as :func:`src.post.postprocess.forces`, in the injected array
     module.  Kept separate rather than shared because that one takes a
-    :class:`~src.time.march.SolveResult` and returns floats, which a tracer cannot
+    :class:`~src.timestepping.march.SolveResult` and returns floats, which a tracer cannot
     pass through; ``tests/test_sensitivity.py`` pins the two together.
     """
     s = metrics.tag_slice(BoundaryTag.WALL)

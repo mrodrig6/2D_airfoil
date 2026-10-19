@@ -3,7 +3,7 @@ r"""The pseudo-time march to steady state.
 The steady Euler equations are mixed elliptic-hyperbolic, so they are not
 marched in physical time but in a **pseudo-time** whose only purpose is to
 reach the fixed point :math:`R(\vec{U}) = 0`.  Each cell therefore takes its
-own step -- see :func:`~src.time.stepping.local_time_step` -- which on a mesh whose
+own step -- see :func:`~src.timestepping.step.local_time_step` -- which on a mesh whose
 cells span six orders of magnitude in area is the difference between a run that
 finishes and one that does not.
 
@@ -36,7 +36,7 @@ import numpy as np
 from ..config import FlowConditions, SolverOptions
 from ..spatial import assembly as asm
 from ..spatial.metrics import Metrics
-from . import stepping as ts
+from . import step as ts
 
 
 @dataclass

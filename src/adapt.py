@@ -74,13 +74,13 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ..config import Discretization, FlowConditions, SolverOptions
-from ..geometry.mesh import BoundaryTag, MeshTopology, build_edges, enforce_ccw
-from ..geometry.section import Airfoil, naca, resample
-from ..physics import FLOOR
-from ..post.postprocess import Forces, forces
-from ..time.march import SolveResult, solve_steady
-from .metrics import Metrics, build_metrics
+from .config import Discretization, FlowConditions, SolverOptions
+from .geometry.mesh import BoundaryTag, MeshTopology, build_edges, enforce_ccw
+from .geometry.section import Airfoil, naca, resample
+from .physics import FLOOR
+from .post.postprocess import Forces, forces
+from .spatial.metrics import Metrics, build_metrics
+from .timestepping.march import SolveResult, solve_steady
 
 #: Fraction of elements refined per cycle, as ``legacy/post_calc.m`` had it.
 REFINE_FRACTION = 0.05
@@ -496,7 +496,7 @@ def adaptive_solve(
     :attr:`AdaptHistory.stalled` set, rather than refining a mesh from a solution
     that never converged.
     """
-    from ..api import build_case
+    from .api import build_case
 
     case = build_case(airfoil, discretization)
     flow = flow or FlowConditions()

@@ -14,8 +14,7 @@ import numpy as np
 import pytest
 
 from src import BoundaryTag, Discretization, FlowConditions, SolverOptions, build_metrics, naca4
-from src.post.postprocess import forces
-from src.spatial.adapt import (
+from src.adapt import (
     BoundaryGeometry,
     RefinementTree,
     _project_to_polyline,
@@ -24,7 +23,8 @@ from src.spatial.adapt import (
     mach_jump_indicator,
     transfer_state,
 )
-from src.time.march import SolveResult, initial_state
+from src.post.postprocess import forces
+from src.timestepping.march import SolveResult, initial_state
 
 
 def smallest_angle(mesh) -> float:

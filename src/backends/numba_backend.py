@@ -20,7 +20,7 @@ import numpy as np
 from ..config import FLUXES, FlowConditions, SolverOptions
 from ..spatial import assembly as asm
 from ..spatial.metrics import Metrics
-from ..time import stepping as ts
+from ..timestepping import step as ts
 from . import _numba_kernels as kernels
 from .base import Backend, element_faces
 

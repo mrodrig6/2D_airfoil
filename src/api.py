@@ -26,7 +26,7 @@ from .geometry.meshio import read_mesh
 from .geometry.section import Airfoil, load_airfoil
 from .post.postprocess import Forces, forces, report
 from .spatial.metrics import Metrics, build_metrics
-from .time.march import SolveResult, solve_steady
+from .timestepping.march import SolveResult, solve_steady
 
 _GEOMETRY_KEYS = ("airfoil", "n_surface", "clustering")
 _MESH_KEYS = (

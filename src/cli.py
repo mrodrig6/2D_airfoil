@@ -294,7 +294,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
     import numpy as np
 
     from .backends import available_backends, get_backend
-    from .time.march import initial_state
+    from .timestepping.march import initial_state
 
     case = build_case(
         args.airfoil, _discretization(args), n_surface=args.n_surface, clustering=args.clustering
@@ -514,7 +514,7 @@ def cmd_adapt(args: argparse.Namespace) -> int:
     ``legacy/main.m``'s outer loop, with the same Mach-jump indicator and the
     same 5% refinement fraction.
     """
-    from .spatial.adapt import adaptive_solve
+    from .adapt import adaptive_solve
 
     flow = FlowConditions(
         mach=args.mach,

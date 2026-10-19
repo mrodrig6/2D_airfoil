@@ -36,7 +36,7 @@ import numpy as np
 from ..config import FlowConditions, SolverOptions
 from ..spatial import assembly as asm
 from ..spatial.metrics import Metrics
-from ..time import stepping as ts
+from ..timestepping import step as ts
 from .base import Backend
 
 

@@ -33,7 +33,7 @@ from src.sensitivity import (
     freestream_state,
     wall_loads,
 )
-from src.time.march import SolveResult, initial_state
+from src.timestepping.march import SolveResult, initial_state
 
 jax = pytest.importorskip("jax", reason="the adjoint is JAX only")
 

@@ -36,16 +36,16 @@ Layout
                                and AUSM+-up approximate Riemann solvers, and
                                the boundary fluxes
 :mod:`~src.spatial`            the right-hand side: areas, face lengths and
-                               normals, the vectorised finite-volume
-                               residual, and adaptive mesh refinement
-:mod:`~src.time`               how far to step and when to stop, and the
-                               pseudo-time march to steady state
+                               normals, and the finite-volume residual
+:mod:`~src.timestepping`       how big a step to take, and the pseudo-time
+                               march to steady state
 :mod:`~src.backends`           how the residual gets evaluated: vectorised
                                NumPy, compiled Numba, or traceable JAX
 :mod:`~src.post`               lift, drag, moment, surface pressure, fields,
                                and matplotlib figures
 :mod:`~src.api`                :func:`~src.api.solve_airfoil`, the one call
 :mod:`~src.sensitivity`        exact design gradients by the discrete adjoint
+:mod:`~src.adapt`              the error indicator and adaptive refinement
 =============================  ==============================================
 
 Take a design gradient -- one adjoint solve, however many design variables:
@@ -109,7 +109,7 @@ from .post.postprocess import (
 )
 from .spatial.assembly import residual
 from .spatial.metrics import Metrics, build_metrics
-from .time.march import SolveResult, solve_steady
+from .timestepping.march import SolveResult, solve_steady
 
 __all__ = [
     "__version__",

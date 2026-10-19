@@ -18,8 +18,8 @@ from src import physics as ph
 from src.geometry.mesh import BoundaryTag
 from src.post.postprocess import entropy_error, forces, legacy_forces, surface_pressure
 from src.spatial import assembly as asm
-from src.time import stepping as ts
-from src.time.march import initial_state, solve_steady
+from src.timestepping import step as ts
+from src.timestepping.march import initial_state, solve_steady
 
 SMALL = Discretization(
     n_surface=64, n_radial=32, far_field_radius=12.0, first_cell_height=0.01, growth_limit=1.3

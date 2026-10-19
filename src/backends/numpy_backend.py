@@ -8,7 +8,7 @@ being obviously correct matters more than being fast.
 from __future__ import annotations
 
 from ..spatial import assembly as asm
-from ..time import stepping as ts
+from ..timestepping import step as ts
 from .base import Backend
 
 

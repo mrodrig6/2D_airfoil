@@ -18,8 +18,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src import Discretization, FlowConditions, SolverOptions, build_case  # noqa: E402
+from src.adapt import adaptive_solve  # noqa: E402
 from src.post.postprocess import forces, shock_location  # noqa: E402
-from src.spatial.adapt import adaptive_solve  # noqa: E402
 
 FLOW = FlowConditions(mach=0.8, alpha_deg=1.25)
 OPTIONS = SolverOptions(tolerance=1e-6, max_iterations=80_000, print_interval=0)

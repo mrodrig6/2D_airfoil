@@ -1,12 +1,12 @@
 """The right-hand side: geometry turned into numbers, and the residual built from them.
 
 ``metrics`` reduces a mesh to the areas, face lengths and normals the scheme
-actually reads; ``assembly`` sums the fluxes over them; ``adapt`` decides where
-the mesh should be finer.
+actually reads; ``assembly`` sums the fluxes over them.
 
-``adapt`` is not re-exported here.  Refinement drives whole solves, so it
-reaches back up to :mod:`src.api`; importing it from this package would make
-that cycle an import-time one.  Use ``from src.spatial.adapt import ...``.
+Mesh refinement is *not* here, although it is a spatial question:
+:mod:`src.adapt` drives whole solves to decide where the mesh should be finer,
+so it sits with the other drivers at the top level rather than underneath
+them.
 """
 
 from .assembly import Residual, accumulate, accumulate_scalar, residual
