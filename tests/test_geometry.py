@@ -102,7 +102,7 @@ def test_a_lednicer_file_reads_as_the_same_section(section, tmp_path):
     body = "\n".join(f"{x:10.6f} {y:10.6f}" for x, y in upper)
     body += "\n\n" + "\n".join(f"{x:10.6f} {y:10.6f}" for x, y in lower)
     path = tmp_path / "l.dat"
-    path.write_text(f"NACA 0012\n  {len(upper)}.  {len(lower)}.\n\n{body}\n")
+    path.write_text(f"NACA 0012\n  {len(upper)}.  {len(lower)}.\n\n{body}\n", encoding="utf-8")
     assert np.allclose(geo.read_dat(path).points, section.points, atol=1e-6)
 
 

@@ -621,7 +621,7 @@ def read_dat(path: str | Path, *, name: str | None = None) -> Airfoil:
     given, so a file in either format, wound either way, round-trips.
     """
     path = Path(path)
-    lines = path.read_text().splitlines()
+    lines = path.read_text(encoding="utf-8").splitlines()
     pairs = _float_pairs(lines)
     if len(pairs) < 16:
         raise ValueError(f"{path}: found only {len(pairs)} coordinate lines")
@@ -655,7 +655,7 @@ def write_dat(airfoil: Airfoil, path: str | Path) -> Path:
     path = Path(path)
     rows = np.concatenate([airfoil.points, airfoil.points[:1]])
     body = "\n".join(f"{x:12.8f} {y:12.8f}" for x, y in rows)
-    path.write_text(f"{airfoil.name}\n{body}\n")
+    path.write_text(f"{airfoil.name}\n{body}\n", encoding="utf-8")
     return path
 
 

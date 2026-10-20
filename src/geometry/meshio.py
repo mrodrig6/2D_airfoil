@@ -128,7 +128,11 @@ def read_su2(
     splitting it would silently change the mesh the user asked for.
     """
     path = Path(path)
-    tokens = [line.split("%")[0].strip() for line in path.read_text().splitlines() if line.strip()]
+    tokens = [
+        line.split("%")[0].strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     coords: list[list[float]] = []
     triangles: list[list[int]] = []
     lines: dict[str, list[list[int]]] = {}
@@ -195,7 +199,7 @@ def read_gmsh(
     physical group, which ``$PhysicalNames`` gives a name.
     """
     path = Path(path)
-    text = path.read_text().splitlines()
+    text = path.read_text(encoding="utf-8").splitlines()
 
     version = ""
     for i, line in enumerate(text):
@@ -289,7 +293,7 @@ def write_su2(mesh: MeshTopology, path: str | Path) -> Path:
         out.append(f"MARKER_TAG= {name}")
         out.append(f"MARKER_ELEMS= {len(edges)}")
         out += [f"3 {a} {b}" for _, a, b in edges]
-    path.write_text("\n".join(out) + "\n")
+    path.write_text("\n".join(out) + "\n", encoding="utf-8")
     return path
 
 

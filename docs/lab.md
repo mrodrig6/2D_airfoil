@@ -37,9 +37,9 @@ Lab 7 needs JAX, and its last part needs SciPy.
 Two things to have read, or to read as you go:
 
 * [`theory.md`](theory.md) — the equations, the non-dimensionalisation, the
-  scheme. In particular: **there are no units here.** $\rho_\infty = |v_\infty|
-  = c = 1$, so dynamic pressure is exactly $1/2$ and the only meaningful outputs
-  are coefficients.
+  scheme. In particular: **there are no units here.**
+  $\rho_\infty = |v_\infty| = c = 1$, so dynamic pressure is exactly $1/2$
+  and the only meaningful outputs are coefficients.
 * The [assumptions table](../README.md#assumptions-and-constraints) in the
   README. Every answer below is conditional on those eight lines; most of the
   surprises in these labs are one of them making itself felt.

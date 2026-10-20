@@ -41,7 +41,7 @@ def write_gmsh22(mesh, path, *, clockwise=False):
         order = tri[::-1] if clockwise else tri
         rows.append(f"{n} 2 2 3 3 {order[0] + 1} {order[1] + 1} {order[2] + 1}")
     out += ["$Elements", str(n)] + rows + ["$EndElements"]
-    path.write_text("\n".join(out) + "\n")
+    path.write_text("\n".join(out) + "\n", encoding="utf-8")
     return path
 
 
@@ -68,31 +68,34 @@ def test_an_su2_mesh_round_trips(tiny_mesh, tiny_metrics, tmp_path):
 
 def test_an_unmappable_marker_is_refused_and_names_what_it_found(tiny_mesh, tmp_path):
     path = write_su2(tiny_mesh, tmp_path / "m.su2")
-    path.write_text(path.read_text().replace("MARKER_TAG= farfield", "MARKER_TAG= mystery"))
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("MARKER_TAG= farfield", "MARKER_TAG= mystery"),
+        encoding="utf-8",
+    )
     with pytest.raises(ValueError, match="mystery"):
         read_su2(path)
 
 
 def test_a_mesh_missing_a_boundary_is_refused(tiny_mesh, tmp_path):
     path = write_su2(tiny_mesh, tmp_path / "m.su2")
-    text = path.read_text().replace("MARKER_TAG= farfield", "MARKER_TAG= airfoil")
-    path.write_text(text)
+    text = path.read_text(encoding="utf-8").replace("MARKER_TAG= farfield", "MARKER_TAG= airfoil")
+    path.write_text(text, encoding="utf-8")
     with pytest.raises(ValueError, match="FARFIELD"):
         read_su2(path)
 
 
 def test_gmsh_4_says_how_to_re_export(tmp_path):
     path = tmp_path / "v4.msh"
-    path.write_text("$MeshFormat\n4.1 0 8\n$EndMeshFormat\n")
+    path.write_text("$MeshFormat\n4.1 0 8\n$EndMeshFormat\n", encoding="utf-8")
     with pytest.raises(ValueError, match="format msh2"):
         read_gmsh(path)
 
 
 def test_a_three_dimensional_or_non_triangular_mesh_is_refused(tmp_path):
-    (tmp_path / "a.su2").write_text("NDIME= 3\n")
+    (tmp_path / "a.su2").write_text("NDIME= 3\n", encoding="utf-8")
     with pytest.raises(ValueError, match="two-dimensional"):
         read_su2(tmp_path / "a.su2")
-    (tmp_path / "b.su2").write_text("NDIME= 2\nNELEM= 1\n9 0 1 2 3 0\n")
+    (tmp_path / "b.su2").write_text("NDIME= 2\nNELEM= 1\n9 0 1 2 3 0\n", encoding="utf-8")
     with pytest.raises(ValueError, match="not a triangle"):
         read_su2(tmp_path / "b.su2")
 

@@ -47,9 +47,9 @@ constant $\gamma = 1.4$.
 
 A subscript $\infty$ is a free-stream value. The conservative state vector is
 
-$$
+```math
 \vec{U} = \left(\rho,\ \rho u,\ \rho v,\ \rho E\right)^T .
-$$
+```
 
 ### A note on what "transonic" costs
 
@@ -75,32 +75,32 @@ There is no SI anywhere in this code. Every quantity is referred to the free
 stream, with the chord as the length scale, exactly as `legacy/initialstate.m`
 did:
 
-$$
+```math
 \rho_\infty = 1, \qquad |\vec{v}_\infty| = 1, \qquad c = 1,
 \qquad R = \gamma - 1 .
-$$
+```
 
 Fixing the density and the speed means the free-stream **Mach number is carried
 by the pressure**:
 
-$$
+```math
 M_\infty = \frac{|\vec v_\infty|}{a_\infty}
          = \frac{|\vec v_\infty|}{\sqrt{\gamma p_\infty / \rho_\infty}}
 \qquad\Longrightarrow\qquad
 \boxed{\ p_\infty = \frac{\rho_\infty}{\gamma}
         \left(\frac{|\vec v_\infty|}{M_\infty}\right)^{2}
       = \frac{1}{\gamma M_\infty^{2}}\ }
-$$
+```
 
 so $p_\infty$ is **not** 1. At $M_\infty = 0.8$ it is $1.116071\ldots$, and
 $a_\infty = 1/M_\infty = 1.25$.
 
 The free-stream conservative state is then
 
-$$
+```math
 \vec{U}_\infty = \left(1,\ \cos\alpha,\ \sin\alpha,\
 \frac{p_\infty}{\gamma - 1} + \tfrac12\right)^{T} .
-$$
+```
 
 ### Why this particular choice
 
@@ -137,33 +137,33 @@ above rather than taking it on trust.
 
 The two-dimensional Euler equations in conservative form:
 
-$$
+```math
 \frac{\partial \vec{U}}{\partial t}
 + \frac{\partial \vec{F}(\vec{U})}{\partial x}
 + \frac{\partial \vec{G}(\vec{U})}{\partial y} = \vec{0},
-$$
+```
 
-$$
+```math
 \vec{U} = \begin{pmatrix} \rho \\ \rho u \\ \rho v \\ \rho E \end{pmatrix},
 \qquad
 \vec{F} = \begin{pmatrix} \rho u \\ \rho u^2 + p \\ \rho u v \\ \rho u H \end{pmatrix},
 \qquad
 \vec{G} = \begin{pmatrix} \rho v \\ \rho u v \\ \rho v^2 + p \\ \rho v H \end{pmatrix},
-$$
+```
 
 closed by the perfect-gas relation
 
-$$
+```math
 p = (\gamma - 1)\left(\rho E - \tfrac12 \rho\,(u^2 + v^2)\right),
 \qquad H = \frac{\rho E + p}{\rho} .
-$$
+```
 
 ### The projected flux, and why only it is ever needed
 
 A finite-volume scheme never needs $\vec F$ and $\vec G$ separately — only their
 projection onto a face normal. With $v_n = u n_x + v n_y$,
 
-$$
+```math
 \vec{F}\,n_x + \vec{G}\,n_y
 = \begin{pmatrix}
 \rho v_n \\
@@ -171,7 +171,7 @@ $$
 \rho v v_n + p\,n_y \\
 \rho H v_n
 \end{pmatrix} .
-$$
+```
 
 This form is **rotationally invariant**: the flux through a face depends on the
 state and the normal only through $v_n$ and the tangential component, which is
@@ -183,9 +183,9 @@ per-face coordinate rotation.
 The normal flux Jacobian $\mathbf{A}_n = \partial(\vec F n_x + \vec G n_y) /
 \partial \vec U$ has eigenvalues
 
-$$
+```math
 \lambda = \left\{\,v_n - a,\ \ v_n,\ \ v_n,\ \ v_n + a\,\right\},
-$$
+```
 
 an acoustic pair and a doubled convective value carrying entropy and the
 tangential velocity. All four are real with a complete set of eigenvectors, so
@@ -217,10 +217,10 @@ Counter-clockwise is not an arbitrary pick. For a curve traversed
 counter-clockwise, the outward normal — pointing away from the body, into the
 flow — is
 
-$$
+```math
 \hat{n} = \left(t_y,\ -t_x\right), \qquad
 \hat{t} = \text{unit tangent in the direction of travel},
-$$
+```
 
 with no sign test anywhere. The mesh generator marches along $\hat n$ and the
 wall flux orients itself with it, so one convention fixed once removes a sign
@@ -233,10 +233,10 @@ lower → leading edge → upper.
 
 For a section `MPXX` with thickness ratio $t = XX/100$, the half-thickness is
 
-$$
+```math
 y_t(x) = 5t\left(0.2969\sqrt{x} - 0.1260\,x - 0.3516\,x^2
          + 0.2843\,x^3 - a_4\,x^4\right),
-$$
+```
 
 with $a_4 = 0.1015$ for the original open trailing edge and $a_4 = 0.1036$ for
 the closed one. **The default here is the closed form**, for two reasons:
@@ -250,22 +250,22 @@ the closed one. **The default here is the closed form**, for two reasons:
 
 Camber, for a non-zero first digit $m = M/100$ at position $p = P/10$:
 
-$$
+```math
 y_c(x) = \begin{cases}
   \dfrac{m}{p^2}\left(2px - x^2\right), & x \le p,\\[3mm]
   \dfrac{m}{(1-p)^2}\left(1 - 2p + 2px - x^2\right), & x > p,
 \end{cases}
 \qquad
 \theta = \arctan \frac{dy_c}{dx},
-$$
+```
 
 and the surface is offset **normal to the camber line**,
 
-$$
+```math
 (x, y)_{\text{upper}} = \left(x - y_t \sin\theta,\ y_c + y_t \cos\theta\right),
 \qquad
 (x, y)_{\text{lower}} = \left(x + y_t \sin\theta,\ y_c - y_t \cos\theta\right),
-$$
+```
 
 rather than added vertically. The two agree to $O(\theta^2)$ and differ visibly
 near the leading edge of a cambered section, which is exactly where the suction
@@ -299,9 +299,9 @@ it understates the thickness by about 1% of the thickness.
 
 The default distribution is cosine on each side,
 
-$$
+```math
 s_k = \tfrac12\left(1 - \cos \frac{\pi k}{n}\right), \qquad k = 0,\ldots,n,
-$$
+```
 
 which packs points at the leading edge, where the curvature is, and at the
 trailing edge, where the pressure recovery is steepest.
@@ -317,24 +317,24 @@ in per cent. The thickness distribution is the **same quartic** as the
 four-digit family; only the camber line differs, and it is a cubic forward of
 the crest and straight behind it:
 
-$$
+```math
 y_c = \begin{cases}
   \dfrac{k_1}{6}\left(x^3 - 3mx^2 + m^2(3-m)x\right), & x \le m,\\[3mm]
   \dfrac{k_1 m^3}{6}\left(1 - x\right), & x > m .
 \end{cases}
-$$
+```
 
 That is the point of the family: it puts the camber well forward, so the
 aerodynamic centre moves far less with lift than a four-digit section's does. A
 **reflexed** line ($S = 1$) adds a slight upward turn at the tail, which nulls
 the pitching moment:
 
-$$
+```math
 y_c = \frac{k_1}{6}\begin{cases}
   (x-m)^3 - \frac{k_2}{k_1}(1-m)^3 x - m^3 x + m^3, & x \le m,\\[2mm]
   \frac{k_2}{k_1}(x-m)^3 - \frac{k_2}{k_1}(1-m)^3 x - m^3 x + m^3, & x > m .
 \end{cases}
-$$
+```
 
 $m$ and $k_1$ are **not free parameters**. They are tabulated against $P$
 (Abbott & von Doenhoff, Table 6.1), chosen so the crest lands at $P/20$ and the
@@ -385,10 +385,10 @@ unstructured Delaunay mesher this buys four things:
 For surface point $\vec{A}_i$ with outward unit normal $\hat{n}_i$, the matching
 far-field point is
 
-$$
+```math
 \vec{B}_i = \vec{C} + R\left(\cos\varphi_i,\ \sin\varphi_i\right),
 \qquad \varphi_i = \varphi_0 + \frac{2\pi i}{N},
-$$
+```
 
 where $\vec C$ is the far-field centre and $\varphi_0$ the direction of the
 trailing edge seen from it. The angle runs **uniformly** while the surface points
@@ -398,17 +398,17 @@ grid lines cannot cross at the outer boundary.
 
 Each node then sits at
 
-$$
+```math
 \vec{X}_{ij} = \vec{A}_i + L_i f_j\, \hat{D}_{ij},
 \qquad L_i = \lVert \vec{B}_i - \vec{A}_i \rVert,
 \qquad \hat{u}_i = \frac{\vec{B}_i - \vec{A}_i}{L_i},
-$$
+```
 
-$$
+```math
 \hat{D}_{ij} = \frac{(1 - w_j)\,\hat{n}_i + w_j\,\hat{u}_i}
                     {\lVert (1 - w_j)\,\hat{n}_i + w_j\,\hat{u}_i \rVert},
 \qquad w_j = \left(\frac{j}{n_r}\right)^{\kappa} .
-$$
+```
 
 The marching direction blends from the **wall normal** to the **radial**
 direction, and the two ends are exact rather than approximate — which is the
@@ -434,9 +434,9 @@ triangle's area and says what to change rather than returning a broken mesh.
 Spacing grows geometrically, $h_k = h_1 r^k$, with the ratio solved so the
 layers exactly span the distance:
 
-$$
+```math
 h_1\,\frac{r^{n_r} - 1}{r - 1} = L .
-$$
+```
 
 The left side increases with $r$, so one bisection on $(1, r_{\max}]$ finds it.
 If even $r_{\max}$ cannot span $L$, the builder **raises and names the four
@@ -460,10 +460,10 @@ Connectivity is built by sorting rather than by the sparse hash table of
 one *opposite* node $k$, running from node $k{+}1$ to node $k{+}2$; for that
 traversal
 
-$$
+```math
 \hat{n} = \frac{(\Delta y,\ -\Delta x)}{\ell},
 \qquad (\Delta x, \Delta y) = \vec{p}_{k+2} - \vec{p}_{k+1},
-$$
+```
 
 is the element's outward normal with no sign test. Two consequences follow, and
 `tests/test_mesh.py` checks both: an **interior** face's normal points from its
@@ -472,10 +472,10 @@ the flow domain — at the wall, into the airfoil.
 
 The identity that matters most is discrete Gauss,
 
-$$
+```math
 \sum_{f \in \partial e} \hat{n}_f\, \ell_f = \vec{0}
 \qquad \text{for every cell } e,
-$$
+```
 
 which is what makes the scheme conservative and a uniform flow exact.
 `Metrics.closure_error()` measures it; it is $4\times10^{-16}$ on the meshes
@@ -574,10 +574,10 @@ then the O-grid is the default because it is the smaller of the two.
 Integrating the Euler equations over a fixed cell $e$ of area $A_e$ and applying
 the divergence theorem gives the semi-discrete form the solver marches:
 
-$$
+```math
 A_e \frac{d\vec{U}_e}{dt}
 + \sum_{f \in \partial e} \hat{\vec{F}}_f\,\ell_f = \vec{0},
-$$
+```
 
 where $\vec U_e$ is the cell average and $\hat{\vec F}_f$ a single numerical flux
 per face, shared by the two cells that meet there — which is what makes the
@@ -625,11 +625,11 @@ Explicit, marched to steady state with a **local** time step: each cell advances
 at its own stable rate, which is legitimate because only the fixed point is
 wanted. With the legacy's hydraulic diameter $d_h = 2A/P$ as the length scale,
 
-$$
+```math
 \Delta t_e = \mathrm{CFL}\,\frac{d_{h,e}}{s_e},
 \qquad s_e = \frac{1}{P_e}\sum_{f \in \partial e}
 \left(|v_n| + a\right)_f \ell_f ,
-$$
+```
 
 with $(|v_n| + a)_f$ the maximum signal speed the face's Riemann solver reports.
 This is `legacy/main.m`'s $\mathrm{CFL}\,d_h/s$ with $d_h = 2A/P$ substituted;
@@ -652,12 +652,12 @@ Two boundaries, matching `src.geometry.mesh.BoundaryTag`.
 **Inviscid wall** ($\hat n$ pointing into the section). No flow through the
 surface, so the normal velocity vanishes and the flux carries pressure only:
 
-$$
+```math
 \hat{\vec{F}}_{\text{wall}} = \left(0,\ p_b n_x,\ p_b n_y,\ 0\right)^T,
 \qquad
 p_b = (\gamma - 1)\left(\rho E - \tfrac12 \rho\,
       \lvert \vec v - (\vec v \cdot \hat n)\hat n \rvert^2\right),
-$$
+```
 
 the pressure of the interior state with its normal velocity removed. This is
 `legacy/residual_calc.m`'s `inviscid_wall_bc`, unchanged.
@@ -668,9 +668,9 @@ to be 50 chords across. This port instead imposes only what the incoming
 characteristics carry, using the one-dimensional Riemann invariants normal to the
 boundary,
 
-$$
+```math
 R^{\pm} = v_n \pm \frac{2a}{\gamma - 1},
-$$
+```
 
 taking $R^+$ from the interior and $R^-$ from the free stream on a subsonic
 inflow face and the reverse on outflow, with entropy and the tangential velocity
@@ -688,9 +688,9 @@ For an inviscid flow the only force on the section is the pressure integral over
 the surface. With $\hat n$ the outward normal of the *flow domain* — which at the
 wall points **into** the section — the force per unit span is
 
-$$
+```math
 \vec{F} = \oint_{\text{wall}} p\,\hat{n}\,ds .
-$$
+```
 
 The sign is worth deriving rather than remembering. The stress in a fluid is
 $\sigma = -p\mathbf{I}$, so the traction it exerts on the body is
@@ -704,19 +704,19 @@ $+p\,\hat{n}$ gives and $-p\,\hat{n}$ does not.
 and lift and drag are that vector resolved **perpendicular and parallel to the
 free stream**, which is a rotation through $\alpha$:
 
-$$
+```math
 \begin{pmatrix} D \\ L \end{pmatrix}
 = \begin{pmatrix} \cos\alpha & \sin\alpha \\ -\sin\alpha & \cos\alpha \end{pmatrix}
   \begin{pmatrix} F_x \\ F_y \end{pmatrix},
 \qquad
 c_\ell = \frac{L}{q_\infty c}, \quad c_d = \frac{D}{q_\infty c},
-$$
+```
 
 with $q_\infty = \tfrac12$ and $c = 1$. The pressure coefficient is
 
-$$
+```math
 c_p = \frac{p - p_\infty}{q_\infty} = 2\left(p - p_\infty\right),
-$$
+```
 
 plotted as $-c_p$ by convention, so suction is up.
 

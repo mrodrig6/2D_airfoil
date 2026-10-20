@@ -27,10 +27,10 @@ indicator where the shock was.*
 `legacy/post_calc.m` scores each element by the jump in Mach number across its
 faces, weighted by face length:
 
-$$
+```math
 \varepsilon_e = \sum_{f \in \text{interior}} |M_e - M_{e'}|\,\ell_f
 \;+\; \sum_{f \in \text{wall}} |M_n|\,\ell_f
-$$
+```
 
 `src/adapt.py` reproduces it exactly, including the second term, and refines the
 worst 5% of elements per cycle — the same `f = 0.05`.

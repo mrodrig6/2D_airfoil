@@ -87,14 +87,14 @@ march started and when it was stopped.
 The converged state is instead defined implicitly by $R(\vec U, \vec a) = 0$, and
 the implicit function theorem gives the derivative of the **answer**:
 
-$$
+```math
 \frac{dJ}{d\vec a}
   = \frac{\partial J}{\partial \vec a}
   - \vec\lambda^{T}\frac{\partial R}{\partial \vec a},
 \qquad
 \left(\frac{\partial R}{\partial \vec U}\right)^{T}\!\vec\lambda
   = \left(\frac{\partial J}{\partial \vec U}\right)^{T}.
-$$
+```
 
 Only the converged state appears. Both Jacobian actions come from `jax.vjp` on
 the residual, so no matrix is ever assembled, and — the part worth internalising
@@ -104,11 +104,11 @@ reconstruction later, changes the gradient with nothing to re-derive by hand.
 
 The adjoint system itself is marched in pseudo-time, exactly like the flow:
 
-$$
+```math
 \frac{d\vec\lambda}{d\tau} = -\frac{1}{A}
   \left[\left(\frac{\partial R}{\partial \vec U}\right)^{T}\vec\lambda
         - \left(\frac{\partial J}{\partial \vec U}\right)^{T}\right].
-$$
+```
 
 The mass matrix is the cell area — a positive diagonal — so
 $A^{-1}(\partial R/\partial \vec U)^{T}$ has the **same spectrum** as the forward
@@ -203,12 +203,12 @@ bisection that solves for the growth ratio, and a traced copy of every metric th
 residual reads. That is a large refactor for a small term, so the standard hybrid
 route is taken instead:
 
-$$
+```math
 \frac{dJ}{da} \approx
   \underbrace{\frac{\partial J}{\partial a}\bigg|_{\vec U}}_{\text{finite difference}}
   - \vec\lambda^{T}
   \underbrace{\frac{\partial R}{\partial a}\bigg|_{\vec U}}_{\text{finite difference}}
-$$
+```
 
 **The expensive part stays exact.** $\vec\lambda$ is the adjoint, solved once,
 and it is what the flow's response to the shape costs. The two
