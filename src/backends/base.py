@@ -13,16 +13,12 @@ evaluated.
 Schemes
 -------
 ``euler``
-    Forward Euler, one residual evaluation per step.  What
-    ``legacy/main.m`` implements, and the cheapest route to steady state on
-    this problem: see ``docs/performance.md`` for the measurement.
-
-``ssprk3``
-    Three-stage strong-stability-preserving.  Each stage is a convex
-    combination of forward-Euler updates, which is exactly the structure the
-    Zhang-Shu positivity limiter assumes, so ``ssprk3`` is the scheme a
-    positivity guarantee can be built on and Euler is not.  It costs three
-    residual evaluations per step.
+    Forward Euler, one residual evaluation per step.  The only scheme, and
+    what ``legacy/main.m`` implements.  It is a single forward-Euler stage, so
+    the strong-stability property a positivity limiter needs holds for it
+    directly -- SSP-RK3 inherits that property rather than owning it, which is
+    why removing SSP-RK3 costs the limiter nothing.  :data:`src.config.SCHEMES`
+    records the measurement behind that decision.
 
 The mass matrix of a finite-volume scheme
 -----------------------------------------
@@ -189,56 +185,23 @@ class Backend(ABC):
         res = self.norm(F0)
         return self.limit(U + dt * F0), res
 
-    def ssprk3_step(self, U):
-        """One three-stage SSP-RK3 step.
-
-        The time step is frozen at the first stage.  That is standard for a
-        pseudo-time march -- the intermediate stages are not meant to be
-        time-accurate -- and it is also what makes each stage a plain convex
-        combination of forward-Euler steps with the *same* ``dt``, which is the
-        hypothesis the strong-stability property rests on.
-        """
-        F0, wave = self.rate(U)
-        dt = self.time_step(wave)
-        res = self.norm(F0)
-
-        U1 = self.limit(U + dt * F0)
-        F1, _ = self.rate(U1)
-        U2 = self.limit(0.75 * U + 0.25 * (U1 + dt * F1))
-        F2, _ = self.rate(U2)
-        U3 = (1.0 / 3.0) * U + (2.0 / 3.0) * (U2 + dt * F2)
-        return self.limit(U3), res
-
     def _check_scheme(self, scheme: str) -> None:
-        """Refuse a scheme the resolved ``cfl`` was not sized for.
+        """Reject a scheme this backend cannot run.
 
-        ``self.cfl`` is resolved once from ``options.scheme``, but the scheme
-        is also an argument here -- so asking a backend built with the default
-        options to run ``euler`` would march Euler at SSP-RK3's recommended
-        1.18, which is above Euler's measured limit of 1.15, and diverge with
-        no error.  An explicit ``cfl`` is the caller's business, so only the
-        resolved case is refused.
+        A plain name check while :data:`src.config.SCHEMES` holds one entry.
+        It also carried a guard against a scheme whose ``cfl`` the backend had
+        not resolved for -- ``self.cfl`` comes from ``options.scheme``, so
+        running a *different* scheme through ``run()`` would silently use the
+        wrong stability limit.  With one scheme that mismatch cannot arise;
+        the guard belongs back here the moment a second one does.
         """
         if scheme not in SCHEMES:
-            # Checked first: an unknown name is a different mistake from a
-            # known one the cfl was not sized for, and saying "build the
-            # backend with scheme='midpoint'" would send the reader after a
-            # scheme that does not exist.
             raise ValueError(f"unknown scheme {scheme!r}; choose from {SCHEMES}")
-        if self.options.cfl is None and scheme != self.options.scheme:
-            raise ValueError(
-                f"this backend resolved cfl={self.cfl} for scheme="
-                f"{self.options.scheme!r}; running {scheme!r} with it would use the "
-                f"wrong stability limit.  Build the backend with "
-                f"SolverOptions(scheme={scheme!r}), or pass an explicit cfl."
-            )
 
     def make_step(self, scheme: str) -> Callable:
         self._check_scheme(scheme)
         if scheme == "euler":
             return self.euler_step
-        if scheme == "ssprk3":
-            return self.ssprk3_step
         raise ValueError(f"unknown scheme {scheme!r}; choose from {SCHEMES}")
 
     def run(self, U, n_steps: int, scheme: str):

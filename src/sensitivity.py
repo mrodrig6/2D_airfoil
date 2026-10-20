@@ -323,12 +323,13 @@ class DifferentiableCase:
         _, vjp = jax.vjp(lambda state: self._residual(state, params), U)
 
         wave = asm.residual(result.state, metrics, self.flow).wave
-        # The adjoint sweep below is forward Euler, whatever scheme the forward
-        # solve used, so it is sized by *Euler's* stability limit.  Taking the
-        # forward scheme's `cfl` here is a real bug and was one: `ssprk3` is the
-        # default and recommends 1.18, which is above Euler's measured limit of
-        # 1.15, so every default-options gradient diverged.  The unit tests ran
-        # on a 48x24 mesh where 1.18 is still stable and did not catch it.
+        # The adjoint sweep below is forward Euler, so it is sized by Euler's
+        # stability limit -- named explicitly rather than read from the
+        # forward solve's options.  That is not pedantry: when the solver
+        # briefly carried SSP-RK3 as its default, taking the forward scheme's
+        # cfl here handed this Euler march 1.18 against Euler's limit of 1.15
+        # and every default-options gradient diverged.  The unit tests ran on
+        # a 48x24 mesh where 1.18 is still stable and did not catch it.
         cfl = ts.recommended_cfl("euler") if self.options.cfl is None else self.options.cfl
         dt = ts.local_time_step(wave, metrics, cfl)
         step = jnp.asarray(dt / metrics.area)[:, None]

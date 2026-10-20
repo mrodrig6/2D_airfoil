@@ -408,14 +408,9 @@ def residual_gather(U, neighbour, length, normal, U_inf, gamma, kind, efix, R, w
 #  algebra as separate kernels rather than one fused march per scheme is a
 #  measured choice, not a concession: on this problem it came out within the
 #  run-to-run noise of a fully fused loop (see ``docs/performance.md``), and it
-#  keeps each arithmetic shape in one place rather than one fused kernel per
-#  scheme.  It does *not* keep the stage coefficients in one place: the fused
-#  paths in :class:`~src.backends.numba_backend.NumbaBackend` restate the
-#  0.75/0.25 and 1/3, 2/3 of SSP-RK3 that
-#  :meth:`src.backends.base.Backend.ssprk3_step` also carries.  That is the
-#  same bargain the rest of this module makes -- a compiled copy of something
-#  defined once in readable form -- and ``tests/test_backends.py`` is what
-#  holds the two in step, by running every scheme on every backend.
+#  keeps each arithmetic shape in one place.  With one scheme left there are
+#  no stage coefficients to restate, which is why ``combine_ssp`` is gone:
+#  it existed only for SSP-RK3's two convex combinations.
 # ==========================================================================
 
 
@@ -474,13 +469,3 @@ def stage(U, F, coef, dt, out):
         c0 = coef * dt[e]
         for c in range(4):
             out[e, c] = U[e, c] + c0 * F[e, c]
-
-
-@njit(fastmath=True, cache=True, parallel=True)
-def combine_ssp(U, V, F, dt, a, b, out):
-    """``out = a * U + b * (V + dt * F)`` -- both non-trivial SSP-RK3 stages."""
-    n = U.shape[0]
-    for e in prange(n):
-        d = dt[e]
-        for c in range(4):
-            out[e, c] = a * U[e, c] + b * (V[e, c] + d * F[e, c])

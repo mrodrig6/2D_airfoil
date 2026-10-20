@@ -13,18 +13,16 @@ from ..config import FlowConditions
 from ..physics import FLOOR
 from ..spatial.metrics import Metrics
 
-#: Largest ``cfl`` at which the march still converged, by scheme.  Measured by
-#: bisection to about 3% over four cases -- the transonic design point on a
-#: 96x40 and a 144x56 mesh, a subcritical point and a supercritical one -- and
-#: the tightest of the four is recorded.  The spread was narrow: Euler came out
-#: between 1.152 and 1.174, SSP-RK3 between 1.514 and 1.605.
+#: Largest ``cfl`` at which the march still converged.  Measured by bisection
+#: to about 3% over four cases -- the transonic design point on a 96x40 and a
+#: 144x56 mesh, a subcritical point and a supercritical one -- and the
+#: tightest of the four is recorded.  The spread was narrow, 1.152 to 1.174.
 #:
-#: These are *limits*, not recommendations.  What they say about the two
-#: schemes is the uncomfortable part: SSP-RK3 buys only 1.31 times the step for
-#: three times the residual evaluations, so forward Euler reaches steady state
-#: roughly 2.3 times sooner.  ``docs/performance.md`` has the wall-clock
-#: measurement, and the reason the default is SSP-RK3 regardless.
-STABILITY_LIMIT = {"euler": 1.15, "ssprk3": 1.51}
+#: A dict with one entry, kept as a dict rather than flattened to a constant:
+#: SSP-RK3 lived here too and was removed, and if a scheme is ever added back
+#: it needs its own measured row rather than a shared number.  Its removal is
+#: recorded in :data:`src.config.SCHEMES`.
+STABILITY_LIMIT = {"euler": 1.15}
 
 #: Fraction of the measured limit that :func:`recommended_cfl` takes.  A scan
 #: over four cases is a measurement, not a stability proof, so the shipped

@@ -299,14 +299,17 @@ class Discretization:
         return self.n_surface * (self.n_radial + 1)
 
 
-#: Pseudo-time integrators, implemented once in :mod:`src.backends.base` and
-#: inherited by every backend.  ``euler`` is what ``legacy/main.m`` used;
-#: ``ssprk3`` is the strong-stability-preserving three-stage method, and the
-#: default because its stages are convex combinations of Euler steps, which is
-#: what a positivity argument needs.  Classical ``rk4`` was removed: it costs a
-#: fourth residual per step, buys no time accuracy in a march whose time step
-#: is already element-local, and has no strong-stability property.
-SCHEMES = ("euler", "ssprk3")
+#: Pseudo-time integrators.  One of them: forward Euler, which is what
+#: ``legacy/main.m`` implements and what this code has always marched with.
+#:
+#: SSP-RK3 was carried here briefly and removed.  Its value is a larger stable
+#: step and the strong-stability property a limiter argument needs -- but it
+#: buys only 1.31 times the step for three residual evaluations, measured, so
+#: it reaches a steady state 2.14 times slower; and forward Euler is itself a
+#: single SSP stage, so a positivity limiter is just as sound on it.  For a
+#: teaching code whose users run it repeatedly, the slower default was the
+#: wrong trade.  ``docs/performance.md`` records the measurement.
+SCHEMES = ("euler",)
 
 
 @dataclass(frozen=True)
@@ -323,11 +326,10 @@ class SolverOptions:
         in area, and a single global step would be set by the smallest of them.
 
         ``None``, the default, takes
-        :func:`~src.timestepping.step.recommended_cfl` for the chosen scheme --
-        0.9 for ``euler`` and 1.18 for ``ssprk3``, both a fifth below the
-        measured stability limit.  One number cannot carry the same margin for
-        a one-stage and a three-stage method, so the default holds the margin
-        rather than the number.
+        :func:`~src.timestepping.step.recommended_cfl`, which is 0.9 -- a
+        fifth below the measured stability limit of 1.15.  Resolving it from a
+        table rather than hard-coding it keeps the margin explicit, and is
+        what let the limit be re-measured without hunting for a literal.
     tolerance
         Convergence threshold on the residual **scaled by its own initial
         value**, so the number means the same thing on every mesh and at every
@@ -338,12 +340,8 @@ class SolverOptions:
         than raise -- a stalled run is a result worth looking at, and for the
         flux comparison it is *the* result.
     scheme
-        ``ssprk3``, the default, is the strong-stability-preserving three-stage
-        method: three residual evaluations per step, and a stable step roughly
-        1.5 times Euler's.  ``euler`` is forward Euler, one residual per step,
-        what the legacy used, and still the cheapest route to steady state on
-        this problem -- see ``docs/performance.md`` for the measurement and for
-        why the default is the slower one anyway.
+        ``euler``, forward Euler, and currently the only one.  See
+        :data:`SCHEMES` for what was removed and why.
     backend
         ``auto`` takes the fastest installed, ``numpy`` the vectorised
         reference, ``numba`` the compiled one.  They agree to :math:`10^{-13}`
@@ -368,7 +366,7 @@ class SolverOptions:
     cfl: float | None = None
     tolerance: float = 1e-6
     max_iterations: int = 20_000
-    scheme: str = "ssprk3"
+    scheme: str = "euler"
     print_interval: int = 500
     divergence_factor: float = 1e4
 

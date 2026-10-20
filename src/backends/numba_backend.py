@@ -109,29 +109,6 @@ class NumbaBackend(Backend):
         self._limit_into(out)
         return res
 
-    def _ssprk3_into(self, U, out) -> float:
-        """One three-stage SSP-RK3 step, with ``dt`` frozen at the first stage."""
-        F = self._F
-        self._rate_into(U, F[0])
-        kernels.dt_into(self._wave, self.area, self.cfl, self._dt)
-        res = float(kernels.rms_weighted(F[0], self.weight))
-
-        U1 = self._S[2]
-        kernels.stage(U, F[0], 1.0, self._dt, U1)
-        self._limit_into(U1)
-        self._rate_into(U1, F[1])
-
-        # out = 0.75 U + 0.25 (U1 + dt F1)
-        kernels.combine_ssp(U, U1, F[1], self._dt, 0.75, 0.25, out)
-        self._limit_into(out)
-        self._rate_into(out, F[2])
-
-        # U1 = U/3 + 2/3 (out + dt F2), then copy back into out
-        kernels.combine_ssp(U, out, F[2], self._dt, 1.0 / 3.0, 2.0 / 3.0, U1)
-        self._limit_into(U1)
-        out[...] = U1
-        return res
-
     def run(self, U, n_steps: int, scheme: str):
         """Advance ``n_steps`` through the preallocated buffers.
 
@@ -140,12 +117,9 @@ class NumbaBackend(Backend):
         chunk length, and no stage allocates.
         """
         self._check_scheme(scheme)
-        if scheme == "euler":
-            step = self._euler_into
-        elif scheme == "ssprk3":
-            step = self._ssprk3_into
-        else:
+        if scheme != "euler":
             raise ValueError(f"unknown scheme {scheme!r}; choose from {SCHEMES}")
+        step = self._euler_into
 
         cur, nxt = self._S[0], self._S[1]
         cur[...] = np.ascontiguousarray(U, dtype=float)

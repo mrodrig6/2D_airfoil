@@ -234,8 +234,7 @@ def _add_solver_options(parser: argparse.ArgumentParser) -> None:
         "--cfl",
         type=float,
         default=o.cfl,
-        help="Courant number; omit for the scheme's recommended value "
-        "(0.9 for euler, 1.18 for ssprk3)",
+        help="Courant number; omit for the recommended value of 0.9",
     )
     parser.add_argument("--tolerance", type=float, default=o.tolerance)
     parser.add_argument("--max-iterations", type=int, default=o.max_iterations)

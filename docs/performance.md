@@ -114,44 +114,41 @@ not what it converges to.
 longer constrains the backend choice and the three cannot drift apart
 numerically.
 
-## Which scheme, and what the default costs
+## One scheme, and the measurement that settled it
 
-Two schemes ship: `euler` (one residual evaluation per step) and `ssprk3`
-(three). `ssprk3` is the default. It is also the slower of the two, and it is
-worth being blunt about by how much.
+`euler` — forward Euler, one residual evaluation per step — is the only
+scheme. The explicit stability limit in `cfl`, bisected to about 3% over four
+cases, is **1.15**, and the default `cfl` of 0.9 sits a fifth below it.
 
-The explicit stability limit in `cfl`, bisected to about 3% over four cases:
+SSP-RK3 was implemented here, measured, and removed. It is worth recording
+what it actually bought, because the intuition that a higher-order integrator
+is better is wrong for this problem:
 
-| scheme | measured limit | recommended `cfl` |
-|---|---|---|
-| `euler` | 1.15 | 0.90 |
-| `ssprk3` | 1.51 | 1.18 |
-
-SSP-RK3 buys **1.31× the step for 3× the work**. NACA 0012 at M 0.8, α 1.25°,
-192 × 64, tolerance 1e-8, one Numba process:
-
-| scheme | `cfl` | iterations | residual evals | wall |
+| scheme | stability limit | iterations | residual evals | wall |
 |---|---|---|---|---|
-| `euler` | 0.90 | 26 750 | 26 750 | 44.7 s |
-| `ssprk3` | 1.18 | 20 375 | 61 125 | 95.7 s |
+| `euler` | 1.15 | 26 750 | 26 750 | 44.7 s |
+| SSP-RK3 | 1.51 | 20 375 | 61 125 | 95.7 s |
 
-So the default is **2.14× slower** than `euler` on this case, and converges to
-the same answer: the two agree to $2\times10^{-8}$ on $c_\ell$ and
-$3\times10^{-9}$ on $c_d$, with the same shock position. There is no accuracy
-to be gained at a steady state — the fixed point does not know how it was
-reached, and the local time step has already given up time accuracy by putting
-every cell on its own clock.
+NACA 0012 at M 0.8, α 1.25°, 192 × 64, tolerance 1e-8, one Numba process.
+SSP-RK3 buys **1.31× the step for 3× the work**, so it reaches the same steady
+state **2.14× slower** — and it is the same steady state: the two agree to
+$2\times10^{-8}$ on $c_\ell$ and $3\times10^{-9}$ on $c_d$, with the same
+shock position.
 
-The default is `ssprk3` anyway, for one reason: each of its stages is a convex
-combination of forward-Euler updates, which is the hypothesis a positivity
-limiter needs in order to guarantee anything. `euler` is the faster default
-today and remains one command-line flag away (`--scheme euler`); it is the
-right choice for a mesh-convergence sweep, where the only thing being measured
-is the fixed point.
+There is no accuracy to recover. The fixed point does not know how it was
+reached, and the local time step gave up time accuracy before any of this by
+putting every cell on its own clock. The one real argument for an SSP scheme
+is that a positivity limiter's guarantee rests on each stage being a convex
+combination of forward-Euler steps — but forward Euler *is* such a stage, so
+that argument covers it directly. SSP-RK3 inherits the property rather than
+owning it.
 
-Classical `rk4` was removed. It cost a fourth residual per step, bought no
-time accuracy in a march whose step is already element-local, and had no
-strong-stability property to justify the expense.
+For a teaching code that students run repeatedly, 2.14× was the wrong price
+for nothing, so it was taken out.
+
+Classical `rk4` was removed for the same reason, earlier and more easily: a
+fourth residual per step, no time accuracy to gain, and no strong-stability
+property to justify the cost.
 
 ## The JAX backend
 
