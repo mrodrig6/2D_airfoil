@@ -63,7 +63,8 @@ timestepping/step        -> config, physics, spatial/metrics
 timestepping/march       -> config, spatial, spatial/metrics, timestepping/step
 
 backends/_numba_kernels  -> (nothing)
-backends/base            -> config, geometry/mesh, spatial/metrics
+backends/base            -> config, geometry/mesh, spatial/metrics,
+                            timestepping/step
 backends/numpy_backend   -> backends/base, spatial, timestepping
 backends/numba_backend   -> backends/base, backends/_numba_kernels, config,
                             spatial, spatial/metrics, timestepping
@@ -215,8 +216,12 @@ PY
   `tests/test_backends.py`.
 - **A new boundary condition** → `physics/boundary.py`, a tag in
   `geometry/mesh.py`, and a branch in `spatial/assembly.py`.
-- **A new time stepper** → `timestepping/step.py` for its stability limit,
-  `timestepping/march.py` for the stage combination.
+- **A new time stepper** → `backends/base.py` for the stage combination (all
+  three backends inherit it from there), `timestepping/step.py` for its
+  measured stability limit, and `SCHEMES` in `config.py`. If it should be fast,
+  the Numba backend's fused path needs a matching branch, which
+  `tests/test_backends.py` holds in step by running every scheme on every
+  backend.
 - **A new mesh topology** → `geometry/mesh.py` and `MeshTopology`.
 - **A new derived quantity** → `post/postprocess.py`, and a figure in
   `post/plotting.py` if it is worth looking at.

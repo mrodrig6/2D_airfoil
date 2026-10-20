@@ -166,6 +166,10 @@ class Backend(ABC):
         """
         return U
 
+    # Device transfer.  No-ops for the two NumPy-backed backends and real for
+    # JAX, which is the point: a caller that holds a state array can hand it to
+    # any backend without knowing which.  The companion nozzle code carries the
+    # same pair on its Backend, so the two interfaces match.
     def asarray(self, A):
         return np.asarray(A)
 
@@ -205,7 +209,32 @@ class Backend(ABC):
         U3 = (1.0 / 3.0) * U + (2.0 / 3.0) * (U2 + dt * F2)
         return self.limit(U3), res
 
+    def _check_scheme(self, scheme: str) -> None:
+        """Refuse a scheme the resolved ``cfl`` was not sized for.
+
+        ``self.cfl`` is resolved once from ``options.scheme``, but the scheme
+        is also an argument here -- so asking a backend built with the default
+        options to run ``euler`` would march Euler at SSP-RK3's recommended
+        1.18, which is above Euler's measured limit of 1.15, and diverge with
+        no error.  An explicit ``cfl`` is the caller's business, so only the
+        resolved case is refused.
+        """
+        if scheme not in SCHEMES:
+            # Checked first: an unknown name is a different mistake from a
+            # known one the cfl was not sized for, and saying "build the
+            # backend with scheme='midpoint'" would send the reader after a
+            # scheme that does not exist.
+            raise ValueError(f"unknown scheme {scheme!r}; choose from {SCHEMES}")
+        if self.options.cfl is None and scheme != self.options.scheme:
+            raise ValueError(
+                f"this backend resolved cfl={self.cfl} for scheme="
+                f"{self.options.scheme!r}; running {scheme!r} with it would use the "
+                f"wrong stability limit.  Build the backend with "
+                f"SolverOptions(scheme={scheme!r}), or pass an explicit cfl."
+            )
+
     def make_step(self, scheme: str) -> Callable:
+        self._check_scheme(scheme)
         if scheme == "euler":
             return self.euler_step
         if scheme == "ssprk3":

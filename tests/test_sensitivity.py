@@ -210,3 +210,29 @@ def test_one_adjoint_serves_every_variable(tiny):
     assert many["alpha"] == pytest.approx(one["alpha"], rel=1e-12)
     assert tuple(many) == DESIGN_VARIABLES  # in the order asked for
     assert value == pytest.approx(forces(dc.result).cl, rel=1e-10)
+
+
+@pytest.mark.jax
+@pytest.mark.slow
+def test_the_adjoint_converges_on_a_realistic_mesh_with_stock_options():
+    """Stock options, a mesh big enough to be unforgiving.
+
+    The adjoint sweep is forward Euler whatever the forward solve used, so it
+    must be sized by Euler's stability limit.  It was briefly sized by the
+    *forward* scheme's instead, which meant the default ``ssprk3`` handed it
+    1.18 against Euler's measured limit of 1.15 and every default-options
+    gradient diverged.  The rest of this module runs on the 48x24 fixture,
+    where 1.18 is still stable, so nothing here caught it.  96x40 does.
+    """
+    dc = differentiable_case(
+        "2412",
+        mach=0.5,
+        alpha=2.0,
+        n_surface=96,
+        n_radial=40,
+        tolerance=1e-6,
+        print_interval=0,
+    )
+    value, gradient = dc.value_and_gradient("cl")
+    assert np.isfinite(value)
+    assert all(np.isfinite(v) for v in gradient.values())

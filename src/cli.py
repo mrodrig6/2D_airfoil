@@ -306,7 +306,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
         args.airfoil, _discretization(args), n_surface=args.n_surface, clustering=args.clustering
     )
     flow = FlowConditions(mach=args.mach, alpha_deg=args.alpha, flux=args.flux)
-    options = SolverOptions(cfl=args.cfl)
+    options = SolverOptions(cfl=args.cfl, scheme=args.scheme)
     print(case.mesh.summary())
     U0 = initial_state(case.metrics, flow)
 
@@ -716,6 +716,13 @@ def build_parser() -> argparse.ArgumentParser:
     _add_mesh_options(bench)
     _add_flow_options(bench)
     bench.add_argument("--cfl", type=float, default=SolverOptions.cfl)
+    bench.add_argument(
+        "--scheme",
+        choices=SCHEMES,
+        default="euler",
+        help="scheme to time; euler by default, which is what the figures in "
+        "docs/performance.md were measured on",
+    )
     bench.add_argument(
         "--steps",
         type=int,

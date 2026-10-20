@@ -88,6 +88,17 @@ class NumbaBackend(Backend):
         kernels.residual_gather(U, *self._args(), self._R, self._wave)
         kernels.rate_into(self._R, self.area, F)
 
+    def _limit_into(self, U) -> None:
+        """Apply the limiter in place.
+
+        The fused paths below cannot call :meth:`Backend.limit`, which returns
+        a new array and would allocate once per stage, so they call this
+        instead.  It must stay equivalent to ``limit``: the reconstruction is
+        piecewise constant today, so both are no-ops, and whichever one gains
+        a body has to give it to the other.
+        """
+        return
+
     def _euler_into(self, U, out) -> float:
         """One forward-Euler step: ``U`` in, ``out`` written, norm returned."""
         F = self._F
@@ -95,6 +106,7 @@ class NumbaBackend(Backend):
         kernels.dt_into(self._wave, self.area, self.cfl, self._dt)
         res = float(kernels.rms_weighted(F[0], self.weight))
         kernels.stage(U, F[0], 1.0, self._dt, out)
+        self._limit_into(out)
         return res
 
     def _ssprk3_into(self, U, out) -> float:
@@ -106,14 +118,17 @@ class NumbaBackend(Backend):
 
         U1 = self._S[2]
         kernels.stage(U, F[0], 1.0, self._dt, U1)
+        self._limit_into(U1)
         self._rate_into(U1, F[1])
 
         # out = 0.75 U + 0.25 (U1 + dt F1)
         kernels.combine_ssp(U, U1, F[1], self._dt, 0.75, 0.25, out)
+        self._limit_into(out)
         self._rate_into(out, F[2])
 
         # U1 = U/3 + 2/3 (out + dt F2), then copy back into out
         kernels.combine_ssp(U, out, F[2], self._dt, 1.0 / 3.0, 2.0 / 3.0, U1)
+        self._limit_into(U1)
         out[...] = U1
         return res
 
@@ -124,6 +139,7 @@ class NumbaBackend(Backend):
         scratch arrays: ``U`` is copied in once and out once, whatever the
         chunk length, and no stage allocates.
         """
+        self._check_scheme(scheme)
         if scheme == "euler":
             step = self._euler_into
         elif scheme == "ssprk3":

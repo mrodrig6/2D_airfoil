@@ -408,8 +408,14 @@ def residual_gather(U, neighbour, length, normal, U_inf, gamma, kind, efix, R, w
 #  algebra as separate kernels rather than one fused march per scheme is a
 #  measured choice, not a concession: on this problem it came out within the
 #  run-to-run noise of a fully fused loop (see ``docs/performance.md``), and it
-#  keeps the stage coefficients in exactly one place -- the steppers in
-#  :mod:`src.backends.base` -- rather than restating them here per scheme.
+#  keeps each arithmetic shape in one place rather than one fused kernel per
+#  scheme.  It does *not* keep the stage coefficients in one place: the fused
+#  paths in :class:`~src.backends.numba_backend.NumbaBackend` restate the
+#  0.75/0.25 and 1/3, 2/3 of SSP-RK3 that
+#  :meth:`src.backends.base.Backend.ssprk3_step` also carries.  That is the
+#  same bargain the rest of this module makes -- a compiled copy of something
+#  defined once in readable form -- and ``tests/test_backends.py`` is what
+#  holds the two in step, by running every scheme on every backend.
 # ==========================================================================
 
 
