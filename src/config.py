@@ -60,12 +60,6 @@ TOPOLOGIES = ("ogrid", "cgrid")
 #: Interface fluxes.  Both are approximate Riemann solvers: they take a left and
 #: a right state and return a single upwind face flux.  Two AUSM-family schemes
 #: were also implemented, measured and removed -- see ``docs/riemann_fluxes.md``.
-#: Reconstructions and slope limiters.  Defined in
-#: :mod:`src.spatial.reconstruct` and re-exported here so that a configuration
-#: can be validated without importing the discretisation.
-RECONSTRUCTIONS = ("constant", "muscl")
-LIMITERS = ("none", "positivity", "superbee")
-
 FLUXES = ("roe", "hllc", "ausmup")
 
 
@@ -80,19 +74,6 @@ class FlowConditions:
     flux
         Which approximate Riemann solver supplies the upwinding; see
         :data:`FLUXES` and :mod:`src.physics`.
-    reconstruction
-        ``constant``, the default, hands each Riemann solver the two
-        neighbouring cell averages -- piecewise constant, first order, and
-        what ``legacy/residual_calc.m`` implements.  ``muscl`` gives each cell
-        a limited linear slope and evaluates at the face instead, which is
-        second order in smooth flow.  Opt-in, because every number recorded in
-        the documentation was produced at first order.
-    limiter
-        How the ``muscl`` slope is kept from overshooting: ``none``,
-        ``positivity`` (the default, and the least that will not crash at a
-        shock) or ``superbee``.  Inert under ``constant``, where a cell
-        average is the whole of the solution in that cell and there is no
-        slope to limit.  See :mod:`src.spatial.reconstruct`.
     entropy_fix
         Roe only: the Harten-Hyman parameter :math:`\delta`, as a fraction of
         the Roe-averaged sound speed.  ``legacy/residual_calc.m`` used 0.01;
@@ -112,8 +93,6 @@ class FlowConditions:
     gamma: float = 1.4
     flux: str = "roe"
     entropy_fix: float = 0.05
-    reconstruction: str = "constant"
-    limiter: str = "positivity"
 
     def __post_init__(self) -> None:
         if self.mach <= 0.0:
@@ -124,12 +103,6 @@ class FlowConditions:
             raise ValueError(f"unknown flux {self.flux!r}; choose from {FLUXES}")
         if self.entropy_fix < 0.0:
             raise ValueError(f"entropy_fix must be non-negative, got {self.entropy_fix}")
-        if self.reconstruction not in RECONSTRUCTIONS:
-            raise ValueError(
-                f"unknown reconstruction {self.reconstruction!r}; choose from {RECONSTRUCTIONS}"
-            )
-        if self.limiter not in LIMITERS:
-            raise ValueError(f"unknown limiter {self.limiter!r}; choose from {LIMITERS}")
 
     # -- derived free-stream quantities -----------------------------------
     @property

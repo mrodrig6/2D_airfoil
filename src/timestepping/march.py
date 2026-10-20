@@ -81,24 +81,17 @@ class SolveResult:
         return _report(self)
 
 
-def resolve_backend(options: SolverOptions, flow: FlowConditions | None = None) -> str:
+def resolve_backend(options: SolverOptions) -> str:
     """Turn ``backend='auto'`` into a name, preferring the compiled one.
 
-    Every backend implements the scheme, so the choice does not depend on
-    that.  It does depend on the reconstruction: MUSCL lives only in the
-    shared ``xp`` source, so ``auto`` gives NumPy when it is asked for.
+    Every backend implements every scheme -- the steppers are inherited from
+    :class:`src.backends.base.Backend` -- so the choice no longer depends on
+    which scheme was asked for.
     """
     from ..backends import available_backends
 
     if options.backend != "auto":
         return options.backend
-    if flow is not None and flow.reconstruction != "constant":
-        # The compiled kernels restate the physics for `nopython` mode and do
-        # not restate the reconstruction, so MUSCL exists only in the shared
-        # `xp` source that NumPy and JAX run.  Picking NumPy here is not a
-        # silent downgrade -- the compiled backend refuses outright -- it is
-        # `auto` meaning what it says.
-        return "numpy"
     return available_backends()[0]
 
 
@@ -126,17 +119,6 @@ def solve_steady(
     """
     flow = flow or FlowConditions()
     opts = options or SolverOptions()
-    if flow.reconstruction != "constant":
-        raise NotImplementedError(
-            "reconstruction='muscl' is not ready to march.  The reconstruction "
-            "itself is verified -- the gradients are exact on linear data and "
-            "both limiters keep the face states physical -- but the pseudo-time "
-            "march diverges on the transonic case at every cfl tried, after a "
-            "few thousand iterations of falling residual.  The leading suspect "
-            "is that the reconstruction is done in conserved rather than "
-            "primitive variables.  Until that is settled this refuses rather "
-            "than hands back a diverged field; see src/spatial/reconstruct.py."
-        )
     U = initial_state(metrics, flow) if state is None else np.array(state, dtype=float)
 
     # The reference is the residual of the **free-stream** start, always, even
@@ -156,7 +138,7 @@ def solve_steady(
 
     from ..backends import get_backend
 
-    backend_name = resolve_backend(opts, flow)
+    backend_name = resolve_backend(opts)
     backend = get_backend(backend_name, metrics, flow, opts)
 
     history: list[float] = []

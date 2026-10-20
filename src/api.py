@@ -40,7 +40,7 @@ _MESH_KEYS = (
     "growth_limit",
     "orthogonality",
 )
-_FLOW_KEYS = ("mach", "alpha", "gamma", "flux", "entropy_fix", "reconstruction", "limiter")
+_FLOW_KEYS = ("mach", "alpha", "gamma", "flux", "entropy_fix")
 _SOLVER_KEYS = (
     "backend",
     "batch",

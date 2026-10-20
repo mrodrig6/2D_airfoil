@@ -31,15 +31,6 @@ class NumbaBackend(Backend):
 
     def __init__(self, metrics: Metrics, flow: FlowConditions, options: SolverOptions):
         super().__init__(metrics, flow, options)
-        if flow.reconstruction != "constant":
-            raise ValueError(
-                f"the compiled backend implements piecewise-constant "
-                f"reconstruction only, not {flow.reconstruction!r}; the kernels in "
-                f"_numba_kernels.py would have to restate the gradient, the "
-                f"limiter and the extrapolation.  Use backend='numpy' or "
-                f"backend='jax', which share one source with the vectorised "
-                f"assembly and get it for free.  `backend='auto'` already does."
-            )
         faces = element_faces(metrics)
         self.neighbour = faces.neighbour
         self.length = np.ascontiguousarray(faces.length)
