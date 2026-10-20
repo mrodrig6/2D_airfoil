@@ -96,6 +96,7 @@ class Metrics:
     interior_right: np.ndarray
     interior_length: np.ndarray
     interior_normal: np.ndarray
+    interior_midpoint: np.ndarray
     boundary_element: np.ndarray
     boundary_length: np.ndarray
     boundary_normal: np.ndarray
@@ -163,6 +164,9 @@ def build_metrics(mesh: MeshTopology) -> Metrics:
     boundary_length, boundary_normal = _face_geometry(
         mesh.node_coords, mesh.boundary_edges[:, 1], mesh.boundary_edges[:, 2]
     )
+    interior_midpoint = 0.5 * (
+        mesh.node_coords[mesh.interior_edges[:, 2]] + mesh.node_coords[mesh.interior_edges[:, 3]]
+    )
     midpoint = 0.5 * (
         mesh.node_coords[mesh.boundary_edges[:, 1]] + mesh.node_coords[mesh.boundary_edges[:, 2]]
     )
@@ -182,6 +186,7 @@ def build_metrics(mesh: MeshTopology) -> Metrics:
         interior_right=np.ascontiguousarray(mesh.interior_edges[:, 1]),
         interior_length=interior_length,
         interior_normal=interior_normal,
+        interior_midpoint=interior_midpoint,
         boundary_element=np.ascontiguousarray(mesh.boundary_edges[:, 0]),
         boundary_length=boundary_length,
         boundary_normal=boundary_normal,

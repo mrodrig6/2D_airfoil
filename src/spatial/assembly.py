@@ -88,7 +88,19 @@ def residual(U, metrics: Metrics, flow: FlowConditions, *, xp=np, U_inf=None) ->
     left, right = metrics.interior_left, metrics.interior_right
     nx = metrics.interior_normal[:, 0]
     ny = metrics.interior_normal[:, 1]
-    inner = ph.interface_flux(flow.flux, U[left], U[right], nx, ny, gamma, xp=xp, **options)
+
+    # Piecewise constant hands the solver the two cell averages; MUSCL hands
+    # it limited linear extrapolations to the face midpoint.  That is the only
+    # difference between first and second order here -- the sum below, and so
+    # conservation, is identical either way.
+    if flow.reconstruction == "constant":
+        UL, UR, UB = U[left], U[right], None
+    else:
+        from .reconstruct import face_states
+
+        UL, UR, UB = face_states(U, metrics, flow, xp=xp)
+
+    inner = ph.interface_flux(flow.flux, UL, UR, nx, ny, gamma, xp=xp, **options)
     carried = inner.flux * metrics.interior_length[:, None]
     speed = inner.max_speed * metrics.interior_length
 
@@ -104,7 +116,7 @@ def residual(U, metrics: Metrics, flow: FlowConditions, *, xp=np, U_inf=None) ->
         s = metrics.tag_slice(tag)
         if s.stop == s.start:
             continue
-        face = U[element[s]]
+        face = U[element[s]] if UB is None else UB[s]
         if tag is BoundaryTag.WALL:
             out = ph.wall_flux(face, bnx[s], bny[s], gamma, xp=xp)
         else:
