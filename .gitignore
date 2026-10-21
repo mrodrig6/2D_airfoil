@@ -11,3 +11,6 @@ venv/
 !docs/figures/*.png
 *.csv
 *.npz
+
+# Documentation build
+/site/
