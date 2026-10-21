@@ -100,3 +100,9 @@ the scheme at these resolutions: [numerical drag](../validation/numerical-drag.m
 `cd` is therefore a real derivative of a quantity that is partly numerical, and
 `efficiency` ($c_\ell/c_d$) inherits that. Lift and moment are on much firmer
 ground, which is why the examples optimise lift.
+
+## Reusing a prepared case
+
+With `differentiable_case(case=case)`, the supplied case owns the geometry. Four-digit shape derivatives are available only when its coordinates match the NACA section named by the case; modified or custom sections retain flow derivatives. Geometry and mesh overrides require rebuilding the case.
+
+`solve(force=True)` recomputes the flow and invalidates cached adjoints. A failed forward solve raises on every attempt and cannot supply a cached state for differentiation. Adjoint iteration limits count individual sweeps, including a final partial batch.

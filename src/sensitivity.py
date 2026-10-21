@@ -292,13 +292,17 @@ class DifferentiableCase:
     def solve(self, *, force: bool = False) -> SolveResult:
         """Converge the flow, once, and keep it."""
         if self.result is None or force:
-            self.result = self.case.solve(self.flow, self.options)
-            if not self.result.converged:
+            self.result = None
+            self._cache.clear()
+            self.adjoint_sweeps = 0
+            result = self.case.solve(self.flow, self.options)
+            if not result.converged:
                 raise RuntimeError(
-                    f"the flow solve did not converge ({self.result.message}), so a "
+                    f"the flow solve did not converge ({result.message}), so a "
                     f"gradient taken from it would be the derivative of nothing in "
                     f"particular"
                 )
+            self.result = result
         return self.result
 
     # -- the adjoint --------------------------------------------------------
@@ -310,6 +314,8 @@ class DifferentiableCase:
         """
         import jax
 
+        if self.adjoint_iterations < 1 or self.adjoint_batch < 1:
+            raise ValueError("adjoint_iterations and adjoint_batch must be at least 1")
         if name in self._cache:
             return self._cache[name]
         jnp = self._jnp()
@@ -340,10 +346,8 @@ class DifferentiableCase:
         # of `adjoint_batch` sweeps runs inside one `fori_loop` as a single
         # compiled program, and only the block boundary is looked at.
         @jax.jit
-        def block(lam):
-            return jax.lax.fori_loop(
-                0, self.adjoint_batch, lambda _, l: l - step * (vjp(l)[0] - seed), lam
-            )
+        def block(lam, steps):
+            return jax.lax.fori_loop(0, steps, lambda _, l: l - step * (vjp(l)[0] - seed), lam)
 
         @jax.jit
         def defect(lam):
@@ -357,23 +361,24 @@ class DifferentiableCase:
 
         lam = jnp.zeros_like(U)
         reference = float(jnp.linalg.norm(seed)) or 1.0
-        blocks = max(1, self.adjoint_iterations // self.adjoint_batch)
-        for completed in range(1, blocks + 1):
-            lam = block(lam)
+        completed = 0
+        while completed < self.adjoint_iterations:
+            steps = min(self.adjoint_batch, self.adjoint_iterations - completed)
+            lam = block(lam, steps)
+            completed += steps
+            self.adjoint_sweeps = completed
             residual = float(defect(lam)) / reference
             if not np.isfinite(residual):
-                raise RuntimeError(
-                    f"the adjoint diverged within the first {completed * self.adjoint_batch} sweeps"
-                )
+                raise RuntimeError(f"the adjoint diverged within the first {completed} sweeps")
             if residual < self.adjoint_tolerance:
                 break
         else:
             raise RuntimeError(
-                f"the adjoint did not converge in {blocks * self.adjoint_batch} sweeps "
+                f"the adjoint did not converge in {completed} sweeps "
                 f"(scaled defect {residual:.3e}); the forward solve may be only "
                 f"marginally converged"
             )
-        self.adjoint_sweeps = completed * self.adjoint_batch
+        self.adjoint_sweeps = completed
         self._cache[name] = np.asarray(lam)
         return self._cache[name]
 
@@ -470,12 +475,34 @@ def differentiable_case(
     **overrides: Any,
 ) -> DifferentiableCase:
     """Prepare a case for differentiation.  Takes the same options as
-    :func:`~src.api.solve_airfoil`."""
+    :func:`~src.api.solve_airfoil`.
+
+    A supplied case owns the geometry. Shape derivatives are offered only when
+    its coordinates match the four-digit section identified by its name.
+    """
     from .api import _split, build_case
+    from .geometry.section import naca_section
 
     geometry, mesh_keys, flow_keys, solver_keys = _split(overrides)
     if case is None:
         case = build_case(airfoil, **geometry, **mesh_keys)
+        shape = four_digit_parameters(airfoil)
+    else:
+        if geometry or mesh_keys:
+            raise TypeError("geometry/discretization overrides invalidate a prepared case")
+        shape = four_digit_parameters(case.airfoil.name)
+        if shape is not None:
+            try:
+                reference = naca_section(
+                    **shape,
+                    n_points=case.discretization.n_surface,
+                    clustering=case.discretization.clustering,
+                )
+            except ValueError:
+                shape = None
+            else:
+                if not np.allclose(reference.points, case.airfoil.points, rtol=0.0, atol=1e-12):
+                    shape = None
     base = options or SolverOptions(print_interval=0)
     if solver_keys:
         base = SolverOptions(**{**base.__dict__, **solver_keys})
@@ -483,7 +510,7 @@ def differentiable_case(
         case=case,
         flow=FlowConditions(**flow_keys),
         options=base,
-        shape=four_digit_parameters(geometry.get("airfoil", airfoil)),
+        shape=shape,
     )
 
 
