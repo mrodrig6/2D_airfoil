@@ -1,12 +1,38 @@
-r"""What a backend is, and the per-element face data every backend needs.
+r"""What a backend is, the shared time steppers, and the per-element face data.
 
-A backend is one execution strategy for one fixed mesh and operating point.  It
-owns no physics -- the equations live in :mod:`src.physics` and the assembly in
-:mod:`src.assembly` -- only the question of *how* those get evaluated.
+A backend supplies five primitives -- ``residual``, ``inverse_mass``, ``limit``,
+``time_step`` and ``norm`` -- and **inherits** the time integrators.  Keeping
+the schemes in one place means the three backends cannot drift apart
+numerically, which is what makes cross-backend agreement testable to round-off.
+It is also why adding a scheme is one method here rather than three.
+
+A backend owns no physics -- the equations live in :mod:`src.physics` and the
+assembly in :mod:`src.spatial.assembly` -- only the question of *how* those get
+evaluated.
+
+Schemes
+-------
+``euler``
+    Forward Euler, one residual evaluation per step.  The only scheme, and
+    what ``legacy/main.m`` implements.  It is a single forward-Euler stage, so
+    the strong-stability property a positivity limiter needs holds for it
+    directly -- SSP-RK3 inherits that property rather than owning it, which is
+    why removing SSP-RK3 costs the limiter nothing.  :data:`src.config.SCHEMES`
+    records the measurement behind that decision.
+
+The mass matrix of a finite-volume scheme
+-----------------------------------------
+:meth:`Backend.inverse_mass` looks like an odd thing for a cell-centred code to
+have.  It is there because it is the honest name: discretising with one
+piecewise-constant basis function per cell gives a mass matrix that is diagonal
+with the cell area on it, so :math:`M^{-1}R` is :math:`R/A`.  The companion
+discontinuous-Galerkin code carries the same method with a dense elemental
+block behind it, and at :math:`p = 0` its block *is* this division -- which is
+the sense in which these two solvers run the same scheme.
 
 The gather layout
 -----------------
-:func:`element_faces` turns the edge lists in :class:`~src.metrics.Metrics`
+:func:`element_faces` turns the edge lists in :class:`~src.spatial.metrics.Metrics`
 into a per-element view: for each element, its three faces with the neighbour
 on the other side, the face length, and the outward normal.  The vectorised
 assembly does not need this; the compiled one does, because it is what lets
@@ -17,13 +43,15 @@ each thread own an element and write only to that element.  See
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import NamedTuple
 
 import numpy as np
 
-from ..config import FlowConditions, SolverOptions
-from ..mesh import BoundaryTag
-from ..metrics import Metrics
+from ..config import SCHEMES, FlowConditions, SolverOptions
+from ..geometry.mesh import BoundaryTag
+from ..spatial.metrics import Metrics
+from ..timestepping import step as ts
 
 #: Neighbour codes for a face with no element on the far side.
 WALL, FARFIELD = -1, -2
@@ -95,14 +123,99 @@ class Backend(ABC):
         self.metrics = metrics
         self.flow = flow
         self.options = options
+        self.component_weight = ts.component_weights(flow)
+        # Resolved once, here, so that `cfl=None` means the same thing to all
+        # three backends and nothing downstream has to know it can be None.
+        self.cfl = ts.recommended_cfl(options.scheme) if options.cfl is None else float(options.cfl)
 
+    # -- primitives a backend must provide --------------------------------
     @abstractmethod
     def residual(self, U):
-        """Return ``(R, wave)``, matching :func:`src.assembly.residual`."""
+        """Return ``(R, wave)``, matching :func:`src.spatial.assembly.residual`."""
 
     @abstractmethod
-    def run(self, U, n_steps: int, scale: float):
-        """Advance ``n_steps`` and return ``(U, scaled_residual_of_the_last_step)``."""
+    def inverse_mass(self, R):
+        r"""Apply :math:`M^{-1}`, which for this discretisation is ``R / area``."""
+
+    @abstractmethod
+    def time_step(self, wave):
+        """Element-local pseudo-time step, shaped to broadcast against ``U``."""
+
+    @abstractmethod
+    def norm(self, A) -> float:
+        r"""Component-weighted RMS of a rate array.
+
+        See :func:`src.timestepping.step.component_weights` for why the weights
+        are there.  Every backend applies the same weights to the same axis,
+        which is what keeps their convergence histories comparable to round-off.
+        """
+
+    def limit(self, U):
+        """Return ``U`` made admissible again.
+
+        Nothing to do yet: the reconstruction is piecewise constant, so a cell
+        average is the whole of the solution in that cell and there are no
+        sub-cell oscillations to limit.  The steppers below call this at every
+        stage regardless, because that is where a limiter has to go for the
+        strong-stability argument to hold -- so adding reconstruction means
+        implementing this method, not rewriting the schemes.
+        """
+        return U
+
+    # Device transfer.  No-ops for the two NumPy-backed backends and real for
+    # JAX, which is the point: a caller that holds a state array can hand it to
+    # any backend without knowing which.  The companion nozzle code carries the
+    # same pair on its Backend, so the two interfaces match.
+    def asarray(self, A):
+        return np.asarray(A)
+
+    def to_numpy(self, A) -> np.ndarray:
+        return np.asarray(A)
+
+    # -- integrators, shared by every backend ------------------------------
+    def rate(self, U):
+        r"""``dU/dt = -M^{-1} R``, plus the wave-speed sum the step size needs."""
+        R, wave = self.residual(U)
+        return -self.inverse_mass(R), wave
+
+    def euler_step(self, U):
+        """One forward-Euler step.  Returns ``(U_new, residual_norm)``."""
+        F0, wave = self.rate(U)
+        dt = self.time_step(wave)
+        res = self.norm(F0)
+        return self.limit(U + dt * F0), res
+
+    def _check_scheme(self, scheme: str) -> None:
+        """Reject a scheme this backend cannot run.
+
+        A plain name check while :data:`src.config.SCHEMES` holds one entry.
+        It also carried a guard against a scheme whose ``cfl`` the backend had
+        not resolved for -- ``self.cfl`` comes from ``options.scheme``, so
+        running a *different* scheme through ``run()`` would silently use the
+        wrong stability limit.  With one scheme that mismatch cannot arise;
+        the guard belongs back here the moment a second one does.
+        """
+        if scheme not in SCHEMES:
+            raise ValueError(f"unknown scheme {scheme!r}; choose from {SCHEMES}")
+
+    def make_step(self, scheme: str) -> Callable:
+        self._check_scheme(scheme)
+        if scheme == "euler":
+            return self.euler_step
+        raise ValueError(f"unknown scheme {scheme!r}; choose from {SCHEMES}")
+
+    def run(self, U, n_steps: int, scheme: str):
+        """Advance ``n_steps`` steps.  Returns ``(U, residual_norm_of_the_last)``.
+
+        Backends that can fuse or buffer the loop override this; the default
+        simply iterates, which is what the vectorised reference wants anyway.
+        """
+        step = self.make_step(scheme)
+        res = float("nan")
+        with np.errstate(over="ignore", invalid="ignore"):
+            for _ in range(n_steps):
+                U, res = step(U)
+        return U, res
 
 
 __all__ = ["Backend", "ElementFaces", "FARFIELD", "WALL", "element_faces"]

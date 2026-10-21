@@ -23,8 +23,8 @@ from src.adapt import (
     mach_jump_indicator,
     transfer_state,
 )
-from src.postprocess import forces
-from src.solver import SolveResult, initial_state
+from src.post.postprocess import forces
+from src.timestepping.march import SolveResult, initial_state
 
 
 def smallest_angle(mesh) -> float:

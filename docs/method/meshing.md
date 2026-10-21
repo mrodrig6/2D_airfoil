@@ -4,7 +4,7 @@ The airfoil mesh generator builds a body-fitted O- or C-grid and splits it into 
 
 ## 5. Mesh generation
 
-Implemented in `src/mesh.py`.
+Implemented in `src/geometry/mesh.py`.
 
 ### Why this is new code
 

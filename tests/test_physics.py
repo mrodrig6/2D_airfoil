@@ -12,6 +12,7 @@ import pytest
 
 from src import FlowConditions
 from src import physics as ph
+from src.physics import fluxes
 
 GAMMA = 1.4
 FLUXES = tuple(ph.SOLVERS)
@@ -113,7 +114,7 @@ def test_only_the_fluxes_that_work_are_shipped():
 
 
 # -- AUSM+-up ---------------------------------------------------------------
-@pytest.mark.parametrize("beta", [0.0, ph._AUSM_BETA, 0.3])
+@pytest.mark.parametrize("beta", [0.0, fluxes._AUSM_BETA, 0.3])
 def test_the_split_mach_polynomials_sum_to_the_mach_number(beta):
     r"""``M+_(4)(M) + M-_(4)(M) = M``, for every M and *every* beta.
 
@@ -123,11 +124,11 @@ def test_the_split_mach_polynomials_sum_to_the_mach_number(beta):
     forms below.
     """
     m = np.linspace(-3.0, 3.0, 1001)
-    total = ph._m4_plus(m, beta) + ph._m4_minus(m, beta)
+    total = fluxes._m4_plus(m, beta) + fluxes._m4_minus(m, beta)
     assert np.abs(total - m).max() < 1e-14
 
 
-@pytest.mark.parametrize("alpha", [0.0, ph._AUSM_ALPHA, 0.5])
+@pytest.mark.parametrize("alpha", [0.0, fluxes._AUSM_ALPHA, 0.5])
 def test_the_pressure_splittings_sum_to_one(alpha):
     r"""``P+_(5)(M) + P-_(5)(M) = 1``, for every M and every alpha.
 
@@ -135,7 +136,7 @@ def test_the_pressure_splittings_sum_to_one(alpha):
     the two halves return exactly the one pressure.
     """
     m = np.linspace(-3.0, 3.0, 1001)
-    total = ph._p5_plus(m, alpha) + ph._p5_minus(m, alpha)
+    total = fluxes._p5_plus(m, alpha) + fluxes._p5_minus(m, alpha)
     assert np.abs(total - 1.0).max() < 1e-14
 
 
@@ -146,9 +147,9 @@ def test_the_split_polynomials_match_their_closed_forms():
     they are what fixes beta = 1/8 and alpha = 3/16.
     """
     m = np.linspace(-0.999, 0.999, 999)
-    assert np.abs(ph._m4_plus(m, ph._AUSM_BETA) - (m**4 / 8 + m / 2 + 3 / 8)).max() < 1e-14
+    assert np.abs(fluxes._m4_plus(m, fluxes._AUSM_BETA) - (m**4 / 8 + m / 2 + 3 / 8)).max() < 1e-14
     closed = 3 * m**5 / 16 - 5 * m**3 / 8 + 15 * m / 16 + 0.5
-    assert np.abs(ph._p5_plus(m, ph._AUSM_ALPHA) - closed).max() < 1e-14
+    assert np.abs(fluxes._p5_plus(m, fluxes._AUSM_ALPHA) - closed).max() < 1e-14
 
 
 def test_the_pressure_splitting_is_finite_at_zero_mach():
@@ -156,8 +157,8 @@ def test_the_pressure_splitting_is_finite_at_zero_mach():
     both branches -- so an unguarded denominator puts a NaN in the half that is
     thrown away, and JAX would carry it into the gradient anyway."""
     m = np.array([-2.0, -1.0, -1e-300, 0.0, 1e-300, 1.0, 2.0])
-    for split in (ph._p5_plus, ph._p5_minus):
-        assert np.all(np.isfinite(split(m, ph._AUSM_ALPHA)))
+    for split in (fluxes._p5_plus, fluxes._p5_minus):
+        assert np.all(np.isfinite(split(m, fluxes._AUSM_ALPHA)))
 
 
 def test_ausm_moves_mass_across_a_pressure_jump_from_rest():

@@ -54,10 +54,10 @@ Defaults below are parser defaults, which can differ from dataclass defaults or 
 | `--gamma` | `solve`, `sweep`, `sensitivity`, `adapt`, `bench`, `flow` | Specific-heat ratio, γ | `1.4` |
 | `--flux` | `solve`, `sweep`, `sensitivity`, `adapt`, `bench` | the approximate Riemann solver (default: %(default)s) Choices: `roe`, `hllc`, `ausmup`. | `'roe'` |
 | `--entropy-fix` | `solve`, `sweep`, `sensitivity`, `adapt`, `bench` | roe only: Harten-Hyman delta (default: %(default)s) | `0.05` |
-| `--cfl` | `solve`, `sweep`, `sensitivity`, `adapt`, `bench` | Courant multiplier; None selects the measured recommendation | `0.9` |
+| `--cfl` | `solve`, `sweep`, `sensitivity`, `adapt`, `bench` | Courant multiplier; None selects the measured recommendation (0.9) | `None` |
 | `--tolerance` | `solve`, `sweep`, `sensitivity`, `adapt` | Convergence threshold on the scaled residual | `1e-06` |
 | `--max-iterations` | `solve`, `sweep`, `sensitivity`, `adapt` | Maximum pseudo-time steps | `20000` |
-| `--scheme` | `solve`, `sweep`, `sensitivity`, `adapt` |  Choices: `euler`, `ssprk3`, `rk4`. | `'euler'` |
+| `--scheme` | `solve`, `sweep`, `sensitivity`, `adapt`, `bench` | Choices: `euler`. | `'euler'` |
 | `--print-interval` | `solve`, `sweep`, `sensitivity`, `adapt` | Steps between progress lines; zero is silent | `500` |
 | `--backend` | `solve`, `sweep`, `adapt` | execution strategy (default: %(default)s) Choices: `auto`, `numba`, `numpy`, `jax`. | `'auto'` |
 | `--batch` | `solve` | compiled-backend steps per call (default: %(default)s) | `25` |

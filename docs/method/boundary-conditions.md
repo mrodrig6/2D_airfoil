@@ -4,7 +4,7 @@ Boundary conditions impose only the information carried into the domain. This pa
 
 ## 7. Boundary conditions
 
-Two boundaries, matching `src.mesh.BoundaryTag`.
+Two boundaries, matching `src.geometry.mesh.BoundaryTag`.
 
 **Inviscid wall** ($\hat n$ pointing into the section). No flow through the
 surface, so the normal velocity vanishes and the flux carries pressure only:

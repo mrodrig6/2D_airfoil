@@ -11,7 +11,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src import geometry as geo
+from src.geometry import section as geo
 
 LEGACY_MAT = "legacy/nacageom.mat"
 
@@ -102,7 +102,7 @@ def test_a_lednicer_file_reads_as_the_same_section(section, tmp_path):
     body = "\n".join(f"{x:10.6f} {y:10.6f}" for x, y in upper)
     body += "\n\n" + "\n".join(f"{x:10.6f} {y:10.6f}" for x, y in lower)
     path = tmp_path / "l.dat"
-    path.write_text(f"NACA 0012\n  {len(upper)}.  {len(lower)}.\n\n{body}\n")
+    path.write_text(f"NACA 0012\n  {len(upper)}.  {len(lower)}.\n\n{body}\n", encoding="utf-8")
     assert np.allclose(geo.read_dat(path).points, section.points, atol=1e-6)
 
 
@@ -127,7 +127,7 @@ def test_load_airfoil_resolves_a_code_and_a_path(section, tmp_path):
 # -- the five-digit family --------------------------------------------------
 def naca5_camber(code, x):
     """The five-digit camber line, written out so the test is independent."""
-    from src.geometry import _NACA5_PLAIN, _NACA5_REFLEXED
+    from src.geometry.section import _NACA5_PLAIN, _NACA5_REFLEXED
 
     lift, position, reflexed = int(code[0]), int(code[1]), int(code[2])
     scale = 0.15 * lift / 0.3

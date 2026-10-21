@@ -87,8 +87,8 @@ from enum import IntEnum
 
 import numpy as np
 
-from .config import Discretization
-from .geometry import Airfoil, signed_area, surface_normals
+from ..config import Discretization
+from .section import Airfoil, signed_area, surface_normals
 
 #: Largest aspect ratio allowed for a first cell whose height is not set by a
 #: wall.  Only the C-grid's wake cut is affected; see :func:`generate_cgrid`.
@@ -344,12 +344,29 @@ def generate_ogrid(airfoil: Airfoil, disc: Discretization) -> OGrid:
 # --------------------------------------------------------------------------
 # Topology
 # --------------------------------------------------------------------------
+def signed_areas(node_coords: np.ndarray, elements: np.ndarray) -> np.ndarray:
+    r"""Signed area of every triangle, from the cross product of two edges.
+
+    .. math::
+        2A = (\vec{p}_1 - \vec{p}_0) \times (\vec{p}_2 - \vec{p}_0)
+
+    Positive exactly when the element is wound counter-clockwise, which is what
+    :meth:`MeshTopology.validate` and :func:`enforce_ccw` test.  Lives here, at
+    module scope, because :mod:`src.spatial.metrics` needs the same number and
+    two copies of a sign convention is one too many.
+    """
+    p = node_coords[elements]
+    a = p[:, 1] - p[:, 0]
+    b = p[:, 2] - p[:, 0]
+    return 0.5 * (a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0])
+
+
 @dataclass(frozen=True)
 class MeshTopology:
     """A conforming triangular mesh with tagged boundaries.
 
     The solver core sees only this, never the O-grid, so an externally generated
-    mesh (see :mod:`src.meshio`) is interchangeable with a generated one.
+    mesh (see :mod:`src.geometry.meshio`) is interchangeable with a generated one.
 
     Attributes
     ----------
@@ -406,10 +423,7 @@ class MeshTopology:
 
     def signed_areas(self) -> np.ndarray:
         """Signed area of every triangle; all positive once wound counter-clockwise."""
-        p = self.node_coords[self.elements]
-        a = p[:, 1] - p[:, 0]
-        b = p[:, 2] - p[:, 0]
-        return 0.5 * (a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0])
+        return signed_areas(self.node_coords, self.elements)
 
     def validate(self) -> None:
         """Raise if the mesh is not a usable conforming triangulation.

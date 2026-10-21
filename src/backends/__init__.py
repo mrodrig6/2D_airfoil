@@ -16,7 +16,7 @@ Three interchangeable execution strategies over one set of equations:
 from __future__ import annotations
 
 from ..config import FlowConditions, SolverOptions
-from ..metrics import Metrics
+from ..spatial.metrics import Metrics
 from .base import Backend, element_faces
 from .numpy_backend import NumpyBackend
 

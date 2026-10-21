@@ -18,6 +18,6 @@ case = build_case(section, mesh)
 print(case.airfoil.name, case.metrics.n_elements)
 ```
 
-For a new interface flux, start in `src/physics.py`, add dispatch in `src/assembly.py` and `src/config.py`, then implement the compiled counterpart in `src/backends/_numba_kernels.py`. Compare residuals and conservation with the existing backend tests before a full solve. This is source-level extension, not a plugin framework.
+For a new interface flux, start in `src/physics/fluxes.py`, register it in `SOLVERS` there and `FLUXES` in `src/config.py`, then implement the compiled counterpart in `src/backends/_numba_kernels.py`. Compare residuals and conservation with the existing backend tests before a full solve. This is source-level extension, not a plugin framework.
 
 Shape gradients are unavailable for a custom section unless a parameterization is supplied through a separate implementation. Flow derivatives remain available; see [compatibility](../reference/compatibility.md).

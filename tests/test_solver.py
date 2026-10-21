@@ -14,11 +14,12 @@ import numpy as np
 import pytest
 
 from src import Discretization, FlowConditions, SolverOptions, build_mesh, build_metrics, naca4
-from src import assembly as asm
 from src import physics as ph
-from src.mesh import BoundaryTag
-from src.postprocess import entropy_error, forces, legacy_forces, surface_pressure
-from src.solver import initial_state, solve_steady
+from src.geometry.mesh import BoundaryTag
+from src.post.postprocess import entropy_error, forces, legacy_forces, surface_pressure
+from src.spatial import assembly as asm
+from src.timestepping import step as ts
+from src.timestepping.march import initial_state, solve_steady
 
 SMALL = Discretization(
     n_surface=64, n_radial=32, far_field_radius=12.0, first_cell_height=0.01, growth_limit=1.3
@@ -66,7 +67,7 @@ def test_the_local_time_step_is_the_legacy_formula(small):
     flow = FlowConditions()
     U = initial_state(small, flow)
     out = asm.residual(U, small, flow)
-    dt = asm.local_time_step(out.wave, small, 0.9)
+    dt = ts.local_time_step(out.wave, small, 0.9)
     legacy = 0.9 * small.hydraulic_diameter / (out.wave / small.perimeter)
     assert np.allclose(dt, legacy)
     assert np.all(dt > 0.0)
@@ -74,7 +75,7 @@ def test_the_local_time_step_is_the_legacy_formula(small):
 
 def test_the_component_weights_put_every_residual_on_one_footing():
     flow = FlowConditions(mach=0.8)
-    w = asm.component_weights(flow)
+    w = ts.component_weights(flow)
     assert w[0] == 1.0
     assert w[1] == w[2] == pytest.approx(flow.mach)  # 1 / a_inf = M
     assert w[3] == pytest.approx(flow.mach**2)
@@ -155,7 +156,7 @@ def test_the_transonic_case_puts_a_shock_on_the_upper_surface(small):
     """The legacy operating point.  Loose bounds: this is a coarse mesh and a
     first-order scheme, so the test is that the physics is there, not that the
     numbers are converged."""
-    from src.postprocess import shock_location
+    from src.post.postprocess import shock_location
 
     result = solve_steady(
         small,

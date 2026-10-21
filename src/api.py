@@ -21,12 +21,12 @@ from typing import Any
 import numpy as np
 
 from .config import Discretization, FlowConditions, SolverOptions
-from .geometry import Airfoil, load_airfoil
-from .mesh import CGrid, MeshTopology, OGrid, build_mesh
-from .meshio import read_mesh
-from .metrics import Metrics, build_metrics
-from .postprocess import Forces, forces, report
-from .solver import SolveResult, solve_steady
+from .geometry.mesh import CGrid, MeshTopology, OGrid, build_mesh
+from .geometry.meshio import read_mesh
+from .geometry.section import Airfoil, load_airfoil
+from .post.postprocess import Forces, forces, report
+from .spatial.metrics import Metrics, build_metrics
+from .timestepping.march import SolveResult, solve_steady
 
 _GEOMETRY_KEYS = ("airfoil", "n_surface", "clustering")
 _MESH_KEYS = (

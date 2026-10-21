@@ -18,8 +18,8 @@ Lab 7 needs JAX, and its last part needs SciPy.
 Two things to have read, or to read as you go:
 
 * [euler](../theory/euler.md) — the equations, the non-dimensionalisation, the
-  scheme. In particular: **there are no units here.** $\rho_\infty = |v_\infty|
-  = c = 1$, so dynamic pressure is exactly $1/2$ and the only meaningful outputs
+  scheme. In particular: **there are no units here.** $\rho_\infty = |v_\infty| = c = 1$,
+  so dynamic pressure is exactly $1/2$ and the only meaningful outputs
   are coefficients.
 * The [assumptions table](../model/problem.md) in the
   README. Every answer below is conditional on those eight lines; most of the
@@ -276,7 +276,7 @@ plausible explanation is refuted by the data.
 
 **The MATLAB is in [`legacy/`](../../legacy)** and still readable. Asking students
 to find the force integral in `legacy/post_calc.m` and compare it to
-`src/postprocess.py` is a good exercise in its own right: the legacy formula uses
+`src/post/postprocess.py` is a good exercise in its own right: the legacy formula uses
 `sign(n_x)` and `sign(n_y)` in place of the normal components, which is a
 projection onto the axes rather than an integral of the traction, and
 [legacy forces](../validation/legacy-forces.md#the-legacy-force-formula-measured) measures

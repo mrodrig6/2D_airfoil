@@ -15,7 +15,10 @@ from src.cli import main
 
 ROOT = Path(__file__).resolve().parent.parent
 MARKDOWN = (
-    sorted(ROOT.glob("*.md")) + sorted(ROOT.glob("docs/**/*.md")) + [ROOT / "legacy" / "README.md"]
+    sorted(ROOT.glob("*.md"))
+    + sorted(ROOT.glob("docs/**/*.md"))
+    + sorted(ROOT.glob("src/**/*.md"))
+    + [ROOT / "legacy" / "README.md"]
 )
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 
@@ -76,19 +79,11 @@ def test_mesh_writes_the_files_it_is_asked_for(tmp_path):
     assert figure.stat().st_size > 0 and su2.stat().st_size > 0
 
 
-# -- the documentation ------------------------------------------------------
-def test_every_relative_link_in_the_documentation_resolves():
-    broken = []
-    for document in MARKDOWN:
-        if not document.exists():
-            continue
-        for target in LINK.findall(document.read_text()):
-            if target.startswith(("http://", "https://", "mailto:", "#")):
-                continue
-            path = (document.parent / target.split("#")[0]).resolve()
-            if not path.exists():
-                broken.append(f"{document.relative_to(ROOT)} -> {target}")
-    assert not broken, "broken links:\n  " + "\n  ".join(broken)
+# -- the documentation ----------------------------------------------------
+# Link, anchor and maths checking lives in tests/test_docs.py, ported from the
+# companion nozzle code.  It supersedes the link-only test that was here: it
+# also resolves in-page anchors, and it caught three real defects in these
+# documents that the old one could not see.
 
 
 def test_nothing_outside_legacy_mentions_octave():
@@ -102,7 +97,7 @@ def test_nothing_outside_legacy_mentions_octave():
     for path in list(ROOT.glob("src/**/*.py")) + list(ROOT.glob("tests/*.py")) + MARKDOWN:
         if not path.exists() or "legacy" in path.parts or path == Path(__file__):
             continue
-        text = path.read_text().lower()
+        text = path.read_text(encoding="utf-8").lower()
         for word in ("octave",):
             if word in text:
                 offenders.append(f"{path.relative_to(ROOT)}: {word}")

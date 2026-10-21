@@ -24,7 +24,7 @@ the implicit function theorem gives the derivative of the **answer**:
 Only the converged state appears. Both Jacobian actions come from `jax.vjp` on
 the residual, so no matrix is ever assembled, and — the part worth internalising
 — **the adjoint follows the scheme**. It differentiates whatever
-`src/assembly.py` computes, so changing the flux, or adding a higher-order
+`src/spatial/assembly.py` computes, so changing the flux, or adding a higher-order
 reconstruction later, changes the gradient with nothing to re-derive by hand.
 
 The adjoint system itself is marched in pseudo-time, exactly like the flow:

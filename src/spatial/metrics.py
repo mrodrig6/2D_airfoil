@@ -58,18 +58,18 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .mesh import BoundaryTag, MeshTopology
+from ..geometry.mesh import BoundaryTag, MeshTopology, signed_areas
 
 
 def element_geometry(
     node_coords: np.ndarray, elements: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Areas and centroids of every triangle."""
-    p = node_coords[elements]
-    a = p[:, 1] - p[:, 0]
-    b = p[:, 2] - p[:, 0]
-    area = 0.5 * (a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0])
-    return area, p.mean(axis=1)
+    """Areas and centroids of every triangle.
+
+    The area is :func:`src.geometry.mesh.signed_areas`, not a second copy of
+    the cross product: the sign convention is the mesh's to define.
+    """
+    return signed_areas(node_coords, elements), node_coords[elements].mean(axis=1)
 
 
 def _face_geometry(

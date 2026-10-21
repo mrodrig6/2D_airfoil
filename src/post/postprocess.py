@@ -61,10 +61,10 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from . import physics as ph
-from .config import FlowConditions
-from .mesh import BoundaryTag, MeshTopology
-from .solver import SolveResult
+from .. import physics as ph
+from ..config import FlowConditions
+from ..geometry.mesh import BoundaryTag, MeshTopology
+from ..timestepping.march import SolveResult
 
 #: Scalars :func:`scalar_field` can compute.
 SCALARS = ("mach", "pressure", "density", "velocity", "entropy", "cp")

@@ -1,118 +1,44 @@
-r"""The Euler fluxes, four approximate Riemann solvers, and the boundary conditions.
-
-Everything here is a pure function of states and normals.  Nothing knows about
-the mesh, the march, or which backend is running, and every function takes an
-``xp`` array module so the same source runs under NumPy and under
-``jax.numpy``.  That is what makes the JAX backend the *same code* rather than a
-second implementation to keep in step.
-
-The numerical flux
-------------------
-A finite-volume scheme needs one flux per face, shared by the two cells that
-meet there.  Each solver below takes a left state, a right state and the face
-normal, and returns that flux together with the largest signal speed it saw --
-which is what the local time step is built from.
+r"""The approximate Riemann solvers, and the dispatch between them.
 
 **The approximate Riemann solver is the upwinding.**  There is no separate
 upwind operator anywhere in this code: the reconstruction hands each solver two
 cell averages, and the solver's own wave structure decides which side each
-characteristic comes from.
+characteristic comes from.  Each takes a left state, a right state and the face
+normal, and returns the flux together with the largest signal speed it saw --
+which is what the local time step is built from.
 
 =============  ==============================================================
 ``roe``        Roe's linearised solver with the Harten-Hyman entropy fix.  The
                default, and what ``legacy/residual_calc.m`` implements.
 ``hllc``       HLLC with Batten's wave speeds.  Positivity-preserving, with no
                tunable constant.
+``ausmup``     AUSM\ :sup:`+`-up.  A flux split rather than a wave
+               decomposition, so it agrees with the other two for completely
+               independent reasons.  Converges on every transonic case tried;
+               limit-cycles at low free-stream Mach number on a fine mesh.
 =============  ==============================================================
 
-Two were tried and removed
---------------------------
-AUSM\ :sup:`+`-up and SLAU2 were implemented, measured over sixty solves, and
-then taken out.  AUSM\ :sup:`+`-up works, but only inside a narrow window in
-its one tunable constant and not where its author's guidance puts that window;
-SLAU2 stops converging above a peak Mach number of about 0.91, which rules out
-every transonic case on this geometry.
-
-``docs/riemann_fluxes.md`` is the record -- what was measured, what the numbers
-were, and what is still unexplained.  The implementations are not kept here,
-because verified copies already exist in the companion nozzle project's
-``legacy/riemann_solvers.py`` and this code's were checked bit-identical to
-them, so the measurements can be reproduced without a second copy to maintain.
+A fourth, SLAU2, was implemented, measured over sixty solves and removed: it
+stops converging above a peak Mach number of about 0.91, which rules out every
+transonic case on this geometry.  ``docs/riemann_fluxes.md`` is the record --
+including the retraction of an earlier verdict on AUSM\ :sup:`+`-up that turned
+out to be about a bug in its implementation rather than about the scheme.
 
 References
 ----------
 1. P. L. Roe, *J. Comput. Phys.* **43**, 357-372, 1981.
 2. A. Harten and J. M. Hyman, *J. Comput. Phys.* **50**, 235-269, 1983.
 3. P. Batten et al., *SIAM J. Sci. Comput.* **18**(6), 1553-1570, 1997.
-4. M.-S. Liou, *J. Comput. Phys.* **214**, 137-170, 2006.  (AUSM+-up, removed)
+4. M.-S. Liou, *J. Comput. Phys.* **214**, 137-170, 2006.
 5. K. Kitamura and E. Shima, *J. Comput. Phys.* **245**, 62-83, 2013.  (SLAU2,
    removed)
 """
 
 from __future__ import annotations
 
-from typing import NamedTuple
-
 import numpy as np
 
-#: Floor applied to density and pressure inside a flux evaluation.
-#:
-#: Not a physical model: a transient during the march can hand a flux a state
-#: whose pressure has gone slightly negative, and a NaN from the square root
-#: destroys the whole field in one step where a floor costs one cell's accuracy
-#: for one iteration.  The converged answer never touches it.
-FLOOR = 1e-10
-
-
-class FluxResult(NamedTuple):
-    """A numerical flux and the largest signal speed that produced it."""
-
-    flux: object  #: ``(..., 4)``
-    max_speed: object  #: ``(...)``
-
-
-def primitives(U, gamma: float, xp=np):
-    r"""Return ``(rho, vx, vy, p, H)``, with density and pressure floored positive."""
-    rho = xp.maximum(U[..., 0], FLOOR)
-    vx = U[..., 1] / rho
-    vy = U[..., 2] / rho
-    p = xp.maximum((gamma - 1.0) * (U[..., 3] - 0.5 * rho * (vx * vx + vy * vy)), FLOOR)
-    H = (U[..., 3] + p) / rho
-    return rho, vx, vy, p, H
-
-
-def conservative(rho, vx, vy, p, gamma: float, xp=np):
-    """The inverse of :func:`primitives`."""
-    return xp.stack(
-        [rho, rho * vx, rho * vy, p / (gamma - 1.0) + 0.5 * rho * (vx * vx + vy * vy)],
-        axis=-1,
-    )
-
-
-def euler_flux(U, gamma: float, xp=np):
-    r"""The pair :math:`(\mathbf{F}, \mathbf{G})`, for checking :func:`normal_flux`."""
-    rho, vx, vy, p, H = primitives(U, gamma, xp=xp)
-    F = xp.stack([rho * vx, rho * vx * vx + p, rho * vx * vy, rho * vx * H], axis=-1)
-    G = xp.stack([rho * vy, rho * vx * vy, rho * vy * vy + p, rho * vy * H], axis=-1)
-    return F, G
-
-
-def normal_flux(U, nx, ny, gamma: float, xp=np):
-    r"""The projected flux :math:`\mathbf{F} n_x + \mathbf{G} n_y`.
-
-    This is the only projection the scheme ever needs, and it depends on the
-    normal only through :math:`v_n` -- which is what lets one solver serve every
-    face of an unstructured mesh with no per-face rotation.
-    """
-    rho, vx, vy, p, H = primitives(U, gamma, xp=xp)
-    vn = vx * nx + vy * ny
-    return xp.stack(
-        [rho * vn, rho * vx * vn + p * nx, rho * vy * vn + p * ny, rho * H * vn], axis=-1
-    )
-
-
-def sound_speed(rho, p, gamma: float, xp=np):
-    return xp.sqrt(xp.maximum(gamma * p / rho, FLOOR))
+from .thermo import FLOOR, FluxResult, normal_flux, primitives, sound_speed
 
 
 # --------------------------------------------------------------------------
@@ -457,123 +383,10 @@ def interface_flux(name: str, UL, UR, nx, ny, gamma: float, *, xp=np, **kwargs):
     return solver(UL, UR, nx, ny, gamma, xp=xp, **kwargs)
 
 
-# --------------------------------------------------------------------------
-# Boundary conditions
-# --------------------------------------------------------------------------
-def wall_flux(U, nx, ny, gamma: float, *, xp=np) -> FluxResult:
-    r"""Inviscid wall: no flow through the surface, so the flux carries pressure only.
-
-    .. math::
-        \hat{\mathbf{F}}_{\text{wall}} = \left(0,\ p_b n_x,\ p_b n_y,\ 0\right)^T,
-        \qquad
-        p_b = (\gamma - 1)\left(\rho E
-              - \tfrac12 \rho\,\lvert \vec{v} - (\vec{v}\cdot\hat{n})\hat{n}\rvert^2\right),
-
-    the pressure of the interior state **with its normal velocity removed**
-    rather than the interior pressure itself.  The two differ by
-    :math:`\tfrac12(\gamma-1)\rho v_n^2`, which is zero only once the solution
-    has converged -- so using the interior pressure directly would add a
-    spurious surface force that decays with the residual and contaminates
-    :math:`c_\ell` on the way.  This is what ``legacy/residual_calc.m`` did, and
-    it is kept unchanged.
-    """
-    rho = xp.maximum(U[..., 0], FLOOR)
-    vx = U[..., 1] / rho
-    vy = U[..., 2] / rho
-    vn = vx * nx + vy * ny
-    qt2 = (vx - vn * nx) ** 2 + (vy - vn * ny) ** 2
-    p = xp.maximum((gamma - 1.0) * (U[..., 3] - 0.5 * rho * qt2), FLOOR)
-    zero = xp.zeros_like(p)
-    flux = xp.stack([zero, p * nx + zero, p * ny + zero, zero], axis=-1)
-    return FluxResult(flux, sound_speed(rho, p, gamma, xp=xp) + xp.abs(vn))
-
-
-def farfield_state(U, U_inf, nx, ny, gamma: float, *, xp=np):
-    r"""The far-field state from the one-dimensional Riemann invariants.
-
-    The legacy code imposed the **whole** free-stream state here and let the
-    Riemann solver sort it out.  That over-specifies a subsonic boundary: four
-    conditions where the characteristics ask for one, which reflects outgoing
-    waves back into the domain and is why the legacy domain had to be 50 chords
-    across.
-
-    A characteristic condition imposes only what the incoming characteristics
-    carry.  With :math:`\hat{n}` pointing out of the domain, the invariant
-    riding the outgoing acoustic wave comes from inside and the one riding the
-    incoming wave comes from the free stream:
-
-    .. math::
-        R^{+} = v_n^{+} + \frac{2a^{+}}{\gamma - 1}, \qquad
-        R^{-} = v_{n\infty} - \frac{2a_\infty}{\gamma - 1},
-
-    .. math::
-        v_{nb} = \tfrac12\left(R^{+} + R^{-}\right), \qquad
-        a_b = \tfrac{\gamma-1}{4}\left(R^{+} - R^{-}\right).
-
-    Entropy and the tangential velocity are convected, so they come from
-    whichever side the flow is going: the free stream on an inflow face, the
-    interior on an outflow one.  Supersonic faces take everything from one side,
-    and all four cases are selected with :func:`numpy.where` rather than a
-    branch, so the whole function stays differentiable and vectorised.
-    """
-    rho, vx, vy, p, _ = primitives(U, gamma, xp=xp)
-    a = sound_speed(rho, p, gamma, xp=xp)
-    vn = vx * nx + vy * ny
-
-    rho_i, vx_i, vy_i, p_i, _ = primitives(U_inf, gamma, xp=xp)
-    a_i = sound_speed(rho_i, p_i, gamma, xp=xp)
-    vn_i = vx_i * nx + vy_i * ny
-
-    two = 2.0 / (gamma - 1.0)
-    r_plus = vn + two * a
-    r_minus = vn_i - two * a_i
-    vnb = 0.5 * (r_plus + r_minus)
-    ab = 0.25 * (gamma - 1.0) * (r_plus - r_minus)
-    ab = xp.maximum(ab, FLOOR)
-
-    outgoing = vnb > 0.0  # the flow leaves the domain through this face
-    rho_s = xp.where(outgoing, rho, rho_i)
-    p_s = xp.where(outgoing, p, p_i)
-    vx_s = xp.where(outgoing, vx, vx_i)
-    vy_s = xp.where(outgoing, vy, vy_i)
-    vn_s = xp.where(outgoing, vn, vn_i)
-
-    entropy = p_s / rho_s**gamma
-    rho_b = (ab * ab / (gamma * entropy)) ** (1.0 / (gamma - 1.0))
-    p_b = rho_b * ab * ab / gamma
-    vx_b = vx_s + (vnb - vn_s) * nx
-    vy_b = vy_s + (vnb - vn_s) * ny
-    subsonic = conservative(rho_b, vx_b, vy_b, p_b, gamma, xp=xp)
-
-    # supersonic: every characteristic points the same way, so one side decides
-    supersonic_out = (vn >= a)[..., None]
-    supersonic_in = (vn <= -a)[..., None]
-    return xp.where(supersonic_in, U_inf + xp.zeros_like(U), xp.where(supersonic_out, U, subsonic))
-
-
-def farfield_flux(
-    U, U_inf, nx, ny, gamma: float, *, flux: str = "roe", xp=np, **kwargs
-) -> FluxResult:
-    """The far-field flux: build the characteristic state, then solve across it."""
-    return interface_flux(
-        flux, U, farfield_state(U, U_inf, nx, ny, gamma, xp=xp), nx, ny, gamma, xp=xp, **kwargs
-    )
-
-
 __all__ = [
-    "FLOOR",
     "SOLVERS",
     "ausmup_flux",
-    "FluxResult",
-    "conservative",
-    "euler_flux",
-    "farfield_flux",
-    "farfield_state",
     "hllc_flux",
     "interface_flux",
-    "normal_flux",
-    "primitives",
     "roe_flux",
-    "sound_speed",
-    "wall_flux",
 ]

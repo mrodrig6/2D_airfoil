@@ -4,7 +4,7 @@ These formulas and point conventions define the supported airfoil sections. Gene
 
 ## 4. Airfoil geometry
 
-Implemented in `src/geometry.py`. A section is stored as a closed loop of
+Implemented in `src/geometry/section.py`. A section is stored as a closed loop of
 points, and everything downstream takes that loop without caring where it came
 from — which is what makes an externally designed section a first-class input.
 

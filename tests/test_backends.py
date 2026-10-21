@@ -15,10 +15,11 @@ import pytest
 from src import Discretization, FlowConditions, SolverOptions, build_mesh, build_metrics, naca4
 from src.backends import available_backends, element_faces, get_backend
 from src.backends.base import FARFIELD, WALL
-from src.mesh import BoundaryTag
+from src.config import SCHEMES
+from src.geometry.mesh import BoundaryTag
 from src.physics import SOLVERS
-from src.postprocess import forces
-from src.solver import initial_state, resolve_backend, solve_steady
+from src.post.postprocess import forces
+from src.timestepping.march import initial_state, resolve_backend, solve_steady
 
 TINY = Discretization(
     n_surface=48, n_radial=24, far_field_radius=10.0, first_cell_height=0.02, growth_limit=1.3
@@ -71,8 +72,9 @@ def test_boundary_faces_are_tagged_not_numbered(metrics):
 def test_resolve_backend_prefers_the_compiled_one():
     assert resolve_backend(SolverOptions(backend="numpy")) == "numpy"
     assert resolve_backend(SolverOptions()) == available_backends()[0]
-    # the multi-stage schemes are vectorised only, so auto must not pick numba
-    assert resolve_backend(SolverOptions(scheme="rk4")) == "numpy"
+    # every backend implements every scheme, so the choice is scheme-independent
+    for scheme in SCHEMES:
+        assert resolve_backend(SolverOptions(scheme=scheme)) == available_backends()[0]
 
 
 def test_an_unknown_backend_is_refused():
@@ -108,10 +110,37 @@ def test_the_compiled_residual_also_preserves_the_free_stream(metrics):
     assert np.abs(R[off]).max() < 1e-10
 
 
-@pytest.mark.numba
-def test_the_numba_backend_refuses_a_scheme_it_does_not_implement(metrics):
-    with pytest.raises(ValueError, match="forward Euler only"):
-        get_backend("numba", metrics, FlowConditions(), SolverOptions(scheme="rk4"))
+def test_an_unknown_scheme_is_refused(metrics):
+    """``rk4`` used to be a scheme and is not one any more, so it reads as unknown."""
+    with pytest.raises(ValueError, match="unknown scheme"):
+        SolverOptions(scheme="rk4")
+    backend = get_backend("numpy", metrics, FlowConditions(), SolverOptions())
+    with pytest.raises(ValueError, match="unknown scheme"):
+        backend.make_step("midpoint")
+
+
+@pytest.mark.parametrize("scheme", SCHEMES)
+def test_every_backend_takes_the_same_step_for_every_scheme(metrics, scheme):
+    """The point of inheriting the steppers: they cannot drift apart.
+
+    One chunk is enough -- a stage coefficient that differed between backends
+    would show up in the first step, and a residual that differed is already
+    covered above.  Run from a perturbed state rather than the free stream, so
+    that the stage algebra is actually exercised instead of acting on zeros.
+    """
+    flow = FlowConditions(mach=0.8, alpha_deg=1.25)
+    options = SolverOptions(cfl=0.9, scheme=scheme)
+    rng = np.random.default_rng(7)
+    U0 = initial_state(metrics, flow) * (1.0 + 0.05 * rng.standard_normal((metrics.n_elements, 4)))
+
+    reference, res_ref = get_backend("numpy", metrics, flow, options).run(U0.copy(), 8, scheme)
+    for name in available_backends():
+        if name == "numpy":
+            continue
+        U, res = get_backend(name, metrics, flow, options).run(U0.copy(), 8, scheme)
+        U = np.asarray(U)
+        assert np.abs(U - reference).max() / np.abs(reference).max() < 1e-12, name
+        assert res == pytest.approx(res_ref, rel=1e-12), name
 
 
 @pytest.mark.numba
@@ -139,14 +168,21 @@ def test_the_answer_does_not_depend_on_the_backend(metrics):
 @pytest.mark.slow
 def test_batching_only_changes_where_the_march_stops(metrics):
     """Convergence is tested every `batch` steps, so a run can overshoot by up
-    to that many -- and must reach the same answer."""
+    to that many -- and must reach the same answer.
+
+    At ``tolerance=1e-6`` it does not, quite: the loads are still drifting in
+    the fifth figure there, so two runs stopping 195 steps apart differ by
+    about 1e-4 relative -- which is a statement about how converged 1e-6 is,
+    not about batching.  Measured at 1e-8 instead, where the two agree to 6e-7
+    and the assertion has three orders of headroom.
+    """
     flow = FlowConditions(mach=0.5, alpha_deg=2.0)
-    base = dict(tolerance=1e-6, print_interval=0, max_iterations=30_000, backend="numba")
+    base = dict(tolerance=1e-8, print_interval=0, max_iterations=30_000, backend="numba")
     few = solve_steady(metrics, flow, SolverOptions(**base, batch=5))
     many = solve_steady(metrics, flow, SolverOptions(**base, batch=200))
     assert few.converged and many.converged
     assert abs(few.iterations - many.iterations) <= 200
-    assert forces(few).cl == pytest.approx(forces(many).cl, rel=1e-4)
+    assert forces(few).cl == pytest.approx(forces(many).cl, rel=1e-5)
 
 
 # -- the traced backend -----------------------------------------------------

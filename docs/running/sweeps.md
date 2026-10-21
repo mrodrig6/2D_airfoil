@@ -11,7 +11,7 @@ reuse it:
 
 ```python
 from src import Discretization, FlowConditions, SolverOptions, build_case, naca4
-from src.postprocess import forces
+from src.post.postprocess import forces
 
 mesh = Discretization(n_surface=128, n_radial=48, far_field_radius=20.0)
 case = build_case(naca4("2412", mesh.n_surface), mesh)

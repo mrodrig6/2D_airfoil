@@ -33,8 +33,8 @@ These tables use the defaults in `src/config.py`.
 | Name in code | Meaning / symbol | Default | Units |
 |---|---|---|---|
 | `backend` | Execution backend; auto prefers Numba for Euler | `'auto'` | choice |
-| `batch` | Compiled steps between Python calls | `25` | count |
-| `cfl` | Courant multiplier | `0.9` | dimensionless |
+| `batch` | Steps between convergence checks on every backend | `25` | count |
+| `cfl` | Courant multiplier; None resolves to 0.9 | `None` | dimensionless |
 | `tolerance` | Convergence threshold on the scaled residual | `1e-06` | dimensionless |
 | `max_iterations` | Maximum pseudo-time steps | `20000` | count |
 | `scheme` | Time integrator | `'euler'` | choice |

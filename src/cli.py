@@ -32,10 +32,10 @@ from .config import (
     FlowConditions,
     SolverOptions,
 )
-from .geometry import CLUSTERINGS, load_airfoil, write_dat
-from .mesh import CGrid, build_mesh
-from .meshio import read_mesh, write_su2
-from .metrics import build_metrics
+from .geometry.mesh import CGrid, build_mesh
+from .geometry.meshio import read_mesh, write_su2
+from .geometry.section import CLUSTERINGS, load_airfoil, write_dat
+from .spatial.metrics import build_metrics
 
 
 # --------------------------------------------------------------------------
@@ -169,7 +169,7 @@ def cmd_geometry(args: argparse.Namespace) -> int:
     if args.dat:
         print(f"  wrote {write_dat(airfoil, args.dat)}")
     if args.figure:
-        from .plotting import plot_airfoil
+        from .post.plotting import plot_airfoil
 
         print(f"  wrote {plot_airfoil(airfoil, args.figure, normals=args.normals)}")
     return 0
@@ -195,7 +195,7 @@ def cmd_mesh(args: argparse.Namespace) -> int:
     if args.su2:
         print(f"  wrote {write_su2(mesh, args.su2)}")
     if args.figure:
-        from .plotting import plot_mesh
+        from .post.plotting import plot_mesh
 
         window = None if args.window == "all" else tuple(float(v) for v in args.window.split(","))
         if window is not None and len(window) != 4:
@@ -230,7 +230,12 @@ def _add_flow_options(parser: argparse.ArgumentParser) -> None:
 
 def _add_solver_options(parser: argparse.ArgumentParser) -> None:
     o = SolverOptions
-    parser.add_argument("--cfl", type=float, default=o.cfl)
+    parser.add_argument(
+        "--cfl",
+        type=float,
+        default=o.cfl,
+        help="Courant number; omit for the recommended value of 0.9",
+    )
     parser.add_argument("--tolerance", type=float, default=o.tolerance)
     parser.add_argument("--max-iterations", type=int, default=o.max_iterations)
     parser.add_argument("--scheme", choices=SCHEMES, default=o.scheme)
@@ -239,7 +244,7 @@ def _add_solver_options(parser: argparse.ArgumentParser) -> None:
 
 def cmd_solve(args: argparse.Namespace) -> int:
     """Solve one operating point and report the loads."""
-    from .postprocess import report
+    from .post.postprocess import report
 
     case = (
         build_case(
@@ -271,17 +276,17 @@ def cmd_solve(args: argparse.Namespace) -> int:
     print(report(result))
 
     if args.cp:
-        from .plotting import plot_surface_pressure
+        from .post.plotting import plot_surface_pressure
 
         print(f"  wrote {plot_surface_pressure(result, args.cp)}")
     if args.figure:
-        from .plotting import plot_field
+        from .post.plotting import plot_field
 
         print(
             f"  wrote {plot_field(result, args.figure, scalar=args.scalar, shading=args.shading)}"
         )
     if args.convergence:
-        from .plotting import plot_convergence
+        from .post.plotting import plot_convergence
 
         print(f"  wrote {plot_convergence(result, args.convergence)}")
     return 0 if result.converged else 1
@@ -294,13 +299,13 @@ def cmd_bench(args: argparse.Namespace) -> int:
     import numpy as np
 
     from .backends import available_backends, get_backend
-    from .solver import initial_state
+    from .timestepping.march import initial_state
 
     case = build_case(
         args.airfoil, _discretization(args), n_surface=args.n_surface, clustering=args.clustering
     )
     flow = FlowConditions(mach=args.mach, alpha_deg=args.alpha, flux=args.flux)
-    options = SolverOptions(cfl=args.cfl)
+    options = SolverOptions(cfl=args.cfl, scheme=args.scheme)
     print(case.mesh.summary())
     U0 = initial_state(case.metrics, flow)
 
@@ -311,9 +316,9 @@ def cmd_bench(args: argparse.Namespace) -> int:
         # measurable at all, and fewer would be dominated by the call overhead
         steps = args.steps if name != "numpy" else max(args.steps // 10, 20)
         if hasattr(backend, "warm_up"):
-            print(f"  {name}: compiled in {backend.warm_up():.1f} s (cached on disk)")
+            print(f"  {name}: compiled in {backend.warm_up(options.scheme):.1f} s (cached on disk)")
         started = time.perf_counter()
-        backend.run(np.array(U0), steps, 1.0)
+        backend.run(np.array(U0), steps, options.scheme)
         timings[name] = (steps, time.perf_counter() - started)
 
     # always relative to the reference backend, so the number means "times
@@ -372,7 +377,7 @@ def cmd_sweep(args: argparse.Namespace) -> int:
     and each solve starts from the previous angle's converged field, which is
     already most of the way to the answer.
     """
-    from .postprocess import forces
+    from .post.postprocess import forces
 
     angles = _angles(args.alphas)
     if not angles:
@@ -433,7 +438,7 @@ def cmd_sweep(args: argparse.Namespace) -> int:
 
     print(f"\n{len(solved)} of {len(angles)} converged, {seconds:.1f} s in total")
     if args.figure and loads:
-        from .plotting import plot_polar
+        from .post.plotting import plot_polar
 
         title = f"{case.airfoil.name} at M = {args.mach:g}"
         print(f"  wrote {plot_polar(solved, loads, args.figure, title=title)}")
@@ -543,14 +548,14 @@ def cmd_adapt(args: argparse.Namespace) -> int:
     print(history.mesh.summary())
 
     if args.figure:
-        from .plotting import plot_mesh
+        from .post.plotting import plot_mesh
 
         window = None if args.window == "all" else tuple(float(v) for v in args.window.split(","))
         if window is not None and len(window) != 4:
             raise SystemExit("--window needs four comma-separated numbers, or 'all'")
         print(f"  wrote {plot_mesh(history.mesh, args.figure, window=window)}")
     if args.history:
-        from .plotting import plot_adaptation
+        from .post.plotting import plot_adaptation
 
         print(f"  wrote {plot_adaptation(history, args.history)}")
     return 1 if history.stalled else 0
@@ -710,6 +715,13 @@ def build_parser() -> argparse.ArgumentParser:
     _add_mesh_options(bench)
     _add_flow_options(bench)
     bench.add_argument("--cfl", type=float, default=SolverOptions.cfl)
+    bench.add_argument(
+        "--scheme",
+        choices=SCHEMES,
+        default="euler",
+        help="scheme to time; euler by default, which is what the figures in "
+        "docs/performance.md were measured on",
+    )
     bench.add_argument(
         "--steps",
         type=int,

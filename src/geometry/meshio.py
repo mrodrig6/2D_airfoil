@@ -1,6 +1,6 @@
 r"""Read a triangular mesh someone else generated.
 
-The solver core takes a :class:`~src.mesh.MeshTopology` and does not care where
+The solver core takes a :class:`~src.geometry.mesh.MeshTopology` and does not care where
 it came from, so an externally generated mesh is a first-class input alongside
 the built-in O-grid.  That matters for two cases this code expects:
 
@@ -24,7 +24,7 @@ says what to run:
 Boundary markers
 ----------------
 A mesh file names its boundaries; this code has exactly two
-(:class:`~src.mesh.BoundaryTag`), so the names have to be mapped onto them.  The
+(:class:`~src.geometry.mesh.BoundaryTag`), so the names have to be mapped onto them.  The
 defaults in :data:`WALL_NAMES` and :data:`FARFIELD_NAMES` cover the usual
 spellings, matched case-insensitively.  An unrecognised marker is an **error
 naming every marker in the file**, not a silently dropped boundary -- a boundary
@@ -41,10 +41,10 @@ import numpy as np
 
 from .mesh import BoundaryTag, MeshTopology, build_edges, enforce_ccw
 
-#: Marker names mapped to :attr:`~src.mesh.BoundaryTag.WALL`.
+#: Marker names mapped to :attr:`~src.geometry.mesh.BoundaryTag.WALL`.
 WALL_NAMES = ("airfoil", "wall", "body", "surface", "profile", "solid")
 
-#: Marker names mapped to :attr:`~src.mesh.BoundaryTag.FARFIELD`.
+#: Marker names mapped to :attr:`~src.geometry.mesh.BoundaryTag.FARFIELD`.
 FARFIELD_NAMES = ("farfield", "far_field", "far-field", "outer", "freestream", "external")
 
 
@@ -128,7 +128,11 @@ def read_su2(
     splitting it would silently change the mesh the user asked for.
     """
     path = Path(path)
-    tokens = [line.split("%")[0].strip() for line in path.read_text().splitlines() if line.strip()]
+    tokens = [
+        line.split("%")[0].strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     coords: list[list[float]] = []
     triangles: list[list[int]] = []
     lines: dict[str, list[list[int]]] = {}
@@ -195,7 +199,7 @@ def read_gmsh(
     physical group, which ``$PhysicalNames`` gives a name.
     """
     path = Path(path)
-    text = path.read_text().splitlines()
+    text = path.read_text(encoding="utf-8").splitlines()
 
     version = ""
     for i, line in enumerate(text):
@@ -289,7 +293,7 @@ def write_su2(mesh: MeshTopology, path: str | Path) -> Path:
         out.append(f"MARKER_TAG= {name}")
         out.append(f"MARKER_ELEMS= {len(edges)}")
         out += [f"3 {a} {b}" for _, a, b in edges]
-    path.write_text("\n".join(out) + "\n")
+    path.write_text("\n".join(out) + "\n", encoding="utf-8")
     return path
 
 

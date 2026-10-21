@@ -3,7 +3,7 @@ r"""The pseudo-time march to steady state.
 The steady Euler equations are mixed elliptic-hyperbolic, so they are not
 marched in physical time but in a **pseudo-time** whose only purpose is to
 reach the fixed point :math:`R(\vec{U}) = 0`.  Each cell therefore takes its
-own step -- see :func:`~src.assembly.local_time_step` -- which on a mesh whose
+own step -- see :func:`~src.timestepping.step.local_time_step` -- which on a mesh whose
 cells span six orders of magnitude in area is the difference between a run that
 finishes and one that does not.
 
@@ -33,9 +33,10 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from . import assembly as asm
-from .config import FlowConditions, SolverOptions
-from .metrics import Metrics
+from ..config import FlowConditions, SolverOptions
+from ..spatial import assembly as asm
+from ..spatial.metrics import Metrics
+from . import step as ts
 
 
 @dataclass
@@ -69,52 +70,28 @@ class SolveResult:
     def report(self) -> str:
         """The full report -- convergence, free stream, loads, field extrema.
 
-        A method as well as :func:`src.postprocess.report` because this is what
+        A method as well as :func:`src.post.postprocess.report` because this is what
         the quick start shows, and a student should not have to know which
         module a formatter lives in.  Imported here rather than at module scope:
         post-processing reads a :class:`SolveResult`, so the dependency only
         runs one way at import time.
         """
-        from .postprocess import report as _report
+        from ..post.postprocess import report as _report
 
         return _report(self)
-
-
-def _step(U, metrics, flow, opts, xp=np):
-    """One pseudo-time step.  Returns ``(U_new, scaled_rate, wave)``."""
-    out = asm.residual(U, metrics, flow, xp=xp)
-    dt = asm.local_time_step(out.wave, metrics, opts.cfl, xp=xp)
-    rate = asm.residual_norm(out.R, metrics, flow, xp=xp)
-    area = metrics.area[:, None]
-    step = (dt / metrics.area)[:, None]
-
-    if opts.scheme == "euler":
-        return U - step * out.R, rate
-    if opts.scheme == "ssprk3":
-        u1 = U - step * out.R
-        u2 = 0.75 * U + 0.25 * (u1 - step * asm.residual(u1, metrics, flow, xp=xp).R)
-        u3 = (1.0 / 3.0) * U + (2.0 / 3.0) * (u2 - step * asm.residual(u2, metrics, flow, xp=xp).R)
-        return u3, rate
-    # classical RK4
-    k1 = out.R / area
-    k2 = asm.residual(U - 0.5 * dt[:, None] * k1, metrics, flow, xp=xp).R / area
-    k3 = asm.residual(U - 0.5 * dt[:, None] * k2, metrics, flow, xp=xp).R / area
-    k4 = asm.residual(U - dt[:, None] * k3, metrics, flow, xp=xp).R / area
-    return U - (dt[:, None] / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4), rate
 
 
 def resolve_backend(options: SolverOptions) -> str:
     """Turn ``backend='auto'`` into a name, preferring the compiled one.
 
-    The multi-stage schemes are vectorised only, so asking for ``auto`` with
-    ``scheme='rk4'`` gives NumPy rather than an error.
+    Every backend implements every scheme -- the steppers are inherited from
+    :class:`src.backends.base.Backend` -- so the choice no longer depends on
+    which scheme was asked for.
     """
-    from .backends import available_backends
+    from ..backends import available_backends
 
     if options.backend != "auto":
         return options.backend
-    if options.scheme != "euler":
-        return "numpy"
     return available_backends()[0]
 
 
@@ -153,18 +130,16 @@ def solve_steady(
     # regardless of where the march was started -- which is what makes warm
     # starting worth doing in a sweep.  For a cold start the two are identical.
     reference = max(
-        asm.residual_norm(
+        ts.residual_norm(
             asm.residual(initial_state(metrics, flow), metrics, flow).R, metrics, flow
         ),
         asm.ph.FLOOR,
     )
 
-    backend_name = resolve_backend(opts)
-    compiled = None
-    if backend_name != "numpy":
-        from .backends import get_backend
+    from ..backends import get_backend
 
-        compiled = get_backend(backend_name, metrics, flow, opts)
+    backend_name = resolve_backend(opts)
+    backend = get_backend(backend_name, metrics, flow, opts)
 
     history: list[float] = []
     message = ""
@@ -174,19 +149,15 @@ def solve_steady(
 
     with np.errstate(over="ignore", invalid="ignore"):
         while iteration < opts.max_iterations:
-            if compiled is None:
-                U, rate = _step(U, metrics, flow, opts)
-                scaled = rate / reference
-                iteration += 1
-                history.append(scaled)
-            else:
-                # the compiled backend runs a batch without returning to Python,
-                # which is the whole reason it is faster; convergence is
-                # therefore tested every `batch` steps rather than every step
-                steps = min(opts.batch, opts.max_iterations - iteration)
-                U, scaled = compiled.run(U, steps, reference)
-                iteration += steps
-                history.extend([scaled] * steps)
+            # Every backend runs a chunk without returning here, which is the
+            # whole reason the compiled ones are faster; convergence is
+            # therefore tested every `batch` steps rather than every step, for
+            # all of them alike.
+            steps = min(opts.batch, opts.max_iterations - iteration)
+            U, rate = backend.run(U, steps, opts.scheme)
+            scaled = rate / reference
+            iteration += steps
+            history.extend([scaled] * steps)
 
             if not np.isfinite(scaled):
                 message = f"the residual became {scaled} at iteration {iteration}"

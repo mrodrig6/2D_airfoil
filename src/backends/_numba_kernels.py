@@ -400,48 +400,72 @@ def residual_gather(U, neighbour, length, normal, U_inf, gamma, kind, efix, R, w
         wave[e] = s
 
 
+# ==========================================================================
+#  The time steppers' building blocks
+#
+#  One kernel per arithmetic shape, orchestrated from Python by
+#  :class:`~src.backends.numba_backend.NumbaBackend`.  Writing the stage
+#  algebra as separate kernels rather than one fused march per scheme is a
+#  measured choice, not a concession: on this problem it came out within the
+#  run-to-run noise of a fully fused loop (see ``docs/performance.md``), and it
+#  keeps each arithmetic shape in one place.  With one scheme left there are
+#  no stage coefficients to restate, which is why ``combine_ssp`` is gone:
+#  it existed only for SSP-RK3's two convex combinations.
+# ==========================================================================
+
+
 @njit(fastmath=True, cache=True, parallel=True)
-def _advance(U, R, wave, area, cfl, weight, scale):
-    """Forward Euler with the local time step, and the residual norm in one pass."""
-    n = U.shape[0]
+def rate_into(R, area, F):
+    r"""``F = -R / area``, the semi-discrete :math:`dU/dt`."""
+    n = R.shape[0]
+    for e in prange(n):
+        inv = 1.0 / area[e]
+        for c in range(4):
+            F[e, c] = -R[e, c] * inv
+
+
+@njit(fastmath=True, cache=True, parallel=True)
+def dt_into(wave, area, cfl, dt):
+    r"""The element-local step :math:`\mathrm{CFL}\,2A_e/\sum_f(|v_n|+a)\ell_f`."""
+    n = wave.shape[0]
+    for e in prange(n):
+        dt[e] = cfl * 2.0 * area[e] / max(wave[e], FLOOR)
+
+
+@njit(fastmath=True, cache=True, parallel=True)
+def rms_weighted(F, w):
+    """RMS of ``F`` with component ``c`` scaled by ``w[c]`` first.
+
+    The weights are what make the norm independent of the operating point --
+    see :func:`src.timestepping.step.component_weights`.  Folded into the
+    reduction rather than applied as ``F * w`` first, because this runs once
+    per step and materialising a second state array for it would undo the
+    allocation work the rest of this module does.
+
+    There is deliberately **no unweighted companion** to this, so that a future
+    stepper cannot reach for one by mistake and get a norm that is correct at
+    the default operating point and silently wrong away from it.
+    """
+    n = F.shape[0]
     total = 0.0
     for e in prange(n):
-        dt = cfl * 2.0 * area[e] / max(wave[e], FLOOR)
         acc = 0.0
         for c in range(4):
-            rate = R[e, c] / area[e]
-            acc += (rate * weight[c]) ** 2
-            U[e, c] -= dt * rate
+            v = F[e, c] * w[c]
+            acc += v * v
         total += acc
-    return np.sqrt(total / (4.0 * n)) / scale
+    return np.sqrt(total / (4.0 * n))
 
 
-@njit(fastmath=True, cache=True)
-def march(
-    U,
-    neighbour,
-    length,
-    normal,
-    U_inf,
-    area,
-    gamma,
-    kind,
-    efix,
-    cfl,
-    weight,
-    scale,
-    n_steps,
-):
-    """Advance ``n_steps`` without returning to Python.
+@njit(fastmath=True, cache=True, parallel=True)
+def stage(U, F, coef, dt, out):
+    """``out = U + coef * dt * F``, with ``dt`` per element.
 
-    This is the point of the backend: the Python interpreter sees one call per
-    few hundred iterations instead of a dozen array operations per iteration.
+    Safe when ``out`` aliases ``U``: element ``(e, c)`` of the output depends
+    only on element ``(e, c)`` of the inputs.
     """
     n = U.shape[0]
-    R = np.empty((n, 4))
-    wave = np.empty(n)
-    norm = 0.0
-    for _ in range(n_steps):
-        residual_gather(U, neighbour, length, normal, U_inf, gamma, kind, efix, R, wave)
-        norm = _advance(U, R, wave, area, cfl, weight, scale)
-    return norm
+    for e in prange(n):
+        c0 = coef * dt[e]
+        for c in range(4):
+            out[e, c] = U[e, c] + c0 * F[e, c]

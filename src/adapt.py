@@ -75,12 +75,12 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .config import Discretization, FlowConditions, SolverOptions
-from .geometry import Airfoil, naca, resample
-from .mesh import BoundaryTag, MeshTopology, build_edges, enforce_ccw
-from .metrics import Metrics, build_metrics
+from .geometry.mesh import BoundaryTag, MeshTopology, build_edges, enforce_ccw
+from .geometry.section import Airfoil, naca, resample
 from .physics import FLOOR
-from .postprocess import Forces, forces
-from .solver import SolveResult, solve_steady
+from .post.postprocess import Forces, forces
+from .spatial.metrics import Metrics, build_metrics
+from .timestepping.march import SolveResult, solve_steady
 
 #: Fraction of elements refined per cycle, as ``legacy/post_calc.m`` had it.
 REFINE_FRACTION = 0.05

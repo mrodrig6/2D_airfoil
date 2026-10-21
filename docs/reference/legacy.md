@@ -23,7 +23,7 @@ Worth writing down, because the `.mat` is opaque until you decode it:
 * **NACA 0012**, chord 1, as 200 line segments — and specifically the
   **closed-trailing-edge** thickness polynomial, $a_4 = 0.1036$. The points
   match that to $4\times10^{-17}$ and the original open form only to
-  $1.3\times10^{-3}$, which is why `src/geometry.py` defaults to closed.
+  $1.3\times10^{-3}$, which is why `src/geometry/section.py` defaults to closed.
 * A far field of **four circular arcs**: radius 50, centred on $(0.5, 0)$.
 * The segments are **not stored in loop order**, which is why the test compares
   against the thickness polynomial rather than against a point list.
@@ -42,7 +42,7 @@ Most of the MATLAB transfers directly. These did not.
 
 `initialmesh.m` and `adaptmesh.m` are the PDE Toolbox. There is no Python
 equivalent inside a reasonable dependency budget, so the mesh is new code: an
-algebraic O-grid, generated in `src/mesh.py`. This is the single largest
+algebraic O-grid, generated in `src/geometry/mesh.py`. This is the single largest
 difference between the two codes, and
 [`../docs/theory.md`](../theory/euler.md) gives the construction
 and what it trades away.

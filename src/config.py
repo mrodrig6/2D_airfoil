@@ -54,7 +54,7 @@ import numpy as np
 #: Backends the solver can execute on, fastest first.  See ``src.backends``.
 BACKENDS = ("numba", "numpy", "jax")
 
-#: Mesh topologies.  See :mod:`src.mesh`.
+#: Mesh topologies.  See :mod:`src.geometry.mesh`.
 TOPOLOGIES = ("ogrid", "cgrid")
 
 #: Interface fluxes.  Both are approximate Riemann solvers: they take a left and
@@ -187,7 +187,7 @@ class Discretization:
         and back down the cut, so cells **behind** the trailing edge are aligned
         with the wake rather than fanning out of it.  The C-grid costs
         ``2 * n_wake`` extra columns and is the better topology when the wake
-        matters; the O-grid is smaller and simpler.  See :mod:`src.mesh`.
+        matters; the O-grid is smaller and simpler.  See :mod:`src.geometry.mesh`.
     n_wake
         C-grid only: cells along the wake cut, on each side of it.
     wake_length
@@ -299,8 +299,17 @@ class Discretization:
         return self.n_surface * (self.n_radial + 1)
 
 
-#: Pseudo-time integrators.  ``euler`` is what ``legacy/main.m`` used.
-SCHEMES = ("euler", "ssprk3", "rk4")
+#: Pseudo-time integrators.  One of them: forward Euler, which is what
+#: ``legacy/main.m`` implements and what this code has always marched with.
+#:
+#: SSP-RK3 was carried here briefly and removed.  Its value is a larger stable
+#: step and the strong-stability property a limiter argument needs -- but it
+#: buys only 1.31 times the step for three residual evaluations, measured, so
+#: it reaches a steady state 2.14 times slower; and forward Euler is itself a
+#: single SSP stage, so a positivity limiter is just as sound on it.  For a
+#: teaching code whose users run it repeatedly, the slower default was the
+#: wrong trade.  ``docs/performance.md`` records the measurement.
+SCHEMES = ("euler",)
 
 
 @dataclass(frozen=True)
@@ -313,7 +322,14 @@ class SolverOptions:
         Courant number for the **local** time step.  Each cell advances at its
         own stable rate, which is legitimate because only the fixed point is
         wanted and it is what makes an explicit march to steady state
-        affordable at all on a mesh whose cells span six orders of magnitude.
+        affordable at all: the cells on this mesh span six orders of magnitude
+        in area, and a single global step would be set by the smallest of them.
+
+        ``None``, the default, takes
+        :func:`~src.timestepping.step.recommended_cfl`, which is 0.9 -- a
+        fifth below the measured stability limit of 1.15.  Resolving it from a
+        table rather than hard-coding it keeps the margin explicit, and is
+        what let the limit be re-measured without hunting for a literal.
     tolerance
         Convergence threshold on the residual **scaled by its own initial
         value**, so the number means the same thing on every mesh and at every
@@ -324,20 +340,20 @@ class SolverOptions:
         than raise -- a stalled run is a result worth looking at, and for the
         flux comparison it is *the* result.
     scheme
-        ``euler`` is forward Euler, what the legacy used.  ``ssprk3`` and
-        ``rk4`` cost three and four residuals per step and take a
-        correspondingly larger one.
+        ``euler``, forward Euler, and currently the only one.  See
+        :data:`SCHEMES` for what was removed and why.
     backend
         ``auto`` takes the fastest installed, ``numpy`` the vectorised
         reference, ``numba`` the compiled one.  They agree to :math:`10^{-13}`
         and the answer does not depend on the choice.
     batch
-        Steps the compiled backend runs per call, and so how often convergence
-        is tested.  The whole point of that backend is not returning to Python
+        Steps a backend runs per call, and so how often convergence is tested.
+        The whole point of the compiled backend is not returning to Python
         every iteration, so this cannot be 1 without giving the speed back; it
         means a run can overshoot the tolerance by up to ``batch`` steps, which
-        costs a fraction of a second and nothing else.  Ignored by ``numpy``,
-        which checks every step.
+        costs a fraction of a second and nothing else.  Every backend is
+        chunked the same way, so the iteration count does not depend on which
+        one ran.
     print_interval
         Iterations between progress lines; 0 is silent.
     divergence_factor
@@ -347,7 +363,7 @@ class SolverOptions:
 
     backend: str = "auto"
     batch: int = 25
-    cfl: float = 0.9
+    cfl: float | None = None
     tolerance: float = 1e-6
     max_iterations: int = 20_000
     scheme: str = "euler"
@@ -359,7 +375,7 @@ class SolverOptions:
             raise ValueError(f"unknown backend {self.backend!r}; choose auto or one of {BACKENDS}")
         if self.batch < 1:
             raise ValueError(f"batch must be at least 1, got {self.batch}")
-        if self.cfl <= 0.0:
+        if self.cfl is not None and self.cfl <= 0.0:
             raise ValueError(f"cfl must be positive, got {self.cfl}")
         if self.tolerance <= 0.0:
             raise ValueError(f"tolerance must be positive, got {self.tolerance}")

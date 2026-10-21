@@ -27,7 +27,7 @@ Only the converged state is needed, and both Jacobian actions come from JAX's
 ``vjp`` on the residual, so nothing is ever assembled as a matrix.
 
 **The adjoint follows the scheme.**  It differentiates whatever
-:func:`src.assembly.residual` computes, so changing the flux -- or adding a
+:func:`src.spatial.assembly.residual` computes, so changing the flux -- or adding a
 higher-order reconstruction later -- changes the gradient with nothing to
 re-derive by hand.
 
@@ -103,13 +103,14 @@ from typing import Any
 
 import numpy as np
 
-from . import assembly as asm
 from .api import Case
 from .config import Discretization, FlowConditions, SolverOptions
-from .mesh import BoundaryTag
-from .metrics import Metrics
+from .geometry.mesh import BoundaryTag
 from .physics import FLOOR
-from .solver import SolveResult
+from .spatial import assembly as asm
+from .spatial.metrics import Metrics
+from .timestepping import step as ts
+from .timestepping.march import SolveResult
 
 #: Design variables that enter through the free stream alone, so their
 #: derivatives need no geometric differentiation at all.
@@ -143,9 +144,9 @@ def freestream_state(mach, alpha_rad, gamma: float, xp):
 def wall_loads(U, alpha_rad, metrics: Metrics, gamma: float, xp):
     r"""``(cl, cd, cm)`` from the surface pressure integral, traceable.
 
-    The same formula as :func:`src.postprocess.forces`, in the injected array
+    The same formula as :func:`src.post.postprocess.forces`, in the injected array
     module.  Kept separate rather than shared because that one takes a
-    :class:`~src.solver.SolveResult` and returns floats, which a tracer cannot
+    :class:`~src.timestepping.march.SolveResult` and returns floats, which a tracer cannot
     pass through; ``tests/test_sensitivity.py`` pins the two together.
     """
     s = metrics.tag_slice(BoundaryTag.WALL)
@@ -249,7 +250,7 @@ class DifferentiableCase:
     def _case_at(self, params: dict) -> Case:
         """Rebuild the mesh and metrics for a perturbed shape."""
         from .api import build_case
-        from .geometry import naca_section
+        from .geometry.section import naca_section
 
         section = naca_section(
             params["camber"],
@@ -322,7 +323,15 @@ class DifferentiableCase:
         _, vjp = jax.vjp(lambda state: self._residual(state, params), U)
 
         wave = asm.residual(result.state, metrics, self.flow).wave
-        dt = asm.local_time_step(wave, metrics, self.options.cfl)
+        # The adjoint sweep below is forward Euler, so it is sized by Euler's
+        # stability limit -- named explicitly rather than read from the
+        # forward solve's options.  That is not pedantry: when the solver
+        # briefly carried SSP-RK3 as its default, taking the forward scheme's
+        # cfl here handed this Euler march 1.18 against Euler's limit of 1.15
+        # and every default-options gradient diverged.  The unit tests ran on
+        # a 48x24 mesh where 1.18 is still stable and did not catch it.
+        cfl = ts.recommended_cfl("euler") if self.options.cfl is None else self.options.cfl
+        dt = ts.local_time_step(wave, metrics, cfl)
         step = jnp.asarray(dt / metrics.area)[:, None]
 
         # Batched exactly like the forward march, and for the same reason: a
@@ -494,7 +503,7 @@ def four_digit_case(
     >>> case = four_digit_case(0.0213, 0.37, 0.12, mach=0.5, alpha=1.0)  # doctest: +SKIP
     >>> value, gradient = case.value_and_gradient("cl")                  # doctest: +SKIP
     """
-    from .geometry import naca_section
+    from .geometry.section import naca_section
 
     geometry = {k: overrides.pop(k) for k in ("n_surface", "clustering") if k in overrides}
     section = naca_section(
@@ -524,7 +533,7 @@ def finite_difference_gradient(
     Two full flow solves per variable, which is exactly the cost the adjoint
     exists to avoid -- so this is a test tool, not a workflow.
     """
-    from .postprocess import forces
+    from .post.postprocess import forces
 
     variables = tuple(variables) if variables is not None else dc.variables
     out = {}
