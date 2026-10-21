@@ -1,14 +1,13 @@
-"""The compiled backend: the march fused into one ``nopython`` call.
+"""Compiled residual and Euler kernels over reusable scratch arrays.
 
-What makes it fast is not that the flux evaluation is compiled -- NumPy's is
-compiled too.  It is that the **loop** is: :func:`~src.backends._numba_kernels.march`
-runs hundreds of iterations without returning to Python, so the interpreter
-sees one call instead of a dozen array operations per step, and no temporary
-arrays are allocated in between.
+The Python batch loop calls compiled kernels for the residual, rate, timestep,
+norm and stage update. The scratch arrays survive across steps, so the state
+is copied in once and out once per batch without allocating per-stage arrays.
+The shared :class:`~src.backends.base.Backend` defines the equivalent Euler
+step used to check this buffered path against the other backends.
 
-The trade is a compile on first use.  It is paid once per process and cached on
-disk, and :attr:`NumbaBackend.compile_seconds` reports it so a benchmark can
-exclude it honestly rather than quietly amortising it.
+Compilation is paid on first use and cached on disk. Call
+:meth:`NumbaBackend.warm_up` before benchmarking to report that cost separately.
 """
 
 from __future__ import annotations
@@ -51,8 +50,8 @@ class NumbaBackend(Backend):
         self._R = np.empty((n, 4))
         self._wave = np.empty(n)
         self._dt = np.empty(n)
-        self._F = np.empty((3, n, 4))  # one rate buffer per SSP-RK3 stage
-        self._S = np.empty((3, n, 4))  # current, next, and one work array
+        self._F = np.empty((n, 4))  # one forward-Euler rate
+        self._S = np.empty((2, n, 4))  # current and next states
 
     def _args(self):
         return (
@@ -102,10 +101,10 @@ class NumbaBackend(Backend):
     def _euler_into(self, U, out) -> float:
         """One forward-Euler step: ``U`` in, ``out`` written, norm returned."""
         F = self._F
-        self._rate_into(U, F[0])
+        self._rate_into(U, F)
         kernels.dt_into(self._wave, self.area, self.cfl, self._dt)
-        res = float(kernels.rms_weighted(F[0], self.weight))
-        kernels.stage(U, F[0], 1.0, self._dt, out)
+        res = float(kernels.rms_weighted(F, self.weight))
+        kernels.stage(U, F, 1.0, self._dt, out)
         self._limit_into(out)
         return res
 

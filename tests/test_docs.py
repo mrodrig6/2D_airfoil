@@ -30,15 +30,15 @@ from pathlib import Path
 
 import pytest
 
+ROOT = Path(__file__).resolve().parents[1]
 DOCS = sorted(
     [
         Path("README.md"),
-        *Path("docs").glob("*.md"),
-        *Path("src").rglob("*.md"),
+        *(p.relative_to(ROOT) for p in (ROOT / "docs").rglob("*.md")),
+        *(p.relative_to(ROOT) for p in (ROOT / "src").rglob("*.md")),
         Path("legacy/README.md"),
     ]
 )
-ROOT = Path(__file__).resolve().parents[1]
 
 
 def spans(path: Path):
