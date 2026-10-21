@@ -222,8 +222,8 @@ Arguments are 'name=value', using the same names as the Python API:
 A '@name' argument is replaced by the lines of cases/name.fv.  Later arguments
 win, so a deck is a starting point you can override:
 
-  ./$SELF mesh @transonic
-  ./$SELF mesh @transonic n_radial=96
+  ./$SELF mesh @grid
+  ./$SELF mesh @grid n_radial=96
 
 Aliases: naca=airfoil, ns=n_surface, nr=n_radial, R=far_field_radius,
 h1=first_cell_height, aoa=alpha.  Ordinary --flags work too, so anything

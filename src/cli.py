@@ -7,7 +7,7 @@ which is why the launcher and this module never disagree about what an option is
 called.
 
 The commands are ``check``, ``geometry``, ``mesh``, ``flow``, ``solve``,
-``sweep``, ``sensitivity`` and ``bench``.  ``./fv2d.sh help`` lists them with
+``sweep``, ``sensitivity``, ``adapt`` and ``bench``.  ``./fv2d.sh help`` lists them with
 examples.
 """
 
@@ -45,7 +45,7 @@ def _add_geometry_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--airfoil",
         default="0012",
-        help="a NACA four-digit code, or a path to a Selig/Lednicer .dat file "
+        help="a NACA four- or five-digit code, or a path to a Selig/Lednicer .dat file "
         "(default: %(default)s)",
     )
     parser.add_argument(

@@ -1,6 +1,6 @@
 """Backend registry.
 
-Two interchangeable execution strategies over one set of equations:
+Three interchangeable execution strategies over one set of equations:
 
 =========  ==========================================================
 ``numpy``  The vectorised reference.  No compile step, easiest to read,
