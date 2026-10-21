@@ -1,6 +1,5 @@
 site_name: "2D finite-volume airfoil"
 site_description: "Transonic airfoil studies with a Python Euler solver"
-site_url: https://mrodrig6.github.io/2D_airfoil/
 repo_url: https://github.com/mrodrig6/2D_airfoil
 repo_name: mrodrig6/2D_airfoil
 edit_uri: edit/main/docs/
