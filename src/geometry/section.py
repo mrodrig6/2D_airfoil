@@ -668,7 +668,7 @@ def load_airfoil(
     """Resolve whatever the user named into an :class:`Airfoil` of ``n_points``.
 
     Accepts an :class:`Airfoil`, a path to a coordinate file, or a NACA
-    four-digit code.  A generated section is produced directly at the requested
+    four- or five-digit code.  A generated section is produced directly at the requested
     distribution; one read from a file is resampled onto it.
 
     >>> load_airfoil("0012", 64).summary()        # doctest: +ELLIPSIS

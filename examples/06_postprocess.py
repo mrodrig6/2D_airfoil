@@ -14,7 +14,7 @@ Three questions, and the figures that answer them:
 
 Two operating points, because they answer different questions.  ``transonic``
 is the legacy case and the one `docs/verification.md` tabulates.  ``shock`` is
-half a Mach number higher and is the clearer picture: supersonic over most of
+0.05 higher in free-stream Mach number and is the clearer picture: supersonic over most of
 *both* surfaces, each pocket closed by its own shock.
 
     python examples/06_postprocess.py [output-directory]

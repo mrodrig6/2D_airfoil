@@ -150,9 +150,9 @@ def solve_airfoil(
     >>> result = solve_airfoil("0012", mach=0.8, alpha=1.25)
     >>> print(result.report())
 
-    Every option of :class:`~src.config.Discretization`,
-    :class:`~src.config.FlowConditions` and :class:`~src.config.SolverOptions`
-    is accepted by its own name, so there is one vocabulary rather than four.
+    Supported geometry, flow and solver overrides are routed by this module.
+    The high-level flow spelling is ``alpha``; ``alpha_deg`` belongs to
+    :class:`~src.config.FlowConditions` and is not a high-level keyword.
     ``alpha`` is the one alias, for ``alpha_deg``, because writing the units
     into the name of something you type constantly is a poor trade.
 
