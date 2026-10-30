@@ -1,0 +1,69 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=0.70in]{geometry}
+\usepackage{amsmath,amssymb,graphicx,enumitem,booktabs,array}
+\setlist[enumerate]{leftmargin=*,itemsep=8pt,topsep=4pt}
+
+\begin{document}
+\begin{center}\textbf{Optional CFD practice: transonic airfoil screening}\end{center}
+
+\section*{Purpose and submission}
+This open-tool practice exercise prepares you for the in-class CFD interpretation practical. You may work alone or with others and may use the repository documentation, AI tools, notes, and any other resources. You are not being assessed on independent coding.
+
+You may submit the completed evidence sheet for small extra credit and feedback. Feedback addresses whether your claims are supported by your figures and data; it is not a grade for prose or authorship.
+
+\section*{What to run}
+Run the supplied Week 1 script from the \texttt{2D\_airfoil} repository. It generates a geometry plot, Mach contours, surface-pressure plots, a candidate table, and JAX sweep plots. Do not alter the solver unless you wish to explore beyond the exercise.
+
+\section*{Reference relations}
+For this simplified screening exercise, the two-dimensional airfoil coefficients are treated as representative wing coefficients:
+\[
+ L=q_\infty S C_L,\qquad D=q_\infty S C_D,\qquad q_\infty=\tfrac12\rho_\infty V_\infty^2.
+\]
+The practice requirement is $L_{\rm req}=3.0\ \mathrm{kN}$ and $q_\infty S=10.0\ \mathrm{kN}$, so $C_{L,\rm req}=0.30$. The strong-shock screening limit is $M_{\rm surface,max}\leq1.30$.
+
+\noindent\textbf{Model boundary.} This is a two-dimensional inviscid calculation. It is useful for screening pressure loading and shocks, but does not certify viscous drag, separation, three-dimensional effects, structural loads, or aircraft performance.
+
+\newpage
+\section*{A. Generate and inspect the practice cases}
+The supplied script evaluates three practice candidates. Record the output values from your run. If you submit this page, attach or paste one representative Mach contour and one $C_p$ plot.
+
+\begin{center}
+\includegraphics[width=.78\linewidth]{course/figures/airfoil_candidates.png}
+\end{center}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{c|c|c|c|c|c|c}
+Candidate & $C_L$ & $C_D$ & $M_{\rm surface,max}$ & Meets lift? & Meets shock limit? & Keep/reject \\
+\hline
+Practice A & & & & & & \\
+Practice B & & & & & & \\
+Practice C & & & & & & \\
+\end{tabular}
+\end{center}
+
+\begin{enumerate}
+\item On your attached Mach contour, mark the strongest compression or shock feature. On the corresponding $C_p$ plot, mark the associated rapid pressure recovery.
+\item Select one practice candidate. State two pieces of numerical or visual evidence that support keeping it.
+\item Reject one practice candidate. State the specific requirement or observation that leads to rejection.
+\end{enumerate}
+
+\newpage
+\section*{B. Interpret the JAX sweep}
+The supplied JAX-adjoint sweep varies maximum camber $m$ and incidence $\alpha$ at fixed thickness. The images below are coarse maps from converged cases; they locate a design region, not an exact optimum.
+
+\begin{center}
+\includegraphics[width=.32\linewidth]{course/figures/jax_cl_map.png}\hfill
+\includegraphics[width=.32\linewidth]{course/figures/jax_cd_map.png}\hfill
+\includegraphics[width=.32\linewidth]{course/figures/jax_mach_map.png}
+\end{center}
+
+\begin{enumerate}
+\setcounter{enumi}{3}
+\item Identify a feasible region of the $(m,\alpha)$ map. A region is preferable to a falsely precise single ``best'' point.
+\item In two sentences or fewer, explain why greater camber or incidence can raise lift while also producing a stronger shock and larger drag.
+\item What additional computation or experiment would you request before using this result to approve a real aircraft section? Explain why it is needed.
+\end{enumerate}
+\end{document}
+

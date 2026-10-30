@@ -1,0 +1,122 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=0.70in]{geometry}
+\usepackage{amsmath,amssymb,graphicx,enumitem,booktabs,array}
+\setlist[enumerate]{leftmargin=*,itemsep=7pt,topsep=4pt}
+
+\begin{document}
+\begin{center}\textbf{CFD interpretation practical: transonic airfoil screening}\end{center}
+
+\section*{Instructions and reference material}
+You have \textbf{30 minutes}. Work individually. No calculator, network access, AI tool, code, or notes are permitted. Show a short calculation where requested; concise evidence-based statements are sufficient elsewhere.
+
+\section*{Scenario}
+A $250\ \mathrm{kg}$ high-subsonic cargo UAV, including its payload, is screened at one flight condition. The results below come from a two-dimensional inviscid finite-volume airfoil calculation. Three candidate configurations have fixed thickness but different camber and incidence.
+
+\section*{Reference relations}
+Use $g=10\ \mathrm{N/kg}$ and the supplied load factor $n=1.2$:
+\[
+W=mg,\qquad L_{\rm req}=nW,\qquad L=q_\infty S C_L,\qquad D=q_\infty S C_D.
+\]
+For this problem, $q_\infty S=10.0\ \mathrm{kN}$. The strong-shock screening limit is
+\[
+M_{\rm surface,max}\leq1.30.
+\]
+\noindent A rapid decrease in Mach number paired with a sharp pressure recovery in a surface $C_p$ curve indicates a shock. A strong shock can raise transonic wave drag and may cause separation in a real viscous flow.
+
+\noindent\textbf{Model boundary.} The CFD coefficients are used here as a simplified wing-screening approximation. They do not certify viscous drag, separation, three-dimensional effects, structural loads, stability, or full aircraft performance.
+
+\newpage
+\section*{1. Requirements and preliminary recommendations \hfill [10 points]}
+\begin{center}
+\includegraphics[width=.78\linewidth]{course/figures/airfoil_candidates.png}
+\end{center}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{c|c|c|c|c|c}
+Candidate & Camber & $\alpha$ & $C_L$ & $C_D$ & $M_{\rm surface,max}$ \\
+\hline
+A & high & $2.5^\circ$ & 0.36 & 0.026 & 1.42 \\
+B & moderate & $2.0^\circ$ & 0.32 & 0.015 & 1.24 \\
+C & low & $2.0^\circ$ & 0.28 & 0.009 & 1.14 \\
+\end{tabular}
+\end{center}
+
+\noindent\textbf{Engineer A:} ``Select A. It has the greatest lift coefficient and therefore the greatest payload margin.''
+
+\noindent\textbf{Engineer B:} ``Select C. It has the smallest drag coefficient and therefore is the most efficient choice.''
+
+\begin{enumerate}
+\item[1.] (2 points) Calculate $L_{\rm req}$ and $C_{L,\rm req}$.
+\item[2.] (2 points) Calculate Candidate B's predicted lift and drag.
+\item[3.] (4 points) Complete the compliance matrix.
+\end{enumerate}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{c|c|c|c}
+Candidate & Meets lift requirement? & Meets strong-shock limit? & Keep/reject \\
+\hline
+A & & & \\
+B & & & \\
+C & & & \\
+\end{tabular}
+\end{center}
+
+\begin{enumerate}
+\item[4.] (2 points) In one sentence each, state why Engineer A's and Engineer B's recommendations are incomplete.
+\end{enumerate}
+
+\newpage
+\section*{2. Flow-field evidence \hfill [7 points]}
+\begin{center}
+\includegraphics[width=.49\linewidth]{docs/figures/mach_shock.png}\hfill
+\includegraphics[width=.49\linewidth]{docs/figures/cp_shock.png}
+\end{center}
+
+\noindent\textit{Repository reference case: NACA 0012 at $M_\infty=0.85$ and $\alpha=1^\circ$. These figures illustrate the strong-shock mechanism used in the screening constraint.}
+
+\begin{enumerate}
+\item[5.] (2 points) On the supplied Mach and $C_p$ plots, mark the shock location.
+\item[6.] (3 points) Explain how increasing aerodynamic loading can increase lift while also producing a stronger shock and higher drag. Cite one observation from a Mach contour and one observation from a $C_p$ curve.
+\item[7.] (2 points) Which candidate in the table is most consistent with the strong-shock behavior shown above? State the reason in one sentence.
+\end{enumerate}
+
+\newpage
+\section*{3. JAX sweep and design recommendation \hfill [9 points]}
+\begin{center}
+\includegraphics[width=.32\linewidth]{course/figures/jax_cl_map.png}\hfill
+\includegraphics[width=.32\linewidth]{course/figures/jax_cd_map.png}\hfill
+\includegraphics[width=.32\linewidth]{course/figures/jax_mach_map.png}
+\end{center}
+
+\noindent\textit{Coarse JAX-adjoint study: fixed 12\% thickness and camber crest at $x/c=0.40$. The red contour marks $C_L=0.30$ or $M_{\rm max}=1.30$.}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{c|c|c}
+Candidate B mesh & $C_L$ & $C_D$ \\
+\hline
+coarse & 0.320 & 0.015 \\
+fine & 0.322 & 0.013 \\
+\end{tabular}
+\end{center}
+
+\begin{enumerate}
+\item[8.] (2 points) Identify a feasible region of the $(m,\alpha)$ sweep: it must meet both the lift and strong-shock requirements.
+\item[9.] (2 points) Does the mesh comparison give more confidence in lift or drag? Explain using the table.
+\item[10.] (5 points) Complete the design record below.
+\end{enumerate}
+
+\noindent\fbox{\begin{minipage}{.93\linewidth}
+\textbf{Recommendation:} I recommend Candidate \rule{1cm}{0.4pt} / a nearby point in the feasible region because \rule{7cm}{0.4pt}.
+
+\vspace{.65em}
+It meets the payload-weight requirement because \rule{10cm}{0.4pt}.
+
+\vspace{.65em}
+The next simulation or experiment should be \rule{9.3cm}{0.4pt} because \rule{4.0cm}{0.4pt}.
+\end{minipage}}
+\end{document}
+
