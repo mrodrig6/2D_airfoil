@@ -1,0 +1,7 @@
+# Candidate A: high camber and incidence; intended to show the strongest shock.
+@course/week2_exam_base
+airfoil=4412
+alpha=2.25
+figure=course/week2_figures/candidate_A_mach.png
+cp=course/week2_figures/candidate_A_cp.png
+

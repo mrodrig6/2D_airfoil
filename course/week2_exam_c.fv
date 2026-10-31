@@ -1,0 +1,7 @@
+# Candidate C: low camber and incidence; expected to have lower loading.
+@course/week2_exam_base
+airfoil=1412
+alpha=1.50
+figure=course/week2_figures/candidate_C_mach.png
+cp=course/week2_figures/candidate_C_cp.png
+

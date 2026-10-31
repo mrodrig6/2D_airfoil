@@ -1,0 +1,7 @@
+# Candidate B: moderate camber and incidence; intended as the screening baseline.
+@course/week2_exam_base
+airfoil=2412
+alpha=1.75
+figure=course/week2_figures/candidate_B_mach.png
+cp=course/week2_figures/candidate_B_cp.png
+

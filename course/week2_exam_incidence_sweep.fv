@@ -1,0 +1,5 @@
+# One-geometry incidence sweep for a supplementary Week 2 loading study.
+@course/week2_exam_base
+airfoil=2412
+alphas=0.5:2.5:0.5
+figure=course/week2_figures/candidate_B_polar.png

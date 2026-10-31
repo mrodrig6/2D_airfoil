@@ -1,0 +1,12 @@
+# Shared numerical and free-stream settings for the Week 2 custom cases.
+# Run from the repository root with: ./fv2d.sh solve @course/week2_exam_a
+n_surface=128
+n_radial=48
+far_field_radius=18.0
+first_cell_height=0.002
+tolerance=1e-6
+max_iterations=80000
+mach=0.82
+flux=roe
+shading=smooth
+
