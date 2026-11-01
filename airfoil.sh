@@ -157,7 +157,7 @@ translate() {
     TRANSLATED=(${out[@]+"${out[@]}"})
 }
 
-fvairfoil() {
+python_command() {
     local subcommand=$1; shift
     translate "$@"
     exec "$PY" -m src "$subcommand" ${TRANSLATED[@]+"${TRANSLATED[@]}"}
@@ -329,9 +329,9 @@ main() {
         docs)      cmd_docs ;;
         test)      setup_import_path; cmd_test "$@" ;;
         verify)    setup_import_path; cmd_verify ${1+"$1"} ;;
-        run)       setup_import_path; fvairfoil solve "$@" ;;
+        run)       setup_import_path; python_command solve "$@" ;;
         check|geometry|mesh|flow|sweep|sensitivity|adapt|bench)
-                   setup_import_path; fvairfoil "$command" "$@" ;;
+                   setup_import_path; python_command "$command" "$@" ;;
         *)         printf '%s: unknown command %s\n\n' "$SELF" "$command" >&2
                    cmd_help >&2
                    exit 2 ;;

@@ -11,7 +11,7 @@ python -m pip install -e ".[all]"
 ./airfoil.sh check
 ```
 
-Run these commands from this repository's root. On Windows, activate with `.venv\Scripts\Activate.ps1` and run launcher commands through Bash, or use `fvairfoil` for its Python subcommands. Windows execution has not been validated in this change.
+Run these commands from this repository's root. On Windows, activate with `.venv\Scripts\Activate.ps1` and run launcher commands through Bash, or use `airfoil` for its Python subcommands. Windows execution has not been validated in this change.
 
 The companion project also installs a package named `src`. Give each checkout its own environment; do not install both distributions together or add both roots to `PYTHONPATH`.
 

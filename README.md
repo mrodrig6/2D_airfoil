@@ -21,7 +21,7 @@ From this checkout with Python **3.10 or newer**:
 python -m pip install -e ".[all]"
 ```
 
-See [installation](docs/getting-started/installation.md) for isolated environments, developer tools and documentation extras.
+Full instructions, including isolated environments and developer tools: [installation](docs/getting-started/installation.md).
 
 ## Quick start
 
@@ -54,7 +54,7 @@ assert result.converged, result.message
 print(result.report())
 ```
 
-See the [complete quick start](docs/getting-started/quick-start.md) for captured output and its interpretation.
+Full walkthrough with captured output: [quick start](docs/getting-started/quick-start.md).
 
 ## Documentation
 
@@ -69,7 +69,7 @@ See the [complete quick start](docs/getting-started/quick-start.md) for captured
 | Validation | [Test-suite claims](docs/validation/tests.md) · [Gradient comparisons](docs/validation/gradients.md) · [Legacy geometry](docs/validation/legacy-geometry.md) · [Thin-airfoil lift](docs/validation/thin-airfoil.md) · [Transonic NACA 0012](docs/validation/transonic.md) · [Numerical drag and pressure error](docs/validation/numerical-drag.md) · [Far-field sensitivity](docs/validation/far-field.md) · [Flux study](docs/validation/flux-study.md) · [Adaptation versus uniform refinement](docs/validation/adaptation.md) · [Legacy force integral](docs/validation/legacy-forces.md) |
 | Reference | [Compatibility](docs/reference/compatibility.md) · [Code map](docs/reference/code-map.md) · [Repository map](docs/reference/repository.md) · [Continuous integration](docs/reference/ci.md) · [Figures](docs/reference/figures.md) · [Bibliography](docs/reference/bibliography.md) · [Development history](docs/reference/history.md) · [MATLAB provenance](docs/reference/legacy.md) |
 
-A Python port of Mauro Rodriguez’s MATLAB teaching code, retained in [legacy/](legacy/README.md). See the [bibliography](docs/reference/bibliography.md) for attribution; a formal project citation and a source for the historical external benchmark remain unspecified.
+A Python port of Mauro Rodriguez's MATLAB teaching code, whose original is kept in [legacy/](legacy/README.md). To cite the methods, see the [bibliography](docs/reference/bibliography.md); a citation for the project itself is not yet specified.
 
 ## License
 
