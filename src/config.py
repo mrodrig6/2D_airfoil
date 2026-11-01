@@ -41,7 +41,7 @@ energy per unit mass are numerically equal.  Nothing in the solver reads
 :math:`R` -- the Euler equations in conservative form do not contain it -- so it
 exists only for reporting a temperature.
 
-See ``docs/theory.md`` for the full derivation and the invariance check.
+See ``docs/theory/euler.md`` for the full derivation and the invariance check.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ TOPOLOGIES = ("ogrid", "cgrid")
 
 #: Interface fluxes.  Both are approximate Riemann solvers: they take a left and
 #: a right state and return a single upwind face flux.  Two AUSM-family schemes
-#: were also implemented, measured and removed -- see ``docs/riemann_fluxes.md``.
+#: were also implemented, measured and removed -- see ``docs/validation/flux-study.md``.
 FLUXES = ("roe", "hllc", "ausmup")
 
 
@@ -176,7 +176,7 @@ class Discretization:
 
     The mesh is a body-fitted O-grid: ``n_surface`` points around the airfoil by
     ``n_radial`` cells out to a circular far field, each quadrilateral cell split
-    into two triangles.  ``docs/theory.md`` describes the generator.
+    into two triangles.  ``docs/method/meshing.md`` describes the generator.
 
     Parameters
     ----------
@@ -206,8 +206,8 @@ class Discretization:
         its far field imposed the full free-stream state, which reflects.  With
         the characteristic boundary condition this code uses, a much smaller
         domain is admissible, and 20 is a conservative starting point -- it will
-        be set by measurement once the solver lands, and
-        ``docs/verification.md`` will carry the sensitivity.
+        be set by measurement, and ``docs/validation/far-field.md`` reports
+        that sensitivity.
     far_field_centre
         Centre of the far-field circle, in chords.  The default puts it at
         mid-chord, which is what keeps the radial grid direction nearly parallel
@@ -302,13 +302,9 @@ class Discretization:
 #: Pseudo-time integrators.  One of them: forward Euler, which is what
 #: ``legacy/main.m`` implements and what this code has always marched with.
 #:
-#: SSP-RK3 was carried here briefly and removed.  Its value is a larger stable
-#: step and the strong-stability property a limiter argument needs -- but it
-#: buys only 1.31 times the step for three residual evaluations, measured, so
-#: it reaches a steady state 2.14 times slower; and forward Euler is itself a
-#: single SSP stage, so a positivity limiter is just as sound on it.  For a
-#: teaching code whose users run it repeatedly, the slower default was the
-#: wrong trade.  ``docs/performance.md`` records the measurement.
+#: Forward Euler is itself a single strong-stability-preserving stage, so a
+#: positivity limiter is sound on it directly.  ``docs/method/backends.md``
+#: explains why no other integrator is offered.
 SCHEMES = ("euler",)
 
 

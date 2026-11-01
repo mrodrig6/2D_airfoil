@@ -27,21 +27,29 @@ See [installation](docs/getting-started/installation.md) for isolated environmen
 
 ```bash
 # Check installed dependencies and backends.
-./fv2d.sh check
+./airfoil.sh check
 # Inspect a section.
-./fv2d.sh geometry airfoil=2412
-# Build and plot the default mesh.
-./fv2d.sh mesh @grid figure=mesh.png
-# Solve the transonic reference point and save surface pressure.
-./fv2d.sh solve @transonic cp=cp.png
-# Compute an incidence sweep on a shared mesh.
-./fv2d.sh sweep @subcritical alphas=-2:2:2 figure=polar.png
+./airfoil.sh geometry airfoil=2412
+# Build and plot the legacy mesh.
+./airfoil.sh mesh cases/grid.json figure=mesh.png
+# Solve the small case and save surface pressure.
+./airfoil.sh run cases/coarse.json cp=cp.png
+# Compute an incidence sweep on the small mesh.
+./airfoil.sh sweep cases/coarse.json alphas=-2:2:2 figure=polar.png
 ```
 
 ```python
 from src import solve_airfoil
 
-result = solve_airfoil("0012", mach=0.8, alpha=1.25)
+result = solve_airfoil(
+    "0012",
+    mach=0.5,
+    alpha=2.0,
+    n_surface=96,
+    n_radial=40,
+    far_field_radius=15.0,
+    first_cell_height=5e-3,
+)
 assert result.converged, result.message
 print(result.report())
 ```

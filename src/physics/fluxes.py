@@ -20,7 +20,7 @@ which is what the local time step is built from.
 
 A fourth, SLAU2, was implemented, measured over sixty solves and removed: it
 stops converging above a peak Mach number of about 0.91, which rules out every
-transonic case on this geometry.  ``docs/riemann_fluxes.md`` is the record --
+transonic case on this geometry.  ``docs/validation/flux-study.md`` is the record --
 including the retraction of an earlier verdict on AUSM\ :sup:`+`-up that turned
 out to be about a bug in its implementation rather than about the scheme.
 
@@ -320,7 +320,7 @@ def ausmup_flux(UL, UR, nx, ny, gamma: float, *, xp=np) -> FluxResult:
 
     **On this geometry it is the dissipative choice**, not a free upgrade: on
     the transonic NACA 0012 it gives about 15% more drag than Roe at the same
-    resolution.  ``docs/riemann_fluxes.md`` measures that.  What it buys is
+    resolution.  ``docs/validation/flux-study.md`` measures that.  What it buys is
     robustness where Roe's linearisation is least comfortable, and a second
     opinion from a completely different construction.
     """

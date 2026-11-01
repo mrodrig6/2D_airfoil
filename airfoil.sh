@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
-# fv2d.sh -- one entry point for the 2D finite-volume airfoil code.
+# airfoil.sh -- one entry point for the 2D finite-volume airfoil code.
 #
 # Nothing has to be set up first.  This finds a Python, puts the repository on
 # the import path if the package is not installed, and runs what you asked for
 # from wherever you happen to be:
 #
-#     ./fv2d.sh mesh airfoil=0012 n_surface=192 figure=mesh.png
-#     ./fv2d.sh geometry airfoil=my_design.dat
+#     ./airfoil.sh mesh airfoil=0012 n_surface=192 figure=mesh.png
+#     ./airfoil.sh run cases/transonic.json
 #
-# `./fv2d.sh help` lists everything.  `./fv2d.sh install` is optional.
+# `./airfoil.sh help` lists everything.  `./airfoil.sh install` is optional.
 
 set -euo pipefail
 
@@ -21,13 +21,13 @@ die() { printf '%s: %s\n' "$SELF" "$*" >&2; exit 2; }
 # --------------------------------------------------------------------------
 # Python
 # --------------------------------------------------------------------------
-# Whatever environment you have loaded is the one used.  Set FV2D_PYTHON to
-# override, e.g. FV2D_PYTHON=python3.12 ./fv2d.sh mesh
+# Whatever environment you have loaded is the one used.  Set AIRFOIL_PYTHON to
+# override, e.g. AIRFOIL_PYTHON=python3.12 ./airfoil.sh mesh
 find_python() {
-    if [[ -n ${FV2D_PYTHON:-} ]]; then
-        command -v "$FV2D_PYTHON" >/dev/null 2>&1 || die \
-            "FV2D_PYTHON=$FV2D_PYTHON is not an executable on PATH"
-        printf '%s\n' "$FV2D_PYTHON"
+    if [[ -n ${AIRFOIL_PYTHON:-} ]]; then
+        command -v "$AIRFOIL_PYTHON" >/dev/null 2>&1 || die \
+            "AIRFOIL_PYTHON=$AIRFOIL_PYTHON is not an executable on PATH"
+        printf '%s\n' "$AIRFOIL_PYTHON"
         return
     fi
     local candidate
@@ -37,7 +37,7 @@ find_python() {
             return
         fi
     done
-    die "no python3 on PATH.  Load your environment first, or set FV2D_PYTHON."
+    die "no python3 on PATH.  Load your environment first, or set AIRFOIL_PYTHON."
 }
 
 # An installed package wins; otherwise the repository root goes on the path, so
@@ -56,73 +56,59 @@ setup_import_path() {
 }
 
 # --------------------------------------------------------------------------
-# Argument decks
+# Case files
 # --------------------------------------------------------------------------
-# `@name` is replaced by the `name=value` lines in cases/name.fv, so a case you
-# run often lives in a file instead of in your shell history:
+# A case is a JSON object whose keys are the names the Python API uses.  Run it
+# with `run`; any `name=value` after the file overrides that key:
 #
-#     ./fv2d.sh mesh @transonic              # exactly the lines in that deck
-#     ./fv2d.sh mesh @transonic n_radial=96  # the deck, with one value changed
+#     ./airfoil.sh run cases/transonic.json alpha=2.0 cp=cp.png
 #
-# A deck holds exactly what you would have typed, so there is no second
-# vocabulary to learn: `#` starts a comment, blank lines are ignored, and a deck
-# may name another deck to build on it.  Later arguments win.
-DECK_DIR="$ROOT/cases"
-DECK_EXT=".fv"
-DECK_MAX_DEPTH=8
+# The key "description" is for people and is not passed on.
+CASE_DIR="$ROOT/cases"
 
-list_decks() {
-    local path stem found=0
-    for path in "$DECK_DIR"/*"$DECK_EXT"; do
+list_cases() {
+    local path found=0
+    for path in "$CASE_DIR"/*.json; do
         [[ -e $path ]] || continue
         found=1
-        stem=$(basename "$path" "$DECK_EXT")
-        printf '  @%-13s %s\n' "$stem" "$(deck_summary "$path")"
+        printf '  %-28s %s\n' "${path#"$ROOT"/}" "$(case_description "$path")"
     done
-    (( found )) || printf '  (none in %s)\n' "${DECK_DIR#"$ROOT"/}"
+    (( found )) || printf '  (none in %s)\n' "${CASE_DIR#"$ROOT"/}"
 }
 
-deck_summary() {
-    # the summary is the first comment line, which is why decks start with one
-    sed -n '1{/^[[:space:]]*#/{s/^[[:space:]]*#[[:space:]]*//;p;};q;}' "$1"
+case_description() {
+    local py=${PY:-$(find_python)}
+    "$py" -c 'import json, sys; print(json.load(open(sys.argv[1])).get("description", ""))' "$1"
 }
 
-resolve_deck() {
-    local want=$1 candidate
-    for candidate in \
-        "$want" "$want$DECK_EXT" "$DECK_DIR/$want" "$DECK_DIR/$want$DECK_EXT"
-    do
-        if [[ -f $candidate ]]; then printf '%s\n' "$candidate"; return 0; fi
-    done
-    printf '%s: no deck named %s.  Available:\n' "$SELF" "$want" >&2
-    list_decks >&2
-    return 1
-}
-
-# Replace every `@deck` token with that deck's lines, recursively.
-# EXPANDED is set as a side effect; bash functions cannot return arrays.
-expand_decks() {
-    local depth=$1; shift
-    (( depth <= DECK_MAX_DEPTH )) || die \
-        "decks nested more than $DECK_MAX_DEPTH deep -- does a deck include itself?"
-    local out=() lines=() token path line
+# Expand every case file into `name=value` tokens, leaving other arguments as
+# they are.  EXPANDED is set as a side effect; bash functions cannot return arrays.
+expand_cases() {
+    EXPANDED=()
+    local token text line
     for token in ${@+"$@"}; do
-        if [[ $token != @* ]]; then
-            out+=("$token")
+        if [[ $token != *.json ]]; then
+            EXPANDED+=("$token")
             continue
         fi
-        path=$(resolve_deck "${token#@}") || exit 2
-        lines=()
-        while IFS= read -r line || [[ -n $line ]]; do
-            line=${line%%#*}                        # drop comments
-            line=${line#"${line%%[![:space:]]*}"}   # trim left
-            line=${line%"${line##*[![:space:]]}"}   # trim right
-            [[ -n $line ]] && lines+=("$line")
-        done < "$path"
-        expand_decks $((depth + 1)) ${lines[@]+"${lines[@]}"}
-        out+=(${EXPANDED[@]+"${EXPANDED[@]}"})
+        [[ -f $token ]] || die "no case file $token.  Available cases:
+$(list_cases)"
+        text=$("$PY" -c '
+import json, sys
+case = json.load(open(sys.argv[1]))
+if not isinstance(case, dict):
+    sys.exit("a case file holds one JSON object of name: value pairs")
+for key, value in case.items():
+    if key == "description":
+        continue
+    if isinstance(value, bool):
+        value = "yes" if value else "no"
+    elif isinstance(value, list):
+        value = ",".join(str(item) for item in value)
+    print(f"{key}={value}")
+' "$token") || die "$token is not a readable case file"
+        while IFS= read -r line; do EXPANDED+=("$line"); done <<< "$text"
     done
-    EXPANDED=(${out[@]+"${out[@]}"})
 }
 
 # --------------------------------------------------------------------------
@@ -134,7 +120,7 @@ expand_decks() {
 #
 # TRANSLATED is set as a side effect; bash functions cannot return arrays.
 translate() {
-    expand_decks 1 ${@+"$@"}
+    expand_cases ${@+"$@"}
     set -- ${EXPANDED[@]+"${EXPANDED[@]}"}
     local out=() token key value
     for token in ${@+"$@"}; do
@@ -189,10 +175,10 @@ Usage: ./$SELF <command> [arguments]
 Getting started
   install            install the package and its optional extras with pip
   check              report the Python and which extras are installed
-  list               list the decks '@' expands
+  list               list the case files in cases/
 
 Running
-  solve [...]        solve one operating point and report the loads
+  run CASE.json      solve the operating point in a case file and report the loads
   sweep [...]        solve a range of incidences on one mesh
   sensitivity [...]  exact design gradients by the adjoint (needs JAX)
   adapt [...]        solve, refine where the error is, and solve again
@@ -212,33 +198,36 @@ Arguments are 'name=value', using the same names as the Python API:
   ./$SELF mesh airfoil=0012 n_surface=192 n_radial=64 figure=mesh.png
   ./$SELF mesh mesh=external.su2
   ./$SELF flow mach=0.8 alpha=1.25
-  ./$SELF solve @transonic mach=0.8 alpha=1.25 cp=cp.png figure=mach.png
-  ./$SELF solve @transonic flux=hllc convergence=hist.png
-  ./$SELF sweep @subcritical alphas=-4:8:2 figure=polar.png
-  ./$SELF sensitivity @subcritical objective=cl
-  ./$SELF sensitivity @subcritical variables=alpha,camber check=yes
-  ./$SELF adapt @transonic cycles=6 figure=adapted.png history=loads.png
+  ./$SELF run cases/transonic.json mach=0.8 alpha=1.25 cp=cp.png figure=mach.png
+  ./$SELF run cases/transonic.json flux=hllc convergence=hist.png
+  ./$SELF sweep cases/subcritical.json alphas=-4:8:2 figure=polar.png
+  ./$SELF sensitivity cases/subcritical.json objective=cl
+  ./$SELF sensitivity cases/subcritical.json variables=alpha,camber check=yes
+  ./$SELF adapt cases/transonic.json cycles=6 figure=adapted.png history=loads.png
 
-A '@name' argument is replaced by the lines of cases/name.fv.  Later arguments
-win, so a deck is a starting point you can override:
+A case file is a JSON object of name: value pairs, and a name=value argument
+after it overrides that value.  The file goes where the arguments go.  A command
+reports any key it does not use, so mesh takes cases/grid.json, not
+cases/transonic.json, whose operating point only run, sweep and the other
+solvers read:
 
-  ./$SELF mesh @grid
-  ./$SELF mesh @grid n_radial=96
+  ./$SELF mesh cases/grid.json
+  ./$SELF mesh cases/grid.json n_radial=96
 
 Aliases: naca=airfoil, ns=n_surface, nr=n_radial, R=far_field_radius,
 h1=first_cell_height, aoa=alpha.  Ordinary --flags work too, so anything
 'python -m src --help' documents is still available.  'M' is deliberately NOT
 an alias: in this code M always means Mach number.
 
-Decks ('@name'):
-$(list_decks)
+Cases (cases/*.json):
+$(list_cases)
 
 Environment
-  FV2D_PYTHON        the interpreter to use (default: python3, then python)
+  AIRFOIL_PYTHON        the interpreter to use (default: python3, then python)
 
 No install is required: if the package is not importable, the repository root
 is put on PYTHONPATH automatically.  Documentation is in docs/ -- start with
-docs/theory.md for the formulation.
+docs/README.md for the index.
 EOF
 }
 
@@ -254,7 +243,7 @@ cmd_install() {
 cmd_test() {
     translate "$@"
     # Only default to the whole tree when no path was given, so
-    # `./fv2d.sh test tests/test_mesh.py` does not quietly run everything.
+    # `./airfoil.sh test tests/test_mesh.py` does not quietly run everything.
     local target=("$ROOT")
     local arg
     for arg in ${TRANSLATED[@]+"${TRANSLATED[@]}"}; do
@@ -312,17 +301,14 @@ cmd_verify() {
 
 cmd_docs() {
     cat <<EOF
-docs/theory.md      the formulation, the non-dimensionalisation and the mesh
-                    generator -- equations in LaTeX, renders on GitHub with
-                    nothing to build
-docs/usage.md       driving the code: the launcher, the Python API, every option
-docs/workflows.md   sweeps, adjoint sensitivities and shape optimisation, each
-                    with a runnable script in examples/
-docs/lab.md         seven exercises that use the code, with the answers
-                    this code gives, so a result can be told from a mistake
-docs/roadmap.md     what is built, what is not, and what lands when
-legacy/README.md    the MATLAB this was ported from, and what the port changed
-README.md           the quick start
+docs/README.md                 the index of every documentation page
+docs/theory/euler.md           the equations, the non-dimensionalisation and the free stream
+docs/method/meshing.md         the O- and C-grid generator
+docs/running/command-line.md   the launcher and every flag
+docs/running/lab-guide.md      exercises that use the code, with the answers this code gives
+docs/reference/history.md      what is built, what was removed, and why
+legacy/README.md               the MATLAB this was ported from, and what the port changed
+README.md                      the front door: install and quick start
 EOF
 }
 
@@ -339,11 +325,12 @@ main() {
 
     case $command in
         install)   cmd_install ${1+"$1"} ;;
-        list)      printf "Decks ('@name'):\n"; list_decks ;;
+        list)      printf 'Cases (cases/*.json):\n'; list_cases ;;
         docs)      cmd_docs ;;
         test)      setup_import_path; cmd_test "$@" ;;
         verify)    setup_import_path; cmd_verify ${1+"$1"} ;;
-        check|geometry|mesh|flow|solve|sweep|sensitivity|adapt|bench)
+        run)       setup_import_path; fvairfoil solve "$@" ;;
+        check|geometry|mesh|flow|sweep|sensitivity|adapt|bench)
                    setup_import_path; fvairfoil "$command" "$@" ;;
         *)         printf '%s: unknown command %s\n\n' "$SELF" "$command" >&2
                    cmd_help >&2

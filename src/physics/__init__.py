@@ -23,7 +23,7 @@ largest signal speed it saw -- which is what the local time step is built
 from.  **The approximate Riemann solver is the upwinding:** there is no
 separate upwind operator anywhere in this code.
 
-``docs/riemann_fluxes.md`` records what each solver was measured to do, which
+``docs/validation/flux-study.md`` records what each solver was measured to do, which
 fourth solver was removed and why, and the retraction of an earlier verdict on
 AUSM\ :sup:`+`-up that turned out to be about a bug rather than the scheme.
 

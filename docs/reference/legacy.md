@@ -29,7 +29,7 @@ Worth writing down, because the `.mat` is opaque until you decode it:
   against the thickness polynomial rather than against a point list.
 * The surface runs trailing edge → lower → leading edge → upper, which is
   clockwise. The port stores counter-clockwise; see
-  [`../docs/theory.md`](../theory/airfoil-geometry.md#the-storage-convention) for why.
+  [`../theory/airfoil-geometry.md`](../theory/airfoil-geometry.md#the-storage-convention) for why.
 
 With `initialstate.m`'s $M_\infty = 0.8$ and $\alpha = 1.25^\circ$, this is the
 standard transonic NACA 0012 case, with a shock on the upper surface.
@@ -44,7 +44,7 @@ Most of the MATLAB transfers directly. These did not.
 equivalent inside a reasonable dependency budget, so the mesh is new code: an
 algebraic O-grid, generated in `src/geometry/mesh.py`. This is the single largest
 difference between the two codes, and
-[`../docs/theory.md`](../theory/euler.md) gives the construction
+[`../theory/euler.md`](../theory/euler.md) gives the construction
 and what it trades away.
 
 Two topologies are available — an O-grid and a C-grid — and the solver sees
@@ -81,7 +81,7 @@ This is incorrect in two independent ways:
    agree only when one component vanishes.
 
 With the flow-domain outward normal, the port computes $\vec F = \oint p \hat n\,ds$ and rotates it.
-[`../docs/theory.md`](../theory/euler.md) has the
+[`../theory/euler.md`](../theory/euler.md) has the
 formula. The legacy expression stays reproducible for comparison.
 
 ### The far-field condition
@@ -112,7 +112,7 @@ entirely a comparison of residual histories.
   `BoundaryTag` enum.
 * `plotsolution.m` draws the Mach field with `jet`. The port refuses the
   non-monotonic colour maps by name — see
-  [`../docs/README.md`](../running/plotting.md#color-maps).
+  [`running/plotting.md`](../running/plotting.md#color-maps).
 
 ## Running the MATLAB
 

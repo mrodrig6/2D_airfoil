@@ -14,7 +14,7 @@ The MATLAB moved to [`../legacy/`](../../legacy) unchanged. At the end of this f
   connectivity
 * `src/geometry/meshio.py` — SU2 and Gmsh 2.2 meshes from elsewhere
 * `src/spatial/metrics.py` — areas, face lengths and normals
-* `src/post/plotting.py`, `src/cli.py`, `fv2d.sh`
+* `src/post/plotting.py`, `src/cli.py`, `airfoil.sh`
 
 At that historical point no solver had been added: the geometry and the mesh are what the
 solver is built *on*, and they are worth getting exactly right while they are

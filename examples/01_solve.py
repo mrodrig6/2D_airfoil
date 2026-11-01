@@ -39,7 +39,7 @@ def main() -> None:
     print(f"entropy error = {entropy_error(result):.3e}")
     print(
         "\nThe lift is low and the drag high against experiment because the\n"
-        "reconstruction is piecewise constant -- first order.  docs/verification.md\n"
+        "reconstruction is piecewise constant -- first order.  docs/validation/transonic.md\n"
         "measures exactly what that costs and how fast it goes away with the mesh."
     )
 

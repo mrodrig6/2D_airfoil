@@ -6,7 +6,7 @@ Use the error or convergence message to identify the failing condition. The tabl
 
 **The march diverges.** The solver stops and returns a result with `converged=False`; the CLI exits nonzero. Do not use the returned loads as a converged solution. In order of likelihood: the CFL is too high (the default 0.9 is near
 the explicit limit, so try 0.5); or the mesh has a bad cell, which
-`./fv2d.sh mesh` will report before you ever solve.
+`./airfoil.sh mesh` will report before you ever solve.
 
 **It converges to the wrong answer.** Check free-stream preservation first —
 `pytest tests/test_solver.py -k free_stream`. If that passes, the assembly and
@@ -123,7 +123,7 @@ These are the explicit exception messages raised by the current source. Braced f
 | `ValueError`: `the discrete Gauss identity fails by {error} (scale {scale}); the faces and the elements disagree about this mesh` | [src/spatial/metrics.py:195](../../src/spatial/metrics.py#L195) | Check input shapes, mesh validity and supported options at the linked implementation. |
 | `ValueError`: `unknown flux {name}; choose from {tuple(SOLVERS)}` | [src/physics/fluxes.py:382](../../src/physics/fluxes.py#L382) | Check input shapes, mesh validity and supported options at the linked implementation. |
 | `ValueError`: `{name} is not monotonic in lightness, so it manufactures edges that are not in the data -- on a transonic field that is indistinguishable from the shock.  Use {FIELD_CMAP}, 'viridis' or 'cividis'.` | [src/post/plotting.py:108](../../src/post/plotting.py#L108) | Select a supported scalar or profile and provide a compatible converged result. |
-| `ImportError`: `plotting needs matplotlib, which is optional: pip install matplotlib (or ./fv2d.sh install)` | [src/post/plotting.py:92](../../src/post/plotting.py#L92) | Select a supported scalar or profile and provide a compatible converged result. |
+| `ImportError`: `plotting needs matplotlib, which is optional: pip install matplotlib (or ./airfoil.sh install)` | [src/post/plotting.py:92](../../src/post/plotting.py#L92) | Select a supported scalar or profile and provide a compatible converged result. |
 | `ValueError`: `unknown shading {shading}; choose 'smooth' or 'flat'` | [src/post/plotting.py:368](../../src/post/plotting.py#L368) | Select a supported scalar or profile and provide a compatible converged result. |
 | `ValueError`: `unknown scalar {name}; choose from {SCALARS}` | [src/post/postprocess.py:220](../../src/post/postprocess.py#L220) | Select a supported scalar or profile and provide a compatible converged result. |
 | `ValueError`: `unknown objective {name}; choose from {OBJECTIVES}` | [src/sensitivity.py:231](../../src/sensitivity.py#L231) | Use supported objectives/variables and a converged forward state; see sensitivity and gradient checks. |

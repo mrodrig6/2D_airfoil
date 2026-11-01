@@ -19,9 +19,7 @@ from ..spatial.metrics import Metrics
 #: tightest of the four is recorded.  The spread was narrow, 1.152 to 1.174.
 #:
 #: A dict with one entry, kept as a dict rather than flattened to a constant:
-#: SSP-RK3 lived here too and was removed, and if a scheme is ever added back
-#: it needs its own measured row rather than a shared number.  Its removal is
-#: recorded in :data:`src.config.SCHEMES`.
+#: a scheme added later needs its own measured row rather than a shared number.
 STABILITY_LIMIT = {"euler": 1.15}
 
 #: Fraction of the measured limit that :func:`recommended_cfl` takes.  A scan

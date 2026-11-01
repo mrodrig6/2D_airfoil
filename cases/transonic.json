@@ -1,0 +1,10 @@
+{
+  "description": "the legacy case: NACA 0012 at M = 0.8, 1.25 deg -- a shock on the upper surface",
+  "airfoil": "0012",
+  "n_surface": 192,
+  "n_radial": 64,
+  "far_field_radius": 20.0,
+  "first_cell_height": 0.002,
+  "mach": 0.8,
+  "alpha": 1.25
+}

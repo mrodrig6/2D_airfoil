@@ -4,7 +4,7 @@ The existing suite checks the claims listed here. Slow tests run converged flow 
 
 ## What is checked automatically
 
-`./fv2d.sh verify` runs the whole suite. The fast half takes about 15 seconds
+`./airfoil.sh verify` runs the whole suite. The fast half takes about 15 seconds
 and the slow half about a minute; neither needs a network or a service.
 
 | Property | Where |
@@ -49,11 +49,11 @@ would otherwise show up only as a slightly wrong answer.
 
 ```bash
 # Run all scientific and interface assertions.
-./fv2d.sh test
+./airfoil.sh test
 # Run fast tests only.
-./fv2d.sh test --fast
+./airfoil.sh test --fast
 # Run slow solves and gradient checks only.
-./fv2d.sh test --slow
+./airfoil.sh test --slow
 ```
 
 Install `[all,dev]` to include Numba and JAX coverage. A missing optional backend produces skips; `--fast` deselects slow tests. Neither outcome is a pass for the omitted checks. CI requires numerical backends to import before the full run.

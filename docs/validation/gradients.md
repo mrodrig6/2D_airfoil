@@ -23,7 +23,7 @@ which is why they sit an order of magnitude looser and still well inside what an
 optimiser needs. Reproduce it with
 
 ```bash
-./fv2d.sh sensitivity @subcritical naca=2412 ns=64 nr=32 R=10 h1=0.02 \
+./airfoil.sh sensitivity cases/subcritical.json naca=2412 ns=64 nr=32 R=10 h1=0.02 \
     tolerance=1e-10 max_iterations=60000 check=yes
 ```
 

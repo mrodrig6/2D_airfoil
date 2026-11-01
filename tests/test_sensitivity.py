@@ -219,10 +219,10 @@ def test_the_adjoint_converges_on_a_realistic_mesh_with_stock_options():
 
     The adjoint sweep is forward Euler whatever the forward solve used, so it
     must be sized by Euler's stability limit.  It was briefly sized by the
-    *forward* scheme's instead, which meant the default ``ssprk3`` handed it
-    1.18 against Euler's measured limit of 1.15 and every default-options
-    gradient diverged.  The rest of this module runs on the 48x24 fixture,
-    where 1.18 is still stable, so nothing here caught it.  96x40 does.
+    *forward* scheme's instead, which handed it a cfl above Euler's measured
+    limit and every default-options gradient diverged.  The rest of this module
+    runs on the 48x24 fixture, where that cfl is still stable, so nothing here
+    caught it.  96x40 does.
     """
     dc = differentiable_case(
         "2412",
