@@ -23,4 +23,4 @@ SLAU2 was also implemented, measured over 60 solves and **removed**: it does not
 converge above a peak Mach of about 0.91.
 → [flux study](../validation/flux-study.md)
 
-Implementation: `src.physics.roe_flux`, `hllc_flux` and `ausm_up_flux`; dispatch comes from `src.config.FLUXES`. The current AUSM⁺-up uses benchmarked coefficients without an all-speed cutoff parameter exposed to the user. Its historical cutoff-Mach experiments are not current configuration options. See [the flux study](../validation/flux-study.md).
+Implementation: `src.physics.roe_flux`, `hllc_flux` and `ausmup_flux`; dispatch comes from `src.config.FLUXES`. The current AUSM⁺-up uses benchmarked coefficients without an all-speed cutoff parameter exposed to the user. Its historical cutoff-Mach experiments are not current configuration options. See [the flux study](../validation/flux-study.md).

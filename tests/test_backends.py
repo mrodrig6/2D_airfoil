@@ -189,7 +189,7 @@ def test_batching_only_changes_where_the_march_stops(metrics):
 @pytest.mark.jax
 @pytest.mark.parametrize("flux", tuple(SOLVERS))
 def test_the_jax_residual_matches_the_vectorised_one(metrics, flux):
-    """JAX runs the *same* ``src/assembly.py``, with ``jax.numpy`` injected, so
+    """JAX runs the *same* ``src/spatial/assembly.py``, with ``jax.numpy`` injected, so
     this is checking that the injection is complete -- that nothing fell back to
     NumPy and silently broke the trace -- and that float64 is actually on.  At
     single precision this test fails by about 1e-7, which is the point of

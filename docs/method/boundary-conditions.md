@@ -17,7 +17,7 @@ p_b = (\gamma - 1)\left(\rho E - \tfrac12 \rho\,
 ```
 
 the pressure of the interior state with its normal velocity removed. This is
-`legacy/residual_calc.m`'s `inviscid_wall_bc`, unchanged.
+`legacy/residual_calc.m`'s `inviscid_wall_bc`, ported unchanged as `src.physics.boundary.wall_flux`.
 
 **Characteristic far field.** The legacy imposed the full free-stream state and
 let the Riemann solver sort it out, which is reflective and is why its domain had
