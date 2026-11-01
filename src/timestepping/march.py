@@ -15,7 +15,7 @@ its own value at the first iteration**.  That scaling is the part that matters:
 which is neither comparable between meshes -- refining changes the residual's
 scale -- nor between operating points.  A scaled residual means one tolerance
 is the same statement everywhere, which is what makes the flux comparison in
-``docs/riemann_fluxes.md`` a comparison rather than four separate anecdotes.
+``docs/validation/flux-study.md`` a comparison rather than four separate anecdotes.
 
 The reference is deliberately **not** this run's own first iteration.  That
 would make a warm-started run chase the same reduction *factor* from a smaller

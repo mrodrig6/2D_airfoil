@@ -94,7 +94,7 @@ __main__                 -> cli
 `backends/_numba_kernels.py` importing nothing is the one deliberate
 duplication in the tree: Numba's `nopython` mode cannot call the `xp`-injected
 physics, so those kernels restate it. `tests/test_backends.py` is what holds
-the two copies in step — see [`docs/performance.md`](../docs/performance.md).
+the two copies in step — see [`docs/method/backends.md`](../docs/method/backends.md).
 
 ## Within each subpackage
 
@@ -147,7 +147,7 @@ are the ones that matter.
 | `timestepping/march.py` | `post.postprocess` | `SolveResult.report()` formats forces, but `post/postprocess` needs `SolveResult`. One of the two has to be deferred, and the march is the lower layer. |
 | `post/plotting.py` | `post.postprocess` | the same pairing one layer up: a figure needs the field, the field does not need the figure. |
 | `adapt.py` | `api` | refinement drives whole solves, and `api` drives one. Both are layer 7, so the order between them is arbitrary; deferring keeps it from mattering. |
-| `timestepping/march.py`, `cli.py` | `backends` | importing a backend imports Numba or JAX. Deferring it means `import src` costs neither, and `fv2d.sh --help` does not pay for a JIT compiler. |
+| `timestepping/march.py`, `cli.py` | `backends` | importing a backend imports Numba or JAX. Deferring it means `import src` costs neither, and `airfoil.sh --help` does not pay for a JIT compiler. |
 | `sensitivity.py` | `backends.jax_backend` | the adjoint needs JAX; nothing else does. |
 | `src/__init__.py` | `post.plotting` | matplotlib is optional, as above. |
 

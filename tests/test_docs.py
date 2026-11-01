@@ -6,7 +6,7 @@ gap was not hypothetical: the ``read_text()`` rule at the bottom of this module
 would have caught a bug shipped into ``src/hierarchy.md`` here -- snippets a
 reader is invited to paste, telling them to do the one thing the rule forbids.
 
-Every equation in the nozzle's ``docs/theory.md`` was valid LaTeX *and*
+Every equation in the nozzle's ``docs/theory/euler.md`` was valid LaTeX *and*
 accepted by KaTeX in strict mode while still displaying wrongly, so syntax
 checking is not the test that matters.  Two failure modes bit:
 

@@ -91,7 +91,7 @@ def _pyplot():
     except ImportError as exc:  # pragma: no cover - exercised by hand, not in CI
         raise ImportError(
             "plotting needs matplotlib, which is optional: pip install matplotlib "
-            "(or ./fv2d.sh install)"
+            "(or ./airfoil.sh install)"
         ) from exc
     return plt
 

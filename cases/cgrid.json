@@ -1,0 +1,11 @@
+{
+  "description": "the same case on a C-grid, which aligns its cells with the wake",
+  "airfoil": "0012",
+  "n_surface": 192,
+  "n_radial": 64,
+  "far_field_radius": 20.0,
+  "first_cell_height": 0.002,
+  "topology": "cgrid",
+  "n_wake": 32,
+  "wake_length": 20.0
+}

@@ -5,8 +5,8 @@ Solve/refine loop, controls, returned history, stalled-cycle behavior and practi
 ## Using it
 
 ```bash
-./fv2d.sh adapt @transonic cycles=6 figure=adapted.png history=loads.png
-./fv2d.sh adapt @transonic cycles=8 fraction=0.10 max_iterations=200000
+./airfoil.sh adapt cases/transonic.json cycles=6 figure=adapted.png history=loads.png
+./airfoil.sh adapt cases/transonic.json cycles=8 fraction=0.10 max_iterations=200000
 ```
 
 ```python

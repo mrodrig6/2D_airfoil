@@ -16,7 +16,7 @@ iterations.  The regulariser picks the member of that family closest to the
 familiar crest position, which is a design decision made in the open rather than
 an accident of where the search started.
 
-Needs JAX and SciPy:  ./fv2d.sh install   (or  pip install -e ".[all]")
+Needs JAX and SciPy:  ./airfoil.sh install   (or  pip install -e ".[all]")
 
     python examples/04_optimise.py
 """
@@ -103,7 +103,7 @@ def main() -> None:
         "of that, and the gap is the whole reason adjoints exist.\n"
         "\nTwo warnings before this is used on anything real.  The lift here is\n"
         "inviscid and first order, so the camber it asks for is larger than a real\n"
-        "section would need -- docs/verification.md has the size of that error.  And\n"
+        "section would need -- docs/validation/numerical-drag.md has the size of that error.  And\n"
         "the objective is lift alone: in transonic flow the interesting objective is\n"
         "wave drag, where the shock makes the discrete objective only piecewise\n"
         "differentiable and a gradient method needs more care than this."

@@ -59,7 +59,7 @@ def main() -> None:
         "0.0357, while their lift agrees to 0.1% -- adaptation buys drag accuracy\n"
         "here and does nothing for lift, because drag at this order is numerical\n"
         "entropy made at the shock and the nose, which is exactly where the\n"
-        "indicator refines.  docs/adaptation.md takes that further, including the\n"
+        "indicator refines.  docs/method/adaptation.md takes that further, including the\n"
         "part where it costs four times the iterations to get there.\n"
         "\nTwo things are worth noticing beyond the numbers.  The later adaptive\n"
         "cycles converge in far fewer iterations than the first: each one starts\n"
@@ -69,7 +69,7 @@ def main() -> None:
         "leading edge and the trailing edge, through the wall term that measures\n"
         "how far the solution is from satisfying the wall condition.\n"
         "\nSee the final mesh with:\n"
-        "    ./fv2d.sh adapt @transonic cycles=6 figure=adapted.png"
+        "    ./airfoil.sh adapt cases/transonic.json cycles=6 figure=adapted.png"
     )
 
 

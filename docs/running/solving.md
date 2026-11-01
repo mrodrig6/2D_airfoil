@@ -5,9 +5,9 @@ Choose a geometry, operating point and resolution, then check the returned conve
 ## Solving
 
 ```bash
-./fv2d.sh solve @transonic
-./fv2d.sh solve @subcritical cp=cp.png figure=mach.png convergence=history.png
-./fv2d.sh solve airfoil=23012 mach=0.7 alpha=3 flux=hllc
+./airfoil.sh run cases/transonic.json
+./airfoil.sh run cases/subcritical.json cp=cp.png figure=mach.png convergence=history.png
+./airfoil.sh run airfoil=23012 mach=0.7 alpha=3 flux=hllc
 ```
 
 ```python

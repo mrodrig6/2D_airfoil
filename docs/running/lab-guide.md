@@ -7,9 +7,9 @@ These seven exercises use the solver to investigate design and numerical error. 
 ```bash
 git clone https://github.com/mrodrig6/2D_airfoil.git
 cd 2D_airfoil
-./fv2d.sh check          # what you have; NO next to something is fine for labs 1-6
-./fv2d.sh install        # adds Numba, JAX, matplotlib, SciPy
-./fv2d.sh verify --fast  # 15 seconds; everything should pass before you trust a result
+./airfoil.sh check          # what you have; NO next to something is fine for labs 1-6
+./airfoil.sh install        # adds Numba, JAX, matplotlib, SciPy
+./airfoil.sh verify --fast  # 15 seconds; everything should pass before you trust a result
 ```
 
 Labs 1–6 need NumPy alone, though Numba makes them roughly twenty times faster.
@@ -36,17 +36,17 @@ the mesh. How much of what you are about to measure is the airfoil, and how much
 is the grid?
 
 ```bash
-./fv2d.sh solve naca=0012 ns=64  nr=24 R=10 h1=0.02 mach=0.5 alpha=2
-./fv2d.sh solve naca=0012 ns=128 nr=48 R=10 h1=0.02 mach=0.5 alpha=2
-./fv2d.sh solve naca=0012 ns=192 nr=64 R=10 h1=0.02 mach=0.5 alpha=2
+./airfoil.sh run naca=0012 ns=64  nr=24 R=10 h1=0.02 mach=0.5 alpha=2
+./airfoil.sh run naca=0012 ns=128 nr=48 R=10 h1=0.02 mach=0.5 alpha=2
+./airfoil.sh run naca=0012 ns=192 nr=64 R=10 h1=0.02 mach=0.5 alpha=2
 ```
 
 Then move the outer boundary instead of the resolution:
 
 ```bash
-./fv2d.sh solve naca=0012 ns=128 nr=48 R=8  h1=0.02 mach=0.5 alpha=2
-./fv2d.sh solve naca=0012 ns=128 nr=48 R=20 h1=0.02 mach=0.5 alpha=2
-./fv2d.sh solve naca=0012 ns=128 nr=48 R=50 h1=0.02 mach=0.5 alpha=2
+./airfoil.sh run naca=0012 ns=128 nr=48 R=8  h1=0.02 mach=0.5 alpha=2
+./airfoil.sh run naca=0012 ns=128 nr=48 R=20 h1=0.02 mach=0.5 alpha=2
+./airfoil.sh run naca=0012 ns=128 nr=48 R=50 h1=0.02 mach=0.5 alpha=2
 ```
 
 **What to look for.** Two different convergences. Refining the mesh changes the
@@ -70,7 +70,7 @@ Prandtl–Glauert factor stretches that to $2\pi/\sqrt{1 - M^2}$ in subsonic
 compressible flow. Does an Euler solver agree, and where does it stop agreeing?
 
 ```bash
-./fv2d.sh sweep naca=2412 ns=128 nr=48 mach=0.5 alphas=-4:8:2 figure=polar.png
+./airfoil.sh sweep naca=2412 ns=128 nr=48 mach=0.5 alphas=-4:8:2 figure=polar.png
 ```
 
 **What to look for.** Fit the slope over $|\alpha| \le 4^\circ$ only — the point
@@ -96,7 +96,7 @@ Mach number at which Prandtl–Glauert visibly breaks down.
 the flow over the upper surface is not. Where does it come back?
 
 ```bash
-./fv2d.sh solve @transonic cp=cp.png figure=mach.png
+./airfoil.sh run cases/transonic.json cp=cp.png figure=mach.png
 ```
 
 **What to look for.** The $-c_p$ plot carries the sonic line $c_p^*$: everything
@@ -128,7 +128,7 @@ approximation. What does this code give?
 
 ```bash
 for nr in 24 32 48 64; do
-    ./fv2d.sh solve naca=0012 ns=$((nr * 3)) nr=$nr mach=0.5 alpha=0
+    ./airfoil.sh run naca=0012 ns=$((nr * 3)) nr=$nr mach=0.5 alpha=0
 done
 ```
 
@@ -157,10 +157,10 @@ your fit — of how many cells a drag accurate to 0.001 would need.
 Riemann solver. Does the choice matter?
 
 ```bash
-./fv2d.sh solve @transonic flux=roe    convergence=roe.png
-./fv2d.sh solve @transonic flux=hllc   convergence=hllc.png
-./fv2d.sh solve @transonic flux=ausmup convergence=ausmup.png
-./fv2d.sh solve @transonic flux=roe    entropy_fix=0
+./airfoil.sh run cases/transonic.json flux=roe    convergence=roe.png
+./airfoil.sh run cases/transonic.json flux=hllc   convergence=hllc.png
+./airfoil.sh run cases/transonic.json flux=ausmup convergence=ausmup.png
+./airfoil.sh run cases/transonic.json flux=roe    entropy_fix=0
 ```
 
 **What to look for.** Roe and HLLC agree on the loads to about 2% and differ in
@@ -198,7 +198,7 @@ happening, as hard as it refines the shock. Is a cell spent where the error is
 worth more than a cell spent everywhere?
 
 ```bash
-./fv2d.sh adapt @transonic cycles=6 figure=adapted.png history=adapt.png
+./airfoil.sh adapt cases/transonic.json cycles=6 figure=adapted.png history=adapt.png
 python examples/05_adapt.py          # the same thing, against uniform refinement
 ```
 
@@ -228,7 +228,7 @@ that is what you find, that it does not.
 subtracting. Why would anyone build an adjoint?
 
 ```bash
-./fv2d.sh sensitivity @subcritical naca=2412 ns=64 nr=32 R=10 h1=0.02 \
+./airfoil.sh sensitivity cases/subcritical.json naca=2412 ns=64 nr=32 R=10 h1=0.02 \
     tolerance=1e-10 max_iterations=60000 check=yes
 python examples/03_sensitivity.py
 python examples/04_optimise.py
@@ -247,7 +247,7 @@ scaling is what you are buying, not the constant.
 point instead:
 
 ```bash
-./fv2d.sh sensitivity @transonic naca=2412 ns=64 nr=32 R=10 h1=0.02 \
+./airfoil.sh sensitivity cases/transonic.json naca=2412 ns=64 nr=32 R=10 h1=0.02 \
     tolerance=1e-10 max_iterations=60000 check=yes
 ```
 
@@ -262,7 +262,7 @@ explanation of which number you would give an optimiser and why.
 
 ## For the instructor
 
-**CI runs the checks; there is no autograder.** `./fv2d.sh verify` is the check, it runs on
+**CI runs the checks; there is no autograder.** `./airfoil.sh verify` is the check, it runs on
 the student's own machine in about a minute, and it either passes or names what
 failed. A student who changes the solver and breaks free-stream preservation
 finds out immediately and locally.

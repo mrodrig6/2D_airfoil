@@ -74,7 +74,7 @@ XFOIL   c> SAVE my_design_paneled.dat
 ```
 
 ```bash
-./fv2d.sh geometry airfoil=my_design_paneled.dat figure=check.png normals=yes
+./airfoil.sh geometry airfoil=my_design_paneled.dat figure=check.png normals=yes
 ```
 
 Three things worth knowing:

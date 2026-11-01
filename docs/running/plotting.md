@@ -4,7 +4,7 @@ Use `src.plotting` to inspect pressure, fields and polars. Figures use nondimens
 
 ```bash
 # Plot pressure, Mach and residual history from a transonic solve.
-./fv2d.sh solve @transonic cp=cp.png figure=mach.png convergence=history.png
+./airfoil.sh run cases/transonic.json cp=cp.png figure=mach.png convergence=history.png
 # Generate both documented transonic fields and an incidence polar.
 python examples/06_postprocess.py figures
 ```
