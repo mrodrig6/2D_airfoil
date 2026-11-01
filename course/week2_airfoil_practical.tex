@@ -38,7 +38,7 @@ M_{\rm max,dash}\leq1.60,\qquad C_{m,c/4,\rm dash}\geq-0.300.
 \begin{enumerate}
 \item[1.] (2 points) Calculate $L_{\rm req}$ and verify $C_{L,\rm cruise}=0.75$ from the supplied cruise loading.
 \item[2.] (2 points) Explain why choosing the largest camber or the largest incidence is not a valid design rule for this study.
-\item[3.] (3 points) On the drag map, identify the nominally feasible region. State which side of each constraint contour is acceptable and explain why the minimum-drag point can be unacceptable.
+\item[3.] (3 points) On the drag map, identify the nominally feasible region. State which side of each constraint contour is acceptable; then determine whether the absolute minimum-drag point is feasible and explain why a minimum-drag point can nevertheless be a poor recommendation.
 \item[4.] (3 points) Interpret one JAX optimization trace. Explain why it is useful that the adjoint supplies derivatives with respect to both $m$ and $p/c$, even though a final engineering decision still requires constraint checks.
 \end{enumerate}
 
@@ -54,9 +54,18 @@ M_{\rm max,dash}\leq1.60,\qquad C_{m,c/4,\rm dash}\geq-0.300.
 
 \noindent\textit{The stars identify the unconstrained grid minimum and the balanced recommendation. The recommendation is selected from nominally feasible grid points by maximizing its smaller normalized Mach/moment constraint margin, with drag used as a tie-breaker.}
 
+\begin{center}\small
+\begin{tabular}{c|c|c|c|c|c}
+Candidate & $m$ (\% chord) & $p/c$ & $C_{D,\rm cruise}$ & $M_{\rm max,dash}$ & $C_{m,\rm dash}$ \\
+\hline
+Unconstrained minimum & 2.47 & 0.55 & 0.0919 & 1.551 & -0.288 \\
+Balanced recommendation & 1.20 & 0.35 & 0.1022 & 1.452 & -0.204 \\
+\end{tabular}
+\end{center}
+
 \begin{enumerate}
 \item[5.] (3 points) Compare the unconstrained drag minimum with the robust recommendation. State the trade-off that makes the robust choice an engineering recommendation rather than merely the nominal mathematical minimum.
-\item[6.] (3 points) Use the dash trade-off plot and the two Mach fields to explain how a geometry can reduce cruise drag yet create an unacceptable dash-flow feature.
+\item[6.] (3 points) Use the dash trade-off plot and the two Mach fields to explain why a geometry with lower cruise drag can have less dash-flow margin, even when it still nominally passes the dash limits.
 \item[7.] (2 points) If the robust design is used as a baseline, state one geometry or operating-condition change you would test next, and the physical risk it is intended to investigate.
 \item[8.] (2 points) State the next numerical verification required before treating the drag ranking and constraint margins as reliable. Explain why this check matters particularly near a shock limit.
 \end{enumerate}
@@ -68,10 +77,10 @@ M_{\rm max,dash}\leq1.60,\qquad C_{m,c/4,\rm dash}\geq-0.300.
 \begin{enumerate}
 \item[1.] $W=625(10)=6250\ \mathrm{N}$ and $L_{\rm req}=1.2(6250)=7500\ \mathrm{N}=7.5\ \mathrm{kN}$. Hence $C_{L,\rm cruise}=L/(q_\infty S)=7.5/10.0=0.75$.
 \item[2.] Incidence is not independently selected: it is trimmed to meet lift. Higher camber changes the trimmed incidence, drag, dash peak Mach, and moment; a geometry must satisfy all constraints, not maximize one variable.
-\item[3.] The feasible region lies on the low-$M_{\rm max}$ side of the dashed contour and the allowable-moment side of the dotted contour. The unconstrained drag minimum may lie outside one or both constraints, so it is not an acceptable design.
+\item[3.] The feasible region lies on the low-$M_{\rm max}$ side of the dashed contour and the allowable-moment side of the dotted contour. Here the absolute drag minimum technically passes: $M_{\rm max}=1.551<1.60$ and $C_m=-0.288>-0.300$. It has only 0.049 Mach and 0.012 moment margin, however, so a small numerical or model change could make it fail.
 \item[4.] The trace shows a gradient-based search in two geometry directions. JAX provides the local sensitivity of trimmed cruise drag to camber magnitude and crest location at the cost of an adjoint solve rather than independent full finite differences. Constraint values and model validity still must be checked separately.
-\item[5.] The balanced design accepts some nominal drag penalty to retain margin from both dash constraints. This protects the recommendation against numerical/model uncertainty that could make a boundary-hugging nominal optimum infeasible.
-\item[6.] A geometry with lower trimmed cruise drag can have a stronger acceleration and sharper recompression at dash, producing a larger supersonic region, stronger shock, or excessive $M_{\rm max}$. The trade-off plot identifies the constraint violation; the Mach contours provide the flow evidence.
+\item[5.] The unconstrained minimum has $C_D=0.0919$, $M_{\rm max}=1.551$, and $C_m=-0.288$. The balanced recommendation accepts $C_D=0.1022$ in exchange for $M_{\rm max}=1.452$ and $C_m=-0.204$. Its Mach and moment margins are therefore much larger, protecting the recommendation against numerical/model uncertainty.
+\item[6.] The lower-drag geometry produces a larger dash peak Mach and is visibly closer to a sharp upper-surface recompression. It remains nominally feasible, but its small margins make the conclusion fragile. The trade-off plot quantifies the margin; the Mach contours provide the flow evidence.
 \item[7.] Accept a physically justified change, such as changing crest location while preserving cruise lift to control dash pressure recovery, or varying dash Mach/incidence to map shock onset. The answer must name the targeted risk: shock strength, wave drag, moment, or separation.
 \item[8.] Perform a grid-refinement/mesh-convergence study, comparing trimmed incidence, $C_D$, $M_{\rm max}$, $C_m$, and shock location over successively finer meshes. Shock position and numerical drag are resolution-sensitive, so a small apparent margin can be numerical rather than physical.
 \end{enumerate}
