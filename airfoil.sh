@@ -257,11 +257,10 @@ cmd_test() {
 
 # Everything the project checks about itself, in one command.
 #
-# There is no CI by design: this is a teaching code with one author, and a push
-# waiting on a queue is a worse feedback loop than a terminal.  The checks moved
-# here, where they run on the machine the code is used on and the author decides
-# when.  Each step is skipped with a note rather than failing if its tool is
-# missing, because a missing linter should not look like a broken solver.
+# The same checks run in CI on every push (see .github/workflows).  This command
+# runs them locally first, so a failure shows up in the terminal before a push.
+# Each step is skipped with a note rather than failing if its tool is missing,
+# because a missing linter should not look like a broken solver.
 cmd_verify() {
     local fast=0
     [[ ${1:-} == --fast ]] && fast=1
