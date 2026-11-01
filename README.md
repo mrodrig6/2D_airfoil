@@ -42,8 +42,15 @@ The commands and the Python snippet below were run in this repository's developm
 ```python
 from src import solve_airfoil
 
-result = solve_airfoil("0012", mach=0.5, alpha=2.0, n_surface=96, n_radial=40,
-                       far_field_radius=15.0, first_cell_height=5e-3)
+result = solve_airfoil(
+    "0012",
+    mach=0.5,
+    alpha=2.0,
+    n_surface=96,
+    n_radial=40,
+    far_field_radius=15.0,
+    first_cell_height=5e-3,
+)
 assert result.converged, result.message
 print(result.report())
 ```
