@@ -5,28 +5,30 @@
 \setlist[enumerate]{leftmargin=*,itemsep=8pt,topsep=4pt}
 
 \begin{document}
-\begin{center}\textbf{Optional CFD practice: subcritical airfoil response}\end{center}
+\begin{center}\textbf{Optional CFD practice: payload trim before shape design}\end{center}
 
 \section*{Purpose and submission}
 This open-tool practice exercise prepares you for the in-class CFD interpretation practical. You may work alone or with others and may use the repository documentation, AI tools, notes, and any other resources. You are not being assessed on independent coding.
 
+Week 1 holds the NACA 2412 geometry fixed and asks how incidence is selected to carry payload lift. Week 2 keeps that payload-trim idea, but asks whether changing geometry can lower cruise drag while preserving dash-condition margins.
+
 You may submit the completed evidence sheet for small extra credit and feedback. Feedback addresses whether your claims are supported by your figures and data; it is not a grade for prose or authorship.
 
 \section*{What to run}
-Run \texttt{python course/build\_week1\_subcritical\_figures.py} from the repository root. It generates a NACA 2412 geometry, a lift/drag polar from an incidence sweep, and a surface-pressure plot at one subcritical operating point. Do not alter the solver unless you wish to explore beyond the exercise.
+Run \texttt{python course/build\_week1\_subcritical\_figures.py} from the repository root. It generates a NACA 2412 geometry, a lift/drag polar from an incidence sweep, and pressure plots at $\alpha=2^\circ$ and $4^\circ$. Do not alter the solver unless you wish to explore beyond the exercise.
 
 \section*{Reference relations}
 For this simplified screening exercise, the two-dimensional airfoil coefficients are treated as representative wing coefficients:
 \[
  L=q_\infty S C_L,\qquad D=q_\infty S C_D,\qquad q_\infty=\tfrac12\rho_\infty V_\infty^2.
 \]
-For this practice study, hold $M_\infty=0.50$ fixed and vary only incidence $\alpha$. This is intentionally a subcritical study: no shock constraint or transonic design decision is part of Week 1.
+For this practice study, hold $M_\infty=0.50$ fixed and vary only incidence $\alpha$. The payload target is approximately $C_L=0.75$. This is intentionally a subcritical study: no shock constraint or transonic design decision is part of Week 1.
 
 \noindent\textbf{Model boundary.} This is a two-dimensional inviscid calculation. It is useful for identifying trends in pressure loading and lift, but it does not predict skin-friction drag, separation, three-dimensional effects, structural loads, or aircraft performance.
 
 \newpage
 \section*{A. Generate and inspect the incidence sweep}
-The supplied script evaluates one NACA 2412 section over several angles of attack. Record the output values from your run. If you submit this page, attach the polar and the $\alpha=2^\circ$ surface-pressure plot.
+The supplied script evaluates one NACA 2412 section over several angles of attack. Record the output values from your run. If you submit this page, attach the polar and the $\alpha=4^\circ$ surface-pressure plot.
 
 \begin{center}
 \includegraphics[width=.72\linewidth]{course/week1_figures/week1_geometry.png}
@@ -37,39 +39,38 @@ The supplied script evaluates one NACA 2412 section over several angles of attac
 \begin{tabular}{c|c|c|c|c|c|c}
 Incidence $\alpha$ & $C_L$ & $C_D$ & Lift trend & Drag trend & Evidence used & Comment \\
 \hline
-$-2^\circ$ & & & & & & \\
 $2^\circ$ & & & & & & \\
+$4^\circ$ & & & & & & \\
 $6^\circ$ & & & & & & \\
 \end{tabular}
 \end{center}
 
 \begin{enumerate}
-\item On the $\alpha=2^\circ$ pressure plot, identify the upper and lower surfaces. State which surface has the lower pressure over most of the chord.
+\item On the $\alpha=4^\circ$ pressure plot, identify the upper and lower surfaces. State which surface has the lower pressure over most of the chord.
 \item Using your polar, describe the trend of $C_L$ as $\alpha$ increases. Do not call the trend ``proof'' of a real-airfoil performance limit.
 \item Identify one conclusion that this inviscid, subcritical exercise cannot support.
 \end{enumerate}
 
 \newpage
-\section*{B. Compare output types and make a limited selection}
-The Week 1 figures answer different questions: the polar summarizes integrated loads over incidence, while the $C_p$ curve shows where the pressure loading comes from. This is a response study, not an optimization map.
+\section*{B. Bracket payload trim and connect to Week 2}
+The Week 1 figures answer different questions: the polar summarizes integrated loads over incidence, while the $C_p$ curves show where the pressure loading comes from. This is a response study, not an optimization map.
 
 \begin{center}
-\includegraphics[width=.49\linewidth]{course/week1_figures/week1_polar.png}\hfill
-\includegraphics[width=.49\linewidth]{course/week1_figures/week1_cp_alpha2.png}
+\includegraphics[width=.32\linewidth]{course/week1_figures/week1_polar.png}\hfill
+\includegraphics[width=.32\linewidth]{course/week1_figures/week1_cp_alpha2.png}\hfill
+\includegraphics[width=.32\linewidth]{course/week1_figures/week1_cp_alpha4.png}
 \end{center}
 
-\noindent\textbf{Screening decision.} At this one subcritical operating condition, choose one of the tested incidences for a preliminary operating setting. The setting must satisfy
+\noindent\textbf{Preliminary trim decision.} At this one subcritical operating condition, the payload target is $C_L\approx0.75$. Use the discrete sweep to bracket that target. A design operating condition must later be trimmed more precisely than this coarse sweep.
 \[
-C_L\geq0.60,\qquad C_D\leq0.050.
+C_L\approx0.75,\qquad C_D\leq0.050.
 \]
-If more than one tested incidence satisfies both conditions, select the one with the lower $C_D$.
-
 \begin{enumerate}
 \setcounter{enumi}{3}
-\item Select a tested incidence using the stated lift and drag requirements. Cite the two values from the polar that support the decision.
+\item Identify the two tested incidences that bracket the payload target. Select a preliminary incidence and state the next run needed to trim to $C_L=0.75$ more precisely.
 \item Explain why a polar alone cannot tell you where on the airfoil the pressure loading changed.
-\item Explain why one $C_p$ curve alone cannot tell you how the integrated lift changes over the full incidence range.
-\item Predict what you expect to happen to the upper-surface pressure distribution if $\alpha$ is increased from $2^\circ$ to $6^\circ$. State the observation you would inspect to check that prediction.
+\item Compare the $\alpha=2^\circ$ and $4^\circ$ $C_p$ curves. Explain how that change supports the increase in integrated lift shown in the polar.
+\item State what changes in Week 2: distinguish the Week 1 operating-variable decision from the Week 2 geometry-design decision.
 \end{enumerate}
 
 \newpage
@@ -78,12 +79,12 @@ If more than one tested incidence satisfies both conditions, select the one with
 
 \begin{enumerate}
 \item[1.] The black curve is the upper surface and the orange curve is the lower surface. The upper surface has lower pressure over most of the chord: on the plot of $-C_p$, it has the larger value.
-\item[2.] $C_L$ increases approximately linearly over the plotted incidence range: it is about $0.0$ at $-2^\circ$, $0.50$ at $2^\circ$, and $0.97$ at $6^\circ$. This limited inviscid sweep does not establish a real-airfoil stall or performance limit.
+\item[2.] $C_L$ increases approximately linearly over the plotted incidence range: it is about $0.50$ at $2^\circ$, $0.74$ at $4^\circ$, and $0.97$ at $6^\circ$. This limited inviscid sweep does not establish a real-airfoil stall or performance limit.
 \item[3.] Examples: the calculation cannot establish skin-friction drag, separation/stall, three-dimensional wing effects, structural loads, or full-aircraft performance.
-\item[4.] Select $\alpha=4^\circ$. From the polar, $C_L\approx0.74\geq0.60$ and $C_D\approx0.027\leq0.050$. The $6^\circ$ point has adequate lift but fails the drag screen ($C_D\approx0.055$); lower tested incidences fail the lift screen.
+\item[4.] The target is bracketed by $4^\circ$ ($C_L\approx0.74$, $C_D\approx0.027$) and $6^\circ$ ($C_L\approx0.97$, $C_D\approx0.055$). Use $4^\circ$ as the preliminary setting, then run an additional incidence between $4^\circ$ and $6^\circ$ (or a finer sweep) to trim exactly to $C_L=0.75$.
 \item[5.] A polar contains integrated coefficients only. It cannot identify the chordwise location or surface responsible for a pressure-loading change; a $C_p(x/c)$ plot is needed.
-\item[6.] One $C_p$ curve describes one incidence only. It cannot determine the integrated lift trend over the incidence range; the polar or corresponding curves at multiple incidences are needed.
-\item[7.] Increasing incidence should strengthen upper-surface suction: the upper-surface $C_p$ becomes more negative (equivalently, its $-C_p$ curve rises) and the pressure difference between surfaces grows. Inspect the upper-surface suction peak and the area between the upper and lower $C_p$ curves.
+\item[6.] At $4^\circ$, the upper-surface suction is stronger and the pressure difference between surfaces is larger. The greater area between the curves corresponds to the larger integrated lift in the polar.
+\item[7.] Week 1 selects an \emph{operating incidence} for one fixed NACA 2412 section. Week 2 trims incidence for every geometry, then varies camber and crest position to trade cruise drag against dash Mach and moment margins.
 \end{enumerate}
 \end{document}
 
