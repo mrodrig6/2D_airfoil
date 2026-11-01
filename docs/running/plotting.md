@@ -1,6 +1,6 @@
 # Plotting
 
-Use `src.plotting` to inspect pressure, fields and polars. Figures use nondimensional values and do not correct the solver’s first-order numerical error.
+Use `src.post.plotting` to inspect pressure, fields and polars. Figures use nondimensional values and do not correct the solver’s first-order numerical error.
 
 ```bash
 # Plot pressure, Mach and residual history from a transonic solve.
@@ -22,4 +22,4 @@ The library functions are `plot_surface_pressure`, `plot_field`, `plot_polar` an
 
 ## Color maps
 
-`src.plotting.field_cmap` refuses nonmonotonic maps such as `jet`, `rainbow` and `hsv`. The default `magma` increases in lightness, so a brighter patch represents a larger value and does not introduce a false shock edge. The original MATLAB plotted Mach with `jet`; that historical choice is not retained in current plots.
+`src.post.plotting.field_cmap` refuses nonmonotonic maps such as `jet`, `rainbow` and `hsv`. The default `magma` increases in lightness, so a brighter patch represents a larger value and does not introduce a false shock edge. The original MATLAB plotted Mach with `jet`; that historical choice is not retained in current plots.

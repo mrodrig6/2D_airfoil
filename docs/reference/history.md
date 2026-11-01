@@ -113,7 +113,7 @@ closure every cycle rather than storing it, so a green triangle is never refined
 — the classic way an adaptive code quietly fills itself with slivers. New
 boundary nodes are projected back onto the section, without which refining the
 wall only adds points to its chords.
-→ [adaptation](../running/adaptation.md)
+→ [adaptation](../method/adaptation.md)
 
 **The result is not the textbook one**, and it is the most interesting thing in
 this increment: against uniform refinement at equal cell count, adaptation wins
