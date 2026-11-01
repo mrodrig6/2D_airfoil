@@ -157,3 +157,23 @@ def test_every_text_file_is_read_as_utf_8():
         "these calls use the locale's default encoding, which breaks on "
         'Windows; pass encoding="utf-8":\n  ' + "\n  ".join(offenders)
     )
+
+
+def test_code_map_names_resolve_in_their_modules():
+    """Every identifier the code map lists must exist in the module it is filed under.
+
+    The code map is the reader's index into the source, so a renamed function
+    would otherwise leave a page pointing at nothing.  The ``mod`` column is
+    relative to ``src``, and a name may be re-exported by the package.
+    """
+    import importlib
+
+    text = (ROOT / "docs" / "reference" / "code-map.md").read_text(encoding="utf-8")
+    checked = 0
+    for row in re.findall(r"^\| `([\w.]+)` \|[^|]*\|([^|]*)\|", text, re.M):
+        module, names = row
+        mod = importlib.import_module(f"src.{module}")
+        for name in re.findall(r"`(\w+)`", names):
+            assert hasattr(mod, name), f"docs/reference/code-map.md lists {name!r} under {module!r}"
+            checked += 1
+    assert checked > 30, f"the code map yielded only {checked} identifiers; the parser is broken"
