@@ -71,7 +71,6 @@ nav:
       - "Generating meshes": running/meshing.md
       - "Importing meshes": running/mesh-import.md
       - "Plotting": running/plotting.md
-      - "Adaptive refinement": running/adaptation.md
       - "Aerodynamics lab": running/lab-guide.md
   - "Python API":
       - "Library usage": api/package.md

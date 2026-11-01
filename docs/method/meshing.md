@@ -206,7 +206,7 @@ the mesh**, The solver now supports both; the O-grid remains the default. Compar
 
 * **Resolution is uniform in index, not in error.** A shock is resolved by
   whatever `n_surface` and `n_radial` happen to provide there.
-  [adaptation](../running/adaptation.md) lifts this, at the price the bullet predicted:
+  [adaptation](adaptation.md) lifts this, at the price the bullet predicted:
   an adapted mesh is no longer structured, the $(i, j)$ layout is gone, and only
   the triangulation remains.
 * **The far-field boundary is a polygon**, not a circle. The O-grid's area is

@@ -22,7 +22,6 @@ Choose a section below. The root [README](../README.md) is also the website home
 - [Generating meshes](running/meshing.md)
 - [Importing meshes](running/mesh-import.md)
 - [Plotting](running/plotting.md)
-- [Adaptive refinement](running/adaptation.md)
 - [Aerodynamics lab](running/lab-guide.md)
 
 ## Python API
