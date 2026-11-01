@@ -20,6 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 import csv
 import sys
+from time import perf_counter
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -56,9 +57,19 @@ CANDIDATES = (
 )
 
 
+def _elapsed(seconds: float) -> str:
+    """Format elapsed wall time for streamed terminal progress messages."""
+    minutes, seconds = divmod(round(seconds), 60)
+    return f"{minutes:d}m {seconds:02d}s" if minutes else f"{seconds:d}s"
+
+
 def candidate_figures() -> None:
     rows = []
-    for label, section, alpha in CANDIDATES:
+    started = perf_counter()
+    total = len(CANDIDATES)
+    print(f"[candidates] solving {total} verification cases", flush=True)
+    for number, (label, section, alpha) in enumerate(CANDIDATES, start=1):
+        print(f"[candidates {number}/{total}] {label}: NACA {section}, alpha={alpha:.2f} deg ...", end=" ", flush=True)
         case = build_case(naca4(section, MESH.n_surface), MESH)
         flow = FlowConditions(mach=MACH, alpha_deg=alpha)
         result = case.solve(flow, OPTIONS)
@@ -68,11 +79,13 @@ def candidate_figures() -> None:
         plot_field(result, OUT / f"candidate_{label}_mach.png", window=WINDOW, cmap="cividis")
         plot_surface_pressure(result, OUT / f"candidate_{label}_cp.png")
         rows.append((label, section, alpha, load.cl, load.cd, float(np.max(scalar_field(result.state, flow, "mach")))))
+        print(f"done (CL={load.cl:.3f}, CD={load.cd:.3f}; elapsed {_elapsed(perf_counter() - started)})", flush=True)
 
     with (OUT / "candidate_results.csv").open("w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(("candidate", "section", "alpha_deg", "cl", "cd", "max_mach"))
         writer.writerows(rows)
+    print(f"[candidates] wrote candidate figures and CSV in {_elapsed(perf_counter() - started)}", flush=True)
 
 
 def _halo(contours) -> None:
@@ -98,9 +111,15 @@ def jax_design_maps() -> None:
     cd = np.empty_like(cl)
     max_mach = np.empty_like(cl)
     mesh = SWEEP_MESH
+    started = perf_counter()
+    total = len(alpha) * len(camber)
+    completed = 0
+    print(f"[sweep] solving {total} camber/incidence cases on {mesh['n_surface']} x {mesh['n_radial']} mesh", flush=True)
 
     for i, incidence in enumerate(alpha):
         for j, m in enumerate(camber):
+            completed += 1
+            print(f"[sweep {completed:02d}/{total}] m={100*m:.2f}%c, alpha={incidence:.2f} deg ...", end=" ", flush=True)
             case = four_digit_case(m, 0.40, 0.12, mach=MACH, alpha=incidence,
                                    tolerance=1e-6, max_iterations=80_000,
                                    print_interval=0, **mesh)
@@ -108,6 +127,11 @@ def jax_design_maps() -> None:
             cl[i, j], _ = case.value_and_gradient("cl", ("camber", "alpha"))
             cd[i, j], _ = case.value_and_gradient("cd", ("camber", "alpha"))
             max_mach[i, j] = float(np.max(scalar_field(result.state, result.flow, "mach")))
+            print(
+                f"done (CL={cl[i, j]:.3f}, CD={cd[i, j]:.3f}, Mmax={max_mach[i, j]:.3f}; "
+                f"elapsed {_elapsed(perf_counter() - started)})",
+                flush=True,
+            )
 
     np.savez(OUT / "jax_design_sweep.npz", camber=camber, alpha=alpha,
              cl=cl, cd=cd, max_mach=max_mach)
@@ -140,12 +164,17 @@ def jax_design_maps() -> None:
         ax.set(xlabel="maximum camber, % chord", ylabel=r"incidence, $\alpha$ (deg)")
         fig.savefig(OUT / filename, dpi=220)
         plt.close(fig)
+        print(f"[sweep] wrote {filename}", flush=True)
+    print(f"[sweep] completed {total} cases in {_elapsed(perf_counter() - started)}", flush=True)
 
 
 def main() -> None:
     OUT.mkdir(exist_ok=True)
+    started = perf_counter()
+    print(f"Writing Week 2 course outputs to {OUT}", flush=True)
     candidate_figures()
     jax_design_maps()
+    print(f"Finished all course figures in {_elapsed(perf_counter() - started)}", flush=True)
 
 
 if __name__ == "__main__":
