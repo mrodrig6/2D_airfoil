@@ -34,6 +34,8 @@ from src.sensitivity import four_digit_case  # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "week2_figures"
 MACH = 0.82
+CL_TARGET = 0.75
+MAX_MACH_LIMIT = 1.60
 MESH = Discretization(n_surface=128, n_radial=48, far_field_radius=18.0)
 OPTIONS = SolverOptions(tolerance=1e-6, max_iterations=80_000, print_interval=0)
 WINDOW = (-0.35, 1.35, -0.50, 0.50)
@@ -88,9 +90,9 @@ def jax_design_maps() -> None:
              cl=cl, cd=cd, max_mach=max_mach)
     x, y = np.meshgrid(100 * camber, alpha)
     for values, label, filename, threshold in (
-        (cl, r"$C_L$", "jax_cl_map.png", 0.30),
+        (cl, r"$C_L$", "jax_cl_map.png", CL_TARGET),
         (cd, r"$C_D$", "jax_cd_map.png", None),
-        (max_mach, r"maximum Mach number", "jax_mach_map.png", 1.30),
+        (max_mach, r"maximum Mach number", "jax_mach_map.png", MAX_MACH_LIMIT),
     ):
         fig, ax = plt.subplots(figsize=(5.4, 3.6), constrained_layout=True)
         color = ax.contourf(x, y, values, levels=10, cmap="viridis")
