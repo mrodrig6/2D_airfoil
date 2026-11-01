@@ -12,5 +12,11 @@ venv/
 *.csv
 *.npz
 
+# Course handouts intentionally retain their generated figures and tabulated
+# results so an instructor can review the exact artifacts used on an exercise.
+!course/**/*.png
+!course/**/*.csv
+!course/**/*.npz
+
 # Documentation build
 /site/
