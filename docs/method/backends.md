@@ -121,41 +121,13 @@ not what it converges to.
 longer constrains the backend choice and the three cannot drift apart
 numerically.
 
-## One scheme, and the measurement that settled it
+## Forward Euler, the only scheme
 
-`euler` — forward Euler, one residual evaluation per step — is the only
-scheme. The explicit stability limit in `cfl`, bisected to about 3% over four
-cases, is **1.15**, and the default `cfl` of 0.9 sits a fifth below it.
+Forward Euler, one residual evaluation per step, is the only scheme. The explicit stability limit in `cfl`, bisected to about 3% over four cases, is **1.15**, and the default `cfl` of 0.9 sits a fifth below it.
 
-SSP-RK3 was implemented here, measured, and removed. It is worth recording
-what it actually bought, because the intuition that a higher-order integrator
-is better is wrong for this problem:
+A higher-order integrator buys a larger stable step for more residual evaluations per step, and this problem does not repay that. The fixed point does not depend on how it was reached, and the local time step already gives up time accuracy by putting every cell on its own clock, so there is no time accuracy to recover. The one argument for a strong-stability-preserving integrator is that a positivity limiter's guarantee rests on each stage being a convex combination of forward-Euler steps. Forward Euler is such a stage, so that argument covers it directly.
 
-| scheme | stability limit | iterations | residual evals | wall |
-|---|---|---|---|---|
-| `euler` | 1.15 | 26 750 | 26 750 | 44.7 s |
-| SSP-RK3 | 1.51 | 20 375 | 61 125 | 95.7 s |
-
-NACA 0012 at M 0.8, α 1.25°, 192 × 64, tolerance 1e-8, one Numba process.
-SSP-RK3 buys **1.31× the step for 3× the work**, so it reaches the same steady
-state **2.14× slower** — and it is the same steady state: the two agree to
-$2\times10^{-8}$ on $c_\ell$ and $3\times10^{-9}$ on $c_d$, with the same
-shock position.
-
-There is no accuracy to recover. The fixed point does not know how it was
-reached, and the local time step gave up time accuracy before any of this by
-putting every cell on its own clock. The one real argument for an SSP scheme
-is that a positivity limiter's guarantee rests on each stage being a convex
-combination of forward-Euler steps — but forward Euler *is* such a stage, so
-that argument covers it directly. SSP-RK3 inherits the property rather than
-owning it.
-
-For a teaching code that students run repeatedly, 2.14× was the wrong price
-for nothing, so it was taken out.
-
-Classical `rk4` was removed for the same reason, earlier and more easily: a
-fourth residual per step, no time accuracy to gain, and no strong-stability
-property to justify the cost.
+For a teaching code that students run repeatedly, the extra cost per step was not worth paying, so the code has one scheme.
 
 ## The JAX backend
 

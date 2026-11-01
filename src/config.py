@@ -302,13 +302,9 @@ class Discretization:
 #: Pseudo-time integrators.  One of them: forward Euler, which is what
 #: ``legacy/main.m`` implements and what this code has always marched with.
 #:
-#: SSP-RK3 was carried here briefly and removed.  Its value is a larger stable
-#: step and the strong-stability property a limiter argument needs -- but it
-#: buys only 1.31 times the step for three residual evaluations, measured, so
-#: it reaches a steady state 2.14 times slower; and forward Euler is itself a
-#: single SSP stage, so a positivity limiter is just as sound on it.  For a
-#: teaching code whose users run it repeatedly, the slower default was the
-#: wrong trade.  ``docs/method/backends.md`` records the measurement.
+#: Forward Euler is itself a single strong-stability-preserving stage, so a
+#: positivity limiter is sound on it directly.  ``docs/method/backends.md``
+#: explains why no other integrator is offered.
 SCHEMES = ("euler",)
 
 

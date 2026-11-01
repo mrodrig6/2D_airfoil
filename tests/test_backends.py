@@ -111,9 +111,9 @@ def test_the_compiled_residual_also_preserves_the_free_stream(metrics):
 
 
 def test_an_unknown_scheme_is_refused(metrics):
-    """``rk4`` used to be a scheme and is not one any more, so it reads as unknown."""
+    """A name that is not a scheme is refused, whatever it is."""
     with pytest.raises(ValueError, match="unknown scheme"):
-        SolverOptions(scheme="rk4")
+        SolverOptions(scheme="leapfrog")
     backend = get_backend("numpy", metrics, FlowConditions(), SolverOptions())
     with pytest.raises(ValueError, match="unknown scheme"):
         backend.make_step("midpoint")

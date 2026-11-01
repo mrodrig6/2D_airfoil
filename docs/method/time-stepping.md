@@ -32,4 +32,4 @@ Forward Euler (`scheme="euler"`) is the only supported scheme on all three backe
 
 `SolverOptions.cfl=None` resolves to 0.9, using the measured Euler stability limit of 1.15 and a margin of 0.78, rounded to two decimals. An explicit positive CFL overrides the recommendation. These measurements do not guarantee convergence for every geometry or flux. The adjoint also uses the Euler recommendation when CFL is omitted.
 
-SSP-RK3 and RK4 were removed. The [backend measurements](backends.md#one-scheme-and-the-measurement-that-settled-it) record the branch's comparison; neither scheme is an available configuration option. MUSCL reconstruction remains reverted, and the implemented spatial scheme is first order.
+The [backends page](backends.md#forward-euler-the-only-scheme) explains why no other scheme is offered. MUSCL reconstruction remains reverted, and the implemented spatial scheme is first order.

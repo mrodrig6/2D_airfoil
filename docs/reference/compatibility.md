@@ -11,7 +11,6 @@ Use this matrix to distinguish an implemented feature from a measured or unteste
 | Imported SU2 / Gmsh 2.2 ASCII | ✓; triangles only, boundary markers must map |
 | Gmsh 4 / quadrilateral solution cells | ✗; re-export Gmsh 2.2 and triangulate |
 | Numba Euler | ✓ |
-| SSP-RK3 / RK4 | ✗; removed, forward Euler is the only supported scheme |
 | Four-digit shape gradients | ✓; mesh terms use frozen-state finite differences |
 | Five-digit / file shape gradients | ✗; flow variables remain available |
 | AUSM⁺-up at low Mach on fine grids | Restricted: reported limit cycles; check `converged` |

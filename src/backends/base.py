@@ -16,9 +16,7 @@ Schemes
     Forward Euler, one residual evaluation per step.  The only scheme, and
     what ``legacy/main.m`` implements.  It is a single forward-Euler stage, so
     the strong-stability property a positivity limiter needs holds for it
-    directly -- SSP-RK3 inherits that property rather than owning it, which is
-    why removing SSP-RK3 costs the limiter nothing.  :data:`src.config.SCHEMES`
-    records the measurement behind that decision.
+    directly.  :data:`src.config.SCHEMES` records the choice.
 
 The mass matrix of a finite-volume scheme
 -----------------------------------------
