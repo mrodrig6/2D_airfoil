@@ -140,7 +140,7 @@ def evaluate(
 
 def draw_map(x, y, values, *, label: str, filename: str, constraints=(), paths=()):
     fig, ax = plt.subplots(figsize=(6.0, 4.1), constrained_layout=True)
-    filled = ax.contourf(x, y, values, levels=12, cmap="cividis")
+    filled = ax.contourf(x, y, values, levels=12, cmap="viridis")
     lines = ax.contour(x, y, values, levels=8, colors="#202020", linewidths=0.65)
     ax.clabel(lines, inline=True, fontsize=7, fmt="%.3f")
     for constraint, style, text in constraints:
@@ -277,7 +277,7 @@ def main() -> None:
         paths=paths,
     )
     fig, ax = plt.subplots(figsize=(5.8, 4.0), constrained_layout=True)
-    scatter = ax.scatter(cd.ravel(), mach.ravel(), c=cm.ravel(), cmap="cividis", s=55, edgecolors="black", linewidths=.35)
+    scatter = ax.scatter(cd.ravel(), mach.ravel(), c=cm.ravel(), cmap="viridis", s=55, edgecolors="black", linewidths=.35)
     ax.axhline(MACH_LIMIT, color="black", linestyle="--", linewidth=1.6, label=r"$M_{max}=1.60$")
     ax.axvline(robust_grid.cd_cruise, color="#555555", linestyle=":", linewidth=1.0)
     for name, point in candidate_rows[:2]:
@@ -291,7 +291,7 @@ def main() -> None:
 
     for label, point in (("nominal", nominal_grid), ("robust", robust_grid)):
         result = point.dash_case.solve()
-        plot_field(result, OUT / f"{label}_dash_mach.png", cmap="cividis", window=(-0.25, 1.25, -0.35, 0.35))
+        plot_field(result, OUT / f"{label}_dash_mach.png", cmap="viridis", window=(-0.25, 1.25, -0.35, 0.35))
         plot_surface_pressure(result, OUT / f"{label}_dash_cp.png")
 
     print(f"[done] wrote maps, candidate CSV, and dash fields in {elapsed(perf_counter() - started)}", flush=True)
