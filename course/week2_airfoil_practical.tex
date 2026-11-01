@@ -75,12 +75,12 @@ C: NACA 1412 & low & $1.50^\circ$ & 0.627 & 0.079 & 1.46 \\
 \includegraphics[width=.32\linewidth]{course/week2_figures/jax_mach_map.png}
 \end{center}
 
-\noindent\textit{Custom coarse JAX-adjoint study: fixed 12\% thickness and camber crest at $x/c=0.40$. The red contour marks $C_L=0.75$ or $M_{\rm max}=1.60$.}
+\noindent\textit{Custom JAX-adjoint screening sweep: fixed 12\% thickness and camber crest at $x/c=0.40$. The black solid line marks $C_L=0.75$; the black dashed line marks $M_{\rm max}=1.60$. Dark-to-light shading uses the colorblind-safe cividis scale.}
 
 \begin{enumerate}
-\item[8.] (2 points) Identify a feasible region of the $(m,\alpha)$ sweep: it must meet both the lift and strong-shock requirements.
+\item[8.] (2 points) Identify the feasible region of the $(m,\alpha)$ sweep: it must meet both the lift and strong-shock requirements. Why is the upper-right portion of the sweep not automatically the best design region?
 \item[9.] (2 points) The supplied custom results use one mesh. State the next numerical check required before treating the drag ranking as reliable, and explain why.
-\item[10.] (5 points) State: (a) your recommended candidate or nearby design region; (b) payload/lift evidence; (c) drag/shock evidence; and (d) the next simulation or experiment, with its purpose.
+\item[10.] (5 points) Use all three maps to choose an approximate $(m,\alpha)$ point that minimizes $C_D$ while meeting $C_L\geq0.75$ and $M_{\rm max}\leq1.60$. State approximate $C_L$, $C_D$, and $M_{\rm max}$ values at that point; explain the trade-off with a nearby equal-lift alternative; and state the next simulation or experiment, with its purpose.
 \end{enumerate}
 
 \newpage
@@ -95,9 +95,9 @@ C: NACA 1412 & low & $1.50^\circ$ & 0.627 & 0.079 & 1.46 \\
 \item[5.] Mark the abrupt upper-surface Mach decrease near the trailing portion of the airfoil (approximately $x/c=0.9$--$1.0$), paired with the sharp $C_p$ recovery.
 \item[6.] Greater camber/incidence increases circulation and upper-surface acceleration, raising lift. The high-Mach region over the upper surface then recompresses abruptly near the shock; the $C_p$ curve shows the corresponding sharp recovery. This creates wave-drag risk (and, in real viscous flow, possible separation).
 \item[7.] A produces adequate lift but violates $M_{\rm max}\leq1.60$: its value is 1.70, indicating an unacceptably strong shock by this screen.
-\item[8.] Any point above/on the $C_L=0.75$ contour \emph{and} on the allowable side of the $M_{\rm max}=1.60$ contour is feasible. A valid response identifies a moderate-camber, moderate-incidence overlap region on the supplied maps.
+\item[8.] The feasible region is the intersection of the $C_L\geq0.75$ side of the solid contour and the $M_{\rm max}\leq1.60$ side of the dashed contour. The upper right is not automatically best because increasing camber and incidence raises drag and eventually violates the shock constraint.
 \item[9.] Perform a grid-refinement (mesh-convergence) study, comparing $C_L$, $C_D$, and shock location/strength over progressively finer meshes. Drag and shocks can be sensitive to numerical resolution, so one mesh cannot establish a reliable ranking.
-\item[10.] Candidate B is the supported discrete recommendation: it supplies about $8.0\ \mathrm{kN}$, exceeding the $7.5\ \mathrm{kN}$ requirement, while $M_{\rm max}=1.56<1.60$; A fails the shock screen and C fails lift. A justified nearby feasible sweep point is also acceptable. The next step should be, for example, a mesh-refined viscous CFD calculation (or a wind-tunnel test) to assess drag, shock/boundary-layer interaction, and separation before a design decision.
+\item[10.] Accept a point on the minimum-$C_D$ portion of the feasible boundary, supported by approximate readings from all three maps. It should meet both constraints; a higher-camber/lower-incidence equal-lift alternative generally has different drag and shock margin. The next step should be, for example, a mesh-refined viscous CFD calculation (or a wind-tunnel test) to assess drag, shock/boundary-layer interaction, and separation before a design decision. \textit{After regenerating the maps, replace this sentence with the selected numerical reference point and tolerances for grading.}
 \end{enumerate}
 \end{document}
 
