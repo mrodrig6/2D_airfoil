@@ -75,11 +75,16 @@ def candidate_figures() -> None:
         writer.writerows(rows)
 
 
-def _halo(artists) -> None:
+def _halo(contours) -> None:
     """Keep contours legible over both dark and light portions of cividis."""
+    # Matplotlib 3.10 exposes a contour set as one collection; older releases
+    # expose its member collections.  Supporting both keeps the course script
+    # runnable in the repository environment and on student machines.
+    artists = getattr(contours, "collections", (contours,))
     for artist in artists:
+        width = float(np.max(artist.get_linewidth()))
         artist.set_path_effects([
-            patheffects.Stroke(linewidth=artist.get_linewidth() + 1.8, foreground="white"),
+            patheffects.Stroke(linewidth=width + 1.8, foreground="white"),
             patheffects.Normal(),
         ])
 
@@ -116,7 +121,7 @@ def jax_design_maps() -> None:
         fig, ax = plt.subplots(figsize=(5.4, 3.6), constrained_layout=True)
         color = ax.contourf(x, y, values, levels=10, cmap="cividis")
         lines = ax.contour(x, y, values, colors="#1a1a1a", linewidths=.75, levels=10)
-        _halo(lines.collections)
+        _halo(lines)
         contour_labels = ax.clabel(lines, inline=True, fontsize=8, fmt="%.3f")
         for text in contour_labels:
             text.set_path_effects([patheffects.Stroke(linewidth=2.5, foreground="white"), patheffects.Normal()])
@@ -127,7 +132,7 @@ def jax_design_maps() -> None:
                 )
             limit = ax.contour(x, y, values, levels=[threshold], colors="#000000",
                                linewidths=2.0, linestyles=line_style)
-            _halo(limit.collections)
+            _halo(limit)
             limit_labels = ax.clabel(limit, fmt={threshold: constraint_label}, inline=True, fontsize=8)
             for text in limit_labels:
                 text.set_path_effects([patheffects.Stroke(linewidth=2.8, foreground="white"), patheffects.Normal()])
