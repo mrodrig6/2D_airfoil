@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Week 1 input: a subcritical incidence sweep, deliberately unlike Week 2.
+"""Week 1 input: a subcritical payload-trim study before Week 2 shape design.
 
 Run from the repository root:
     python course/build_week1_subcritical_figures.py
 
-It writes a NACA 2412 geometry, a subcritical lift/drag polar, and one surface
-pressure plot.  These are preparation artifacts; Week 2 uses a different,
-transonic shock-control problem.
+It writes a NACA 2412 geometry, a subcritical lift/drag polar, and pressure
+plots below and near the payload-trim incidence.  Week 2 retains the payload
+trim but changes geometry and checks a high-Mach dash condition.
 """
 from __future__ import annotations
 
@@ -32,11 +32,11 @@ OPTIONS = SolverOptions(tolerance=1e-6, max_iterations=60_000, print_interval=0)
 def geometry_figure(case) -> None:
     p = case.airfoil.points
     fig, ax = plt.subplots(figsize=(6.4, 2.2), constrained_layout=True)
-    ax.plot(p[:, 0], p[:, 1], color="#268bd2", lw=2.2)
+    ax.plot(p[:, 0], p[:, 1], color="#0072B2", lw=2.2)
     ax.axhline(0.0, color="0.75", lw=0.8)
     ax.set(xlim=(-0.03, 1.03), ylim=(-0.12, 0.16), xlabel=r"$x/c$", ylabel=r"$y/c$")
     ax.set_aspect("equal", adjustable="box")
-    ax.set_title("NACA 2412: subcritical incidence study", loc="left")
+    ax.set_title("NACA 2412: subcritical payload-trim study", loc="left")
     fig.savefig(OUT / "week1_geometry.png", dpi=220)
     plt.close(fig)
 
@@ -59,6 +59,9 @@ def main() -> None:
 
     plot_polar(solved, loads, OUT / "week1_polar.png", title=r"NACA 2412 at $M_\infty=0.50$")
     plot_surface_pressure(results[2.0], OUT / "week1_cp_alpha2.png")
+    # This result is already part of the incidence sweep; no extra CFD solve is
+    # needed to show the preliminary payload-trim pressure distribution.
+    plot_surface_pressure(results[4.0], OUT / "week1_cp_alpha4.png")
 
 
 if __name__ == "__main__":
