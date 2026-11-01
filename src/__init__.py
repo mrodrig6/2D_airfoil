@@ -1,4 +1,4 @@
-r"""**fvairfoil** -- a 2D finite-volume Euler solver for transonic airfoil studies.
+r"""**airfoil** -- a 2D finite-volume Euler solver for transonic airfoil studies.
 
 A cell-centred finite-volume solver for the two-dimensional Euler equations
 around an airfoil, built so that students *use* it rather than write it: change

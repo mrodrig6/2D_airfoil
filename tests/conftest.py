@@ -55,7 +55,7 @@ def pytest_addoption(parser):
     *silently*: a stray space or a smart quote selects a different set of tests
     and still exits zero.  A flag either exists or errors out.
     """
-    group = parser.getgroup("fvairfoil")
+    group = parser.getgroup("airfoil")
     group.addoption(
         "--fast",
         action="store_true",

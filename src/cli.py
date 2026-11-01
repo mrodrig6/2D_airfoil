@@ -142,7 +142,7 @@ def _discretization(args: argparse.Namespace) -> Discretization:
 def cmd_check(args: argparse.Namespace) -> int:
     """Report the environment: what is installed and what that enables."""
     print(f"python     {sys.version.split()[0]}  ({sys.executable})")
-    print(f"fvairfoil  {__version__}  ({Path(__file__).parent})")
+    print(f"airfoil  {__version__}  ({Path(__file__).parent})")
     for name, what in (
         ("numpy", "required"),
         ("numba", "the compiled backend"),
@@ -564,10 +564,10 @@ def cmd_adapt(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="fvairfoil",
+        prog="airfoil",
         description="2D finite-volume Euler solver for transonic airfoil studies",
     )
-    parser.add_argument("--version", action="version", version=f"fvairfoil {__version__}")
+    parser.add_argument("--version", action="version", version=f"airfoil {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("check", help="report the Python and which extras are installed").set_defaults(
@@ -749,5 +749,5 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return args.run(args)
     except (ValueError, FileNotFoundError) as exc:
-        print(f"fvairfoil: {exc}", file=sys.stderr)
+        print(f"airfoil: {exc}", file=sys.stderr)
         return 2

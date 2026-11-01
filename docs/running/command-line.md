@@ -83,4 +83,4 @@ Underscores in `name=value` become hyphens in Python flags. Aliases are `naca=ai
 
 Boolean flags without value-taking parser actions should be passed as literal flags. The launcher also translates `check=yes` for the sensitivity gradient check.
 
-`AIRFOIL_PYTHON` selects the launcher's interpreter. Otherwise it looks for `python3`, then `python`. The installed `fvairfoil` command and `python -m src` use the Python subcommands above; launcher-only commands are not interchangeable with them.
+`AIRFOIL_PYTHON` selects the launcher's interpreter. Otherwise it looks for `python3`, then `python`. The installed `airfoil` command and `python -m src` use the Python subcommands above; launcher-only commands are not interchangeable with them.
