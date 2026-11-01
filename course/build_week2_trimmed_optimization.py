@@ -50,7 +50,10 @@ GRID_CAMBER = np.linspace(0.012, 0.050, 4)
 GRID_CREST = np.linspace(0.25, 0.55, 4)
 BOUNDS = ((0.012, 0.050), (0.25, 0.55))
 MESH = dict(n_surface=48, n_radial=24, far_field_radius=10.0, first_cell_height=0.015)
-SOLVER = dict(tolerance=1e-6, max_iterations=70_000, print_interval=0)
+# The map is a screening study.  Use the compiled forward path and a tolerance
+# adequate for separating design regions; the final selected cases can later
+# be recomputed on a refined mesh.
+SOLVER = dict(backend="numba", tolerance=1e-5, max_iterations=25_000, print_interval=0)
 VARIABLES = ("camber", "camber_position", "alpha")
 
 
@@ -81,7 +84,7 @@ def trim(camber: float, crest: float, *, mach: float, target_cl: float, guess: f
     """
     alpha = guess
     previous: tuple[float, float] | None = None
-    for _ in range(4):
+    for _ in range(7):
         case = four_digit_case(camber, crest, THICKNESS, mach=mach, alpha=alpha, **MESH, **SOLVER)
         cl = forces(case.solve()).cl
         error = cl - target_cl
@@ -104,7 +107,7 @@ def trim(camber: float, crest: float, *, mach: float, target_cl: float, guess: f
 
 
 def evaluate(
-    camber: float, crest: float, *, gradient: bool = False, cruise_guess: float = 1.5, dash_guess: float = 0.5
+    camber: float, crest: float, *, gradient: bool = False, cruise_guess: float = 3.0, dash_guess: float = 2.0
 ) -> tuple[TrimmedPoint, np.ndarray | None]:
     """Trim one geometry at both conditions and optionally return dCD/d(m,p)|CL."""
     alpha_cruise, cruise = trim(camber, crest, mach=CRUISE_MACH, target_cl=CRUISE_CL, guess=cruise_guess)
@@ -204,7 +207,9 @@ def main() -> None:
     points: list[TrimmedPoint] = []
     total = cd.size
     for i, crest in enumerate(GRID_CREST):
-        cruise_guess, dash_guess = 1.5, 0.5
+        # The first (lowest-camber) point needs the greatest trimmed incidence.
+        # Subsequent points use the previous solution as a warm start.
+        cruise_guess, dash_guess = 3.0, 2.0
         for j, camber in enumerate(GRID_CAMBER):
             number = i * len(GRID_CAMBER) + j + 1
             print(f"[grid {number:02d}/{total}] m={100*camber:.2f}% p={crest:.3f} ...", end=" ", flush=True)
