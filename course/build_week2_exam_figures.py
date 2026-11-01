@@ -23,6 +23,7 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import patheffects
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -39,6 +40,13 @@ MAX_MACH_LIMIT = 1.60
 MESH = Discretization(n_surface=128, n_radial=48, far_field_radius=18.0)
 OPTIONS = SolverOptions(tolerance=1e-6, max_iterations=80_000, print_interval=0)
 WINDOW = (-0.35, 1.35, -0.50, 0.50)
+
+# These ranges deliberately extend beyond the acceptable design region.  A useful
+# screening map must show the lift requirement, the shock limit, and designs
+# rejected by each; otherwise it becomes a "pick the upper-right corner" task.
+SWEEP_CAMBER = np.linspace(0.012, 0.050, 6)
+SWEEP_ALPHA = np.linspace(0.50, 3.25, 6)
+SWEEP_MESH = dict(n_surface=64, n_radial=32, far_field_radius=10.0, first_cell_height=0.01)
 
 # New teaching cases: fixed 12% thickness, differing camber and incidence.
 CANDIDATES = (
@@ -57,7 +65,7 @@ def candidate_figures() -> None:
         if not result.converged:
             raise RuntimeError(f"Candidate {label} did not converge: {result.message}")
         load = forces(result)
-        plot_field(result, OUT / f"candidate_{label}_mach.png", window=WINDOW)
+        plot_field(result, OUT / f"candidate_{label}_mach.png", window=WINDOW, cmap="cividis")
         plot_surface_pressure(result, OUT / f"candidate_{label}_cp.png")
         rows.append((label, section, alpha, load.cl, load.cd, float(np.max(scalar_field(result.state, flow, "mach")))))
 
@@ -67,19 +75,29 @@ def candidate_figures() -> None:
         writer.writerows(rows)
 
 
+def _halo(artists) -> None:
+    """Keep contours legible over both dark and light portions of cividis."""
+    for artist in artists:
+        artist.set_path_effects([
+            patheffects.Stroke(linewidth=artist.get_linewidth() + 1.8, foreground="white"),
+            patheffects.Normal(),
+        ])
+
+
 def jax_design_maps() -> None:
-    # Coarse, deliberately transparent design-region study, not an optimiser.
-    camber = np.array([0.012, 0.025, 0.038])
-    alpha = np.array([0.75, 1.50, 2.25])
+    # A screening study, not an optimiser: 36 independently solved points are
+    # shown, with interpolation only used to draw readable contours.
+    camber = SWEEP_CAMBER
+    alpha = SWEEP_ALPHA
     cl = np.empty((len(alpha), len(camber)))
     cd = np.empty_like(cl)
     max_mach = np.empty_like(cl)
-    mesh = dict(n_surface=32, n_radial=24, far_field_radius=5.0, first_cell_height=0.02)
+    mesh = SWEEP_MESH
 
     for i, incidence in enumerate(alpha):
         for j, m in enumerate(camber):
             case = four_digit_case(m, 0.40, 0.12, mach=MACH, alpha=incidence,
-                                   tolerance=1e-6, max_iterations=40_000,
+                                   tolerance=1e-6, max_iterations=80_000,
                                    print_interval=0, **mesh)
             result = case.solve()
             cl[i, j], _ = case.value_and_gradient("cl", ("camber", "alpha"))
@@ -89,17 +107,30 @@ def jax_design_maps() -> None:
     np.savez(OUT / "jax_design_sweep.npz", camber=camber, alpha=alpha,
              cl=cl, cd=cd, max_mach=max_mach)
     x, y = np.meshgrid(100 * camber, alpha)
-    for values, label, filename, threshold in (
-        (cl, r"$C_L$", "jax_cl_map.png", CL_TARGET),
-        (cd, r"$C_D$", "jax_cd_map.png", None),
-        (max_mach, r"maximum Mach number", "jax_mach_map.png", MAX_MACH_LIMIT),
+    for values, label, filename, threshold, line_style, constraint_label in (
+        (cl, r"$C_L$", "jax_cl_map.png", CL_TARGET, "solid", r"$C_L=0.75$ requirement"),
+        (cd, r"$C_D$", "jax_cd_map.png", None, None, None),
+        (max_mach, r"maximum Mach number", "jax_mach_map.png", MAX_MACH_LIMIT,
+         (0, (5, 3)), r"$M_{\rm max}=1.60$ limit"),
     ):
         fig, ax = plt.subplots(figsize=(5.4, 3.6), constrained_layout=True)
-        color = ax.contourf(x, y, values, levels=10, cmap="viridis")
-        lines = ax.contour(x, y, values, colors="white", linewidths=.8, levels=10)
-        ax.clabel(lines, inline=True, fontsize=8, fmt="%.3f")
+        color = ax.contourf(x, y, values, levels=10, cmap="cividis")
+        lines = ax.contour(x, y, values, colors="#1a1a1a", linewidths=.75, levels=10)
+        _halo(lines.collections)
+        contour_labels = ax.clabel(lines, inline=True, fontsize=8, fmt="%.3f")
+        for text in contour_labels:
+            text.set_path_effects([patheffects.Stroke(linewidth=2.5, foreground="white"), patheffects.Normal()])
         if threshold is not None:
-            ax.contour(x, y, values, levels=[threshold], colors="crimson", linewidths=2.2)
+            if not values.min() < threshold < values.max():
+                raise RuntimeError(
+                    f"{constraint_label} does not cross the sweep. Expand the range before using this map."
+                )
+            limit = ax.contour(x, y, values, levels=[threshold], colors="#000000",
+                               linewidths=2.0, linestyles=line_style)
+            _halo(limit.collections)
+            limit_labels = ax.clabel(limit, fmt={threshold: constraint_label}, inline=True, fontsize=8)
+            for text in limit_labels:
+                text.set_path_effects([patheffects.Stroke(linewidth=2.8, foreground="white"), patheffects.Normal()])
         fig.colorbar(color, ax=ax, label=label)
         ax.set(xlabel="maximum camber, % chord", ylabel=r"incidence, $\alpha$ (deg)")
         fig.savefig(OUT / filename, dpi=220)
