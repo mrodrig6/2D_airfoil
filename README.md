@@ -4,6 +4,8 @@
 
 This Python program computes the airflow around the cross-section of a wing, including the shock waves that form when the air approaches the speed of sound. It is a teaching code for aerodynamics: students change the section shape or the angle of attack and see how lift, drag and the shock respond. It is a Python port of a MATLAB teaching code, whose original is kept in [legacy/](legacy/README.md).
 
+![Mach field around a NACA 0012 at Mach 0.85 and one degree incidence, with upper and lower shocks and a white sonic contour](docs/figures/mach_shock.png)
+
 - Generate NACA four- and five-digit sections, or read coordinates from a file.
 - Build O- and C-shaped meshes, or import triangular SU2 and Gmsh meshes.
 - Compute surface pressure, lift, drag and pitching moment, with shock positions and figures.
