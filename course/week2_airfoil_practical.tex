@@ -46,29 +46,17 @@ C: NACA 1412 & low & $1.50^\circ$ & 0.627 & 0.079 & 1.46 \\
 \begin{enumerate}
 \item[1.] (2 points) Calculate $L_{\rm req}$ and $C_{L,\rm req}$.
 \item[2.] (2 points) Calculate Candidate B's predicted lift and drag.
-\item[3.] (4 points) Complete the compliance matrix.
+\item[3.] (4 points) For each candidate, classify it as \emph{satisfies both requirements}, \emph{fails lift only}, \emph{fails the strong-shock limit only}, or \emph{fails both}. Give one numerical reason for each classification.
 \end{enumerate}
-
-\begin{center}
-\renewcommand{\arraystretch}{1.5}
-\begin{tabular}{c|c|c|c}
-Candidate & Meets lift requirement? & Meets strong-shock limit? & Keep/reject \\
-\hline
-A & & & \\
-B & & & \\
-C & & & \\
-\end{tabular}
-\end{center}
 
 \begin{enumerate}
 \item[4.] (2 points) In one sentence each, state why Engineer A's and Engineer B's recommendations are incomplete.
 \end{enumerate}
 
-\newpage
 \section*{2. Flow-field evidence \hfill [7 points]}
 \begin{center}
-\includegraphics[width=.49\linewidth]{course/week2_figures/candidate_A_mach.png}\hfill
-\includegraphics[width=.49\linewidth]{course/week2_figures/candidate_A_cp.png}
+\includegraphics[width=.47\linewidth]{course/week2_figures/candidate_A_mach.png}\hfill
+\includegraphics[width=.47\linewidth]{course/week2_figures/candidate_A_cp.png}
 \end{center}
 
 \noindent\textit{Candidate A: NACA 4412 at $M_\infty=0.82$ and $\alpha=2.25^\circ$. These are the custom course results used in this practical.}
@@ -92,17 +80,24 @@ C & & & \\
 \begin{enumerate}
 \item[8.] (2 points) Identify a feasible region of the $(m,\alpha)$ sweep: it must meet both the lift and strong-shock requirements.
 \item[9.] (2 points) The supplied custom results use one mesh. State the next numerical check required before treating the drag ranking as reliable, and explain why.
-\item[10.] (5 points) Complete the design record below.
+\item[10.] (5 points) State: (a) your recommended candidate or nearby design region; (b) payload/lift evidence; (c) drag/shock evidence; and (d) the next simulation or experiment, with its purpose.
 \end{enumerate}
 
-\noindent\fbox{\begin{minipage}{.93\linewidth}
-\textbf{Recommendation:} I recommend Candidate \rule{1cm}{0.4pt} / a nearby point in the feasible region because \rule{7cm}{0.4pt}.
+\newpage
+\section*{Answer key (instructor review)}
+\noindent These are the expected conclusions. Award credit for concise, physically supported equivalents.
 
-\vspace{.65em}
-It meets the payload-weight requirement because \rule{10cm}{0.4pt}.
-
-\vspace{.65em}
-The next simulation or experiment should be \rule{9.3cm}{0.4pt} because \rule{4.0cm}{0.4pt}.
-\end{minipage}}
+\begin{enumerate}
+\item[1.] $W=625(10)=6250\ \mathrm{N}$; $L_{\rm req}=1.2(6250)=7500\ \mathrm{N}=7.5\ \mathrm{kN}$; therefore $C_{L,\rm req}=7.5/10.0=0.75$.
+\item[2.] For B, $L=10.0(0.799)=7.99\ \mathrm{kN}\approx8.0\ \mathrm{kN}$ and $D=10.0(0.110)=1.10\ \mathrm{kN}$.
+\item[3.] A fails the strong-shock limit only: $C_L=0.958>0.75$, but $M_{\rm max}=1.70>1.60$. B satisfies both: $C_L=0.799>0.75$ and $M_{\rm max}=1.56<1.60$. C fails lift only: $C_L=0.627<0.75$, although $M_{\rm max}=1.46<1.60$.
+\item[4.] Engineer A ignores the shock constraint and the associated wave-drag risk. Engineer B ignores the required payload lift: C does not meet it.
+\item[5.] Mark the abrupt upper-surface Mach decrease near the trailing portion of the airfoil (approximately $x/c=0.9$--$1.0$), paired with the sharp $C_p$ recovery.
+\item[6.] Greater camber/incidence increases circulation and upper-surface acceleration, raising lift. The high-Mach region over the upper surface then recompresses abruptly near the shock; the $C_p$ curve shows the corresponding sharp recovery. This creates wave-drag risk (and, in real viscous flow, possible separation).
+\item[7.] A produces adequate lift but violates $M_{\rm max}\leq1.60$: its value is 1.70, indicating an unacceptably strong shock by this screen.
+\item[8.] Any point above/on the $C_L=0.75$ contour \emph{and} on the allowable side of the $M_{\rm max}=1.60$ contour is feasible. A valid response identifies a moderate-camber, moderate-incidence overlap region on the supplied maps.
+\item[9.] Perform a grid-refinement (mesh-convergence) study, comparing $C_L$, $C_D$, and shock location/strength over progressively finer meshes. Drag and shocks can be sensitive to numerical resolution, so one mesh cannot establish a reliable ranking.
+\item[10.] Candidate B is the supported discrete recommendation: it supplies about $8.0\ \mathrm{kN}$, exceeding the $7.5\ \mathrm{kN}$ requirement, while $M_{\rm max}=1.56<1.60$; A fails the shock screen and C fails lift. A justified nearby feasible sweep point is also acceptable. The next step should be, for example, a mesh-refined viscous CFD calculation (or a wind-tunnel test) to assess drag, shock/boundary-layer interaction, and separation before a design decision.
+\end{enumerate}
 \end{document}
 
