@@ -41,8 +41,6 @@ MACH_LIMIT = 1.60
 CM_MIN = -0.080
 # The robust choice reserves numerical/modeling margin rather than sitting on
 # a nominal constraint boundary.
-ROBUST_MACH_LIMIT = 1.55
-ROBUST_CM_MIN = -0.070
 # Sixteen trimmed map points are enough to show intersecting constraint
 # boundaries.  The optimizer histories, not a dense contour interpolation,
 # are where this exercise uses the JAX adjoint.
@@ -181,16 +179,36 @@ def optimise(starts: tuple[tuple[float, float], ...]) -> list[tuple[str, Trimmed
     return answers
 
 
-def write_candidates(rows: list[tuple[str, TrimmedPoint]]) -> None:
+def balanced_recommendation(feasible: list[TrimmedPoint]) -> TrimmedPoint:
+    """Choose margin balance first and drag second from computed feasible points.
+
+    Hard-coded ``robust`` margins are unjustified until the map exists.  This
+    score instead normalizes each positive nominal margin by the largest
+    available margin in this grid, maximizes the smaller one, then chooses the
+    lower-drag member of the best-balanced band.
+    """
+    mach_scale = max(MACH_LIMIT - point.mach_dash for point in feasible)
+    cm_scale = max(point.cm_dash - CM_MIN for point in feasible)
+    if mach_scale <= 0.0 or cm_scale <= 0.0:
+        raise RuntimeError("nominal feasible points have no positive constraint margin")
+
+    def score(point: TrimmedPoint) -> float:
+        return min((MACH_LIMIT - point.mach_dash) / mach_scale, (point.cm_dash - CM_MIN) / cm_scale)
+
+    best = max(score(point) for point in feasible)
+    balanced = [point for point in feasible if score(point) >= 0.85 * best]
+    return min(balanced, key=lambda point: point.cd_cruise)
+
+
+def write_candidates(rows: list[tuple[str, TrimmedPoint]], robust_point: TrimmedPoint) -> None:
     with (OUT / "candidate_summary.csv").open("w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(("candidate", "camber_percent", "crest_x_over_c", "alpha_cruise_deg", "alpha_dash_deg",
-                         "cd_cruise", "max_mach_dash", "cm_dash", "nominal_feasible", "robust_feasible"))
+                         "cd_cruise", "max_mach_dash", "cm_dash", "nominal_feasible", "balanced_recommendation"))
         for name, point in rows:
             nominal = point.mach_dash <= MACH_LIMIT and point.cm_dash >= CM_MIN
-            robust = point.mach_dash <= ROBUST_MACH_LIMIT and point.cm_dash >= ROBUST_CM_MIN
             writer.writerow((name, 100 * point.camber, point.crest, point.alpha_cruise, point.alpha_dash,
-                             point.cd_cruise, point.mach_dash, point.cm_dash, nominal, robust))
+                             point.cd_cruise, point.mach_dash, point.cm_dash, nominal, point is robust_point))
 
 
 def main() -> None:
@@ -221,15 +239,19 @@ def main() -> None:
             )
             print(f"CD={point.cd_cruise:.4f}, M={point.mach_dash:.3f}, Cm={point.cm_dash:.3f}", flush=True)
 
+    # Persist the costly grid before optimization, so a later optimizer issue
+    # never discards the data needed to diagnose or plot the design space.
+    np.savez(OUT / "trimmed_design_sweep.npz", camber=GRID_CAMBER, crest=GRID_CREST, cd=cd,
+             mach_dash=mach, cm_dash=cm, alpha_cruise=alpha)
     runs = optimise(((0.020, 0.30), (0.040, 0.50)))
     nominal_grid = min(points, key=lambda point: point.cd_cruise)
-    robust = [point for point in points if point.mach_dash <= ROBUST_MACH_LIMIT and point.cm_dash >= ROBUST_CM_MIN]
-    if not robust:
-        raise RuntimeError("no robust grid point: revise bounds or robust margins before using this exercise")
-    robust_grid = min(robust, key=lambda point: point.cd_cruise)
+    feasible = [point for point in points if point.mach_dash <= MACH_LIMIT and point.cm_dash >= CM_MIN]
+    if not feasible:
+        raise RuntimeError("no nominally feasible grid point: revise the design bounds or nominal constraints")
+    robust_grid = balanced_recommendation(feasible)
     candidate_rows = [("unconstrained grid minimum", nominal_grid), ("robust grid recommendation", robust_grid)]
     candidate_rows.extend((name, point) for name, point, _ in runs)
-    write_candidates(candidate_rows)
+    write_candidates(candidate_rows, robust_grid)
 
     x, y = np.meshgrid(100 * GRID_CAMBER, GRID_CREST)
     paths = [(name, np.asarray(history), color) for (name, _, history), color in zip(runs, ("#0072B2", "#D55E00"))]
@@ -240,9 +262,6 @@ def main() -> None:
                      ((cm, CM_MIN), ":", r"dash $C_m=-0.080$")),
         paths=paths,
     )
-    np.savez(OUT / "trimmed_design_sweep.npz", camber=GRID_CAMBER, crest=GRID_CREST, cd=cd,
-             mach_dash=mach, cm_dash=cm, alpha_cruise=alpha)
-
     fig, ax = plt.subplots(figsize=(5.8, 4.0), constrained_layout=True)
     scatter = ax.scatter(cd.ravel(), mach.ravel(), c=cm.ravel(), cmap="cividis", s=55, edgecolors="black", linewidths=.35)
     ax.axhline(MACH_LIMIT, color="black", linestyle="--", linewidth=1.6, label=r"$M_{max}=1.60$")
