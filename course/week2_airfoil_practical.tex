@@ -20,7 +20,7 @@ W=mg,\qquad L_{\rm req}=nW,\qquad L=q_\infty S C_L,\qquad D=q_\infty S C_D.
 \]
 At cruise, $q_\infty S=10.0\ \mathrm{kN}$ and the trim target is $C_{L,\rm cruise}=0.75$. At dash, the trim target is $C_{L,\rm dash}=0.55$. The nominal dash limits are
 \[
-M_{\rm max,dash}\leq1.60,\qquad C_{m,c/4,\rm dash}\geq-0.080.
+M_{\rm max,dash}\leq1.60,\qquad C_{m,c/4,\rm dash}\geq-0.300.
 \]
 \noindent The JAX adjoint supplies the local derivatives used by the drag optimizer; it does not make the inviscid two-dimensional model a certification tool.
 
@@ -33,7 +33,7 @@ M_{\rm max,dash}\leq1.60,\qquad C_{m,c/4,\rm dash}\geq-0.080.
 \includegraphics[width=.48\linewidth]{course/week2_trimmed_figures/trimmed_cd_map.png}
 \end{center}
 
-\noindent\textit{Every map point is a separately trimmed solution. On the drag map, the black dashed contour is the dash Mach limit and the black dotted contour is the dash moment limit. Colored traces are two JAX-adjoint drag-optimization histories from different starting geometries.}
+\noindent\textit{Every map point is a separately trimmed solution. On the drag map, the black dashed contour is the dash Mach limit and the black dotted contour is the dash moment limit. Colored traces are two short JAX-adjoint gradient-descent histories from different starting geometries.}
 
 \begin{enumerate}
 \item[1.] (2 points) Calculate $L_{\rm req}$ and verify $C_{L,\rm cruise}=0.75$ from the supplied cruise loading.
