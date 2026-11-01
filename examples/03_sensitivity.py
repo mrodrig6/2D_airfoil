@@ -6,7 +6,7 @@ from **one** adjoint solve, checked against the finite differences they replace.
 The timing printed at the end is the whole point: the adjoint's cost does not
 grow with the number of design variables, and the finite difference's does.
 
-Needs JAX:  ./fv2d.sh install   (or  pip install -e ".[jax]")
+Needs JAX:  ./airfoil.sh install   (or  pip install -e ".[jax]")
 
     python examples/03_sensitivity.py
 """
@@ -34,7 +34,7 @@ def main() -> None:
     # one cell to the next rather than sliding -- so a finite difference at a
     # transonic point measures that jump and disagrees for a legitimate reason.
     # The gradient is still well defined and still what an optimiser wants; it
-    # just cannot be *checked* that way.  docs/workflows.md says more.
+    # just cannot be *checked* that way.  docs/running/sensitivity.md says more.
     case = differentiable_case(
         "2412",
         **MESH,

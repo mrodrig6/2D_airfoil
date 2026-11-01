@@ -1,13 +1,13 @@
-r"""The command line: ``python -m src <command>``, or ``./fv2d.sh <command>``.
+r"""The command line: ``python -m src <command>``, or ``./airfoil.sh <command>``.
 
 Option names match the Python API's keyword names, so there is one vocabulary to
 learn rather than two: ``--n-surface`` is ``n_surface``, ``--far-field-radius``
-is ``far_field_radius``.  ``fv2d.sh`` translates ``name=value`` into those flags,
+is ``far_field_radius``.  ``airfoil.sh`` translates ``name=value`` into those flags,
 which is why the launcher and this module never disagree about what an option is
 called.
 
 The commands are ``check``, ``geometry``, ``mesh``, ``flow``, ``solve``,
-``sweep``, ``sensitivity``, ``adapt`` and ``bench``.  ``./fv2d.sh help`` lists them with
+``sweep``, ``sensitivity``, ``adapt`` and ``bench``.  ``./airfoil.sh help`` lists them with
 examples.
 """
 
@@ -403,8 +403,8 @@ def cmd_sweep(args: argparse.Namespace) -> int:
         backend=args.backend,
     )
 
-    # A deck that sets `alpha` is a normal thing to sweep from, and silently
-    # dropping it would look like the deck had been applied.
+    # A case file that sets `alpha` is a normal thing to sweep from, and silently
+    # dropping it would look like the file had been applied.
     if args.alpha != FlowConditions.alpha_deg:
         print(f"note: a sweep takes --alphas, so alpha={args.alpha:g} is not used")
 
@@ -720,7 +720,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=SCHEMES,
         default="euler",
         help="scheme to time; euler by default, which is what the figures in "
-        "docs/performance.md were measured on",
+        "docs/method/backends.md were measured on",
     )
     bench.add_argument(
         "--steps",

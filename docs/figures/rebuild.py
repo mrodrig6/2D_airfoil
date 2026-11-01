@@ -23,10 +23,10 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     for command in (
         ["geometry", "airfoil=0012", f"figure={output / 'section.png'}", "normals=yes"],
-        ["mesh", "@grid", f"figure={output / 'mesh.png'}"],
-        ["mesh", "@cgrid", f"figure={output / 'cgrid.png'}", "window=-0.6,2.6,-0.9,0.9"],
+        ["mesh", "cases/grid.json", f"figure={output / 'mesh.png'}"],
+        ["mesh", "cases/cgrid.json", f"figure={output / 'cgrid.png'}", "window=-0.6,2.6,-0.9,0.9"],
     ):
-        subprocess.run(["bash", str(ROOT / "fv2d.sh"), *command], cwd=ROOT, check=True)
+        subprocess.run(["bash", str(ROOT / "airfoil.sh"), *command], cwd=ROOT, check=True)
     if not args.geometry_only:
         subprocess.run(
             [sys.executable, str(ROOT / "examples/06_postprocess.py"), str(output)],
@@ -36,7 +36,7 @@ def main():
         subprocess.run(
             [
                 "bash",
-                str(ROOT / "fv2d.sh"),
+                str(ROOT / "airfoil.sh"),
                 "adapt",
                 "naca=0012",
                 "ns=64",

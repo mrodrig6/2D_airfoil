@@ -35,7 +35,7 @@ angles converge to $10^{-7}$ in **30 s in total**, about 4.3 s each.
 
 *Three panels rather than three curves on one axis: $c_\ell$, $c_d$ and $c_m$
 differ by an order of magnitude, and a shared axis flattens two of them into the
-baseline. From the launcher, `./fv2d.sh sweep @subcritical alphas=-4:8:2
+baseline. From the launcher, `./airfoil.sh sweep cases/subcritical.json alphas=-4:8:2
 figure=polar.png`; from Python, `src.plotting.plot_polar`.*
 
 The curve is also the first check worth making on a new mesh. Thin-aerofoil

@@ -407,7 +407,7 @@ def residual_gather(U, neighbour, length, normal, U_inf, gamma, kind, efix, R, w
 #  :class:`~src.backends.numba_backend.NumbaBackend`.  Writing the stage
 #  algebra as separate kernels rather than one fused march per scheme is a
 #  measured choice, not a concession: on this problem it came out within the
-#  run-to-run noise of a fully fused loop (see ``docs/performance.md``), and it
+#  run-to-run noise of a fully fused loop (see ``docs/method/backends.md``), and it
 #  keeps each arithmetic shape in one place.  With one scheme left there are
 #  no stage coefficients to restate, which is why ``combine_ssp`` is gone:
 #  it existed only for SSP-RK3's two convex combinations.

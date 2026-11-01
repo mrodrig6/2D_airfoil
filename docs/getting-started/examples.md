@@ -21,11 +21,11 @@ For headless runs, set `MPLBACKEND=Agg`. Treat reported nonconvergence as a fail
 
 ```bash
 # Run the test suite before changing a study.
-./fv2d.sh test
+./airfoil.sh test
 # Inspect a geometry before a full solve.
-./fv2d.sh geometry airfoil=2412
+./airfoil.sh geometry airfoil=2412
 # Recheck tools after changing the environment.
-./fv2d.sh check
+./airfoil.sh check
 ```
 
 See [solving](../running/solving.md), [sweeps](../running/sweeps.md), [sensitivities](../running/sensitivity.md), and [optimization](../running/optimization.md).

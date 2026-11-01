@@ -5,7 +5,7 @@ around an airfoil, built so that students *use* it rather than write it: change
 the section, sweep the angle of attack, take sensitivities, explain the trends.
 
 It is a Python port of a MATLAB teaching code, which lives unchanged in
-``legacy/``.  ``docs/theory.md`` records the formulation; ``legacy/README.md``
+``legacy/``.  ``docs/theory/euler.md`` records the formulation; ``legacy/README.md``
 records what the port changed and why.
 
 Quick start
@@ -54,9 +54,10 @@ Take a design gradient -- one adjoint solve, however many design variables:
 >>> case = differentiable_case("2412", mach=0.5, alpha=2.0)
 >>> cl, gradient = case.value_and_gradient("cl")
 
-``docs/workflows.md`` covers sweeps, sensitivities and shape optimisation, and
+``docs/running/sweeps.md`` covers sweeps, and ``docs/running/sensitivity.md`` and
+``docs/running/optimization.md`` cover sensitivities and shape optimisation, and
 ``examples/`` has each of them as a script that runs with no arguments.
-``docs/lab.md`` is the exercise set built on all of it.
+``docs/running/lab-guide.md`` is the exercise set built on all of it.
 """
 
 from __future__ import annotations

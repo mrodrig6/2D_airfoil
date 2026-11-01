@@ -13,13 +13,13 @@ Three questions, and the figures that answer them:
   angle of attack at a fixed Mach number, from one mesh.
 
 Two operating points, because they answer different questions.  ``transonic``
-is the legacy case and the one `docs/verification.md` tabulates.  ``shock`` is
+is the legacy case and the one `docs/validation/transonic.md` tabulates.  ``shock`` is
 0.05 higher in free-stream Mach number and is the clearer picture: supersonic over most of
 *both* surfaces, each pocket closed by its own shock.
 
     python examples/06_postprocess.py [output-directory]
 
-Needs matplotlib:  ./fv2d.sh install   (or  pip install -e ".[plot]")
+Needs matplotlib:  ./airfoil.sh install   (or  pip install -e ".[plot]")
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ def main() -> None:
 
     # One case for everything below: the mesh does not depend on the flow, and
     # at this resolution it is not free.  It is also the mesh
-    # docs/verification.md quotes its transonic numbers from, so the figures
+    # docs/validation/transonic.md quotes its transonic numbers from, so the figures
     # and that table are the same run rather than two runs that agree.
     mesh = Discretization(n_surface=192, n_radial=64, far_field_radius=20.0)
     case = build_case(naca4(SECTION, mesh.n_surface), mesh)
@@ -110,10 +110,10 @@ def main() -> None:
         "theory would claim it for, and drag is a parabola about the incidence of\n"
         "minimum drag.  Both are inviscid -- there is no skin friction in these\n"
         "equations -- so the drag here is numerical plus, above the critical Mach\n"
-        "number, wave drag.  docs/verification.md measures which is which.\n"
+        "number, wave drag.  docs/validation/transonic.md measures which is which.\n"
         "\nThe field figures are smooth-shaded, which interpolates between cell\n"
         "values.  Pass shading='flat' to plot_field, or shading=flat to\n"
-        "'./fv2d.sh solve', to see the piecewise-constant values the solver\n"
+        "'./airfoil.sh run', to see the piecewise-constant values the solver\n"
         "actually holds -- and the mesh along with them."
     )
 

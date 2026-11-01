@@ -59,7 +59,7 @@ solver *is*.
 | 5 | **First-order accurate.** Piecewise-constant reconstruction, as the legacy had | Lift is within a few per cent; **drag is not usable** — the spurious drag at a point where it must be zero is 0.013 against a published transonic wave drag of 0.022. Measured |
 | 6 | **Sharp trailing edge, no Kutta condition imposed** | Circulation is set by the discretisation at the trailing edge rather than by an explicit condition — which is standard for an Euler solver, and is the reason trailing-edge resolution affects lift |
 | 7 | **Non-dimensional throughout** | No SI anywhere. Compare runs with `cl` and `cd`, not raw forces |
-| 8 | **The initial mesh is structured** | The initial O- or C-grid uses `n_surface` and `n_radial`. Optional adaptive refinement then changes the triangulation using a Mach-jump indicator. See `docs/theory.md` |
+| 8 | **The initial mesh is structured** | The initial O- or C-grid uses `n_surface` and `n_radial`. Optional adaptive refinement then changes the triangulation using a Mach-jump indicator. See `docs/method/meshing.md` |
 
 ---
 

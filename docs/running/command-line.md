@@ -1,6 +1,6 @@
 # Command line
 
-The Bash launcher expands decks and `name=value` arguments. The Python CLI uses ordinary flags; its parser is implemented in `src/cli.py`.
+The Bash launcher expands case files and `name=value` arguments. The Python CLI uses ordinary flags; its parser is implemented in `src/cli.py`.
 
 ## Commands
 
@@ -19,7 +19,7 @@ The Bash launcher expands decks and `name=value` arguments. The Python CLI uses 
 | Launcher-only command | Purpose |
 |---|---|
 | `install [extra]` | Editable pip installation; defaults to `all` |
-| `list` | List case decks |
+| `list` | List the case files in `cases/` |
 | `help` | Show launcher help |
 | `test [pytest arguments]` | Run existing tests |
 | `verify [--fast]` | Tests, lint, format and spelling |
@@ -28,7 +28,7 @@ The Bash launcher expands decks and `name=value` arguments. The Python CLI uses 
 
 ## Flags and positional arguments
 
-Defaults below are parser defaults, which can differ from dataclass defaults or deck values. See [configuration precedence](configuration.md) and [parameters](../model/parameters.md).
+Defaults below are parser defaults, which can differ from dataclass defaults or the values in a case file. See [configuration precedence](configuration.md) and [parameters](../model/parameters.md).
 
 | Flag / argument | Commands accepting it | Meaning / choices | Parser default |
 |---|---|---|---|
@@ -75,7 +75,7 @@ Defaults below are parser defaults, which can differ from dataclass defaults or 
 | `--history` | `adapt` | write the loads against cell count here | `None` |
 | `--steps` | `bench` | compiled-backend steps to time (default: %(default)s) | `2000` |
 
-`-h` / `--help` works on every parser. The root `--version` flag reports the package version. Do not pass a solve deck to a geometry-only command merely because the deck names the same geometry.
+`-h` / `--help` works on every parser. The root `--version` flag reports the package version. Do not pass a solve case file to a geometry-only command merely because the file names the same geometry.
 
 ## Launcher spelling
 
@@ -83,4 +83,4 @@ Underscores in `name=value` become hyphens in Python flags. Aliases are `naca=ai
 
 Boolean flags without value-taking parser actions should be passed as literal flags. The launcher also translates `check=yes` for the sensitivity gradient check.
 
-`FV2D_PYTHON` selects the launcher's interpreter. Otherwise it looks for `python3`, then `python`. The installed `fvairfoil` command and `python -m src` use the Python subcommands above; launcher-only commands are not interchangeable with them.
+`AIRFOIL_PYTHON` selects the launcher's interpreter. Otherwise it looks for `python3`, then `python`. The installed `fvairfoil` command and `python -m src` use the Python subcommands above; launcher-only commands are not interchangeable with them.

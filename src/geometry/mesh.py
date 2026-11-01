@@ -27,7 +27,7 @@ unstructured Delaunay mesher this buys four things that matter here:
 The cost is that flagged isotropic refinement is not natural on a structured
 grid, so resolution is set by ``n_surface`` and ``n_radial`` rather than by an
 error indicator.  That is a deliberate trade, and the adaptive path stays open:
-see ``docs/theory.md``.
+see ``docs/method/meshing.md``.
 
 How a node is placed
 --------------------

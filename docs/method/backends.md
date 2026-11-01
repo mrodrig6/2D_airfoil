@@ -24,7 +24,7 @@ not need an adjoint. A twenty-variable shape cannot do without one.
 ## The numbers
 
 ```bash
-./fv2d.sh bench @grid steps=3000
+./airfoil.sh bench cases/grid.json steps=3000
 ```
 
 Historical measurements from before the shared stepping refactor: NACA 0012, O-grid, Roe flux, one thread of control and four cores. These timings describe the earlier fused Numba march, not a benchmark of the current Python-orchestrated kernel loop:
@@ -65,7 +65,7 @@ one residual buffer, one rate buffer and two state buffers, plus the wave and
 timestep arrays, across the whole batch. The shared `Backend` defines the
 step contract; the Numba path performs the equivalent operations in those
 buffers. `batch` controls convergence-check frequency on every backend, not
-the number of iterations inside one fused Numba call. Use `./fv2d.sh bench`
+the number of iterations inside one fused Numba call. Use `./airfoil.sh bench`
 to measure this implementation on the current machine.
 
 **One pass over memory instead of a dozen.** The vectorised residual builds
@@ -108,7 +108,7 @@ backend would silently stop conserving.
 ## What it cost
 
 **A compile on first use**, about 20 seconds, cached to disk afterwards so it is
-paid once per machine rather than once per run. `./fv2d.sh bench` reports it
+paid once per machine rather than once per run. `./airfoil.sh bench` reports it
 separately instead of amortising it into the first batch.
 
 **Convergence is tested every `batch` steps**, not every step, so a run can
@@ -184,9 +184,9 @@ imported, before any array exists.
 ## Choosing a backend
 
 ```bash
-./fv2d.sh solve @transonic                  # auto: compiled if available
-./fv2d.sh solve @transonic backend=numpy    # the readable reference
-./fv2d.sh check                             # says which are installed
+./airfoil.sh run cases/transonic.json                  # auto: compiled if available
+./airfoil.sh run cases/transonic.json backend=numpy    # the readable reference
+./airfoil.sh check                             # says which are installed
 ```
 
 `auto` is the default and takes the fastest installed backend; it never picks

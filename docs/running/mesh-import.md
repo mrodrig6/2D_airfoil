@@ -6,8 +6,8 @@ Read triangular SU2 or Gmsh 2.2 ASCII meshes. Boundary markers must map to wall 
 
 ```bash
 # Create a sample SU2 file, then read it through the external-mesh path.
-./fv2d.sh mesh @grid su2=external.su2
-./fv2d.sh mesh mesh=external.su2
+./airfoil.sh mesh cases/grid.json su2=external.su2
+./airfoil.sh mesh mesh=external.su2
 ```
 
 ```python

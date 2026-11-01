@@ -1,6 +1,6 @@
 """The non-dimensionalisation.
 
-Every claim ``docs/theory.md`` makes about the free stream is checked here
+Every claim ``docs/theory/euler.md`` makes about the free stream is checked here
 rather than asserted there, because a documented convention that the code does
 not keep is worse than none.
 """

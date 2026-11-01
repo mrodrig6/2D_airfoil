@@ -105,7 +105,7 @@ def test_only_the_fluxes_that_work_are_shipped():
     AUSM+-up came back: the first attempt carried a tunable cutoff Mach number
     and only converged inside a narrow window of it, which is what got it
     removed.  The formulation here has no such constant.  See
-    docs/riemann_fluxes.md.
+    docs/validation/flux-study.md.
     """
     assert set(ph.SOLVERS) == {"roe", "hllc", "ausmup"}
     assert not hasattr(ph, "slau2_flux")

@@ -14,7 +14,7 @@ The five-digit reference is Abbott and von Doenhoff; see the [bibliography](../r
 
 ```bash
 # Compare both analytic geometry and the MATLAB reference file.
-./fv2d.sh test tests/test_geometry.py
+./airfoil.sh test tests/test_geometry.py
 ```
 
 See [geometry theory](../theory/airfoil-geometry.md) and [MATLAB provenance](../reference/legacy.md).

@@ -8,9 +8,9 @@ This table describes the top-level files and folders. Generated study output sho
 | [`tests`](../../tests) | Existing scientific and interface assertions |
 | [`docs`](../../docs) | Topic pages, site hook, figures and figure helpers |
 | [`examples`](../../examples) | Worked study scripts |
-| [`cases`](../../cases) | Launcher argument decks |
+| [`cases`](../../cases) | Case files: JSON settings for `run` and the other commands |
 | [`legacy`](../../legacy) | Original MATLAB source and geometry |
-| [`fv2d.sh`](../../fv2d.sh) | Bash launcher |
+| [`airfoil.sh`](../../airfoil.sh) | Bash launcher |
 | [`pyproject.toml`](../../pyproject.toml) | Package metadata and dependency extras |
 | [`README.md`](../../README.md) | Short front door and source of the website home |
 | [`LICENSE`](../../LICENSE) | MIT license |
@@ -26,15 +26,6 @@ The [code map](code-map.md) describes individual modules. The [figure inventory]
 |---|---|
 | `README.md` | [problem](../model/problem.md) · [quick-start](../getting-started/quick-start.md) · [bibliography](bibliography.md) |
 | `docs/README.md` | [figures](figures.md) · [plotting](../running/plotting.md) |
-| `docs/adaptation.md` | [adaptation](../running/adaptation.md) · [adaptation](../method/adaptation.md) · [adaptation](../validation/adaptation.md) |
-| `docs/lab.md` | [lab-guide](../running/lab-guide.md) |
-| `docs/performance.md` | [backends](../method/backends.md) |
-| `docs/riemann_fluxes.md` | [flux-study](../validation/flux-study.md) |
-| `docs/roadmap.md` | [history](history.md) |
-| `docs/theory.md` | [output](../running/output.md) · [problem](../model/problem.md) · [units](../model/units.md) · [discretization](../method/discretization.md) · [boundary-conditions](../method/boundary-conditions.md) · [euler](../theory/euler.md) · [bibliography](bibliography.md) · [time-stepping](../method/time-stepping.md) · [meshing](../method/meshing.md) · [airfoil-geometry](../theory/airfoil-geometry.md) · [legacy-forces](../validation/legacy-forces.md) |
-| `docs/usage.md` | [configuration](../running/configuration.md) · [solving](../running/solving.md) · [package](../api/package.md) · [fluxes](../method/fluxes.md) · [geometry](../running/geometry.md) · [meshing](../running/meshing.md) · [mesh-import](../running/mesh-import.md) |
-| `docs/verification.md` | [troubleshooting](../running/troubleshooting.md) · [tests](../validation/tests.md) · [gradients](../validation/gradients.md) · [thin-airfoil](../validation/thin-airfoil.md) · [transonic](../validation/transonic.md) · [numerical-drag](../validation/numerical-drag.md) · [far-field](../validation/far-field.md) · [legacy-forces](../validation/legacy-forces.md) |
-| `docs/workflows.md` | [sweeps](../running/sweeps.md) · [sensitivity](../running/sensitivity.md) · [optimization](../running/optimization.md) · [backends](../method/backends.md) · [adjoint](../theory/adjoint.md) |
 | `examples/README.md` | [examples](../getting-started/examples.md) |
 | `legacy/README.md` | [legacy](legacy.md) |
 

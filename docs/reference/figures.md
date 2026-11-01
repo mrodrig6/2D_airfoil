@@ -8,11 +8,11 @@ Every figure is produced by the code itself rather than drawn, so a figure that
 stops matching the code is a one-command fix:
 
 ```bash
-./fv2d.sh mesh @grid figure=docs/figures/mesh.png
-./fv2d.sh geometry airfoil=0012 figure=docs/figures/section.png normals=yes
-./fv2d.sh mesh @cgrid \
+./airfoil.sh mesh cases/grid.json figure=docs/figures/mesh.png
+./airfoil.sh geometry airfoil=0012 figure=docs/figures/section.png normals=yes
+./airfoil.sh mesh cases/cgrid.json \
     figure=docs/figures/cgrid.png window=-0.6,2.6,-0.9,0.9
-./fv2d.sh adapt naca=0012 ns=64 nr=24 R=10 h1=0.02 mach=0.8 alpha=1.25 \
+./airfoil.sh adapt naca=0012 ns=64 nr=24 R=10 h1=0.02 mach=0.8 alpha=1.25 \
     cycles=6 tolerance=1e-6 max_iterations=80000 print_interval=0 \
     figure=docs/figures/adapted.png window=-0.2,1.2,-0.5,0.5
 ```
@@ -38,7 +38,7 @@ with it, so the picture becomes as much about the grid as about the flow. Use
 `flat` when the question is about the discretisation:
 
 ```bash
-./fv2d.sh solve naca=0012 mach=0.85 alpha=1 figure=cells.png shading=flat
+./airfoil.sh run naca=0012 mach=0.85 alpha=1 figure=cells.png shading=flat
 ```
 
 The documentation workflow builds the site from committed images. Figure refresh remains a separate reviewed step after geometry, plotting or solver changes.
@@ -54,7 +54,7 @@ python docs/figures/rebuild.py --output /tmp/airfoil-figures
 
 | Image | Source |
 |---|---|
-| `section.png`, `mesh.png`, `cgrid.png` | The geometry / `@grid` / `@cgrid` CLI recipes |
+| `section.png`, `mesh.png`, `cgrid.png` | The geometry / `cases/grid.json` / `cases/cgrid.json` CLI recipes |
 | `cp_*.png`, `mach_*.png`, `entropy_*.png`, `polar.png` | `examples/06_postprocess.py`, called by the adjacent recipe |
 | `adapted.png` | Six Mach-jump adaptive cycles from the documented coarse grid |
 | `convergence.png`, `flux_convergence.png` | Retained historical artifacts; the exact removed-code harness is unavailable |
