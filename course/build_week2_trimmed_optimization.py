@@ -43,8 +43,11 @@ CM_MIN = -0.080
 # a nominal constraint boundary.
 ROBUST_MACH_LIMIT = 1.55
 ROBUST_CM_MIN = -0.070
-GRID_CAMBER = np.linspace(0.012, 0.050, 5)
-GRID_CREST = np.linspace(0.25, 0.55, 5)
+# Sixteen trimmed map points are enough to show intersecting constraint
+# boundaries.  The optimizer histories, not a dense contour interpolation,
+# are where this exercise uses the JAX adjoint.
+GRID_CAMBER = np.linspace(0.012, 0.050, 4)
+GRID_CREST = np.linspace(0.25, 0.55, 4)
 BOUNDS = ((0.012, 0.050), (0.25, 0.55))
 MESH = dict(n_surface=48, n_radial=24, far_field_radius=10.0, first_cell_height=0.015)
 SOLVER = dict(tolerance=1e-6, max_iterations=70_000, print_interval=0)
@@ -70,27 +73,42 @@ class TrimmedPoint:
 
 
 def trim(camber: float, crest: float, *, mach: float, target_cl: float, guess: float):
-    """Newton-trim alpha with the JAX adjoint dCL/dalpha at each iterate."""
+    """Trim alpha by forward-solve secant iterations.
+
+    The map needs values, not derivatives.  Keeping the adjoint out of this
+    inner loop makes the study practical to run while reserving JAX for the
+    optimization traces that students interpret.
+    """
     alpha = guess
-    for _ in range(5):
+    previous: tuple[float, float] | None = None
+    for _ in range(4):
         case = four_digit_case(camber, crest, THICKNESS, mach=mach, alpha=alpha, **MESH, **SOLVER)
-        cl, gradient = case.value_and_gradient("cl", ("alpha",))
-        if abs(cl - target_cl) <= 2.0e-3:
+        cl = forces(case.solve()).cl
+        error = cl - target_cl
+        if abs(error) <= 2.0e-3:
             return alpha, case
-        slope = gradient["alpha"]
-        if abs(slope) < 1.0e-5:
-            raise RuntimeError("trim sensitivity dCL/dalpha is too small for Newton trimming")
-        # Limit one update so a poor initial guess cannot leap into a different regime.
-        alpha -= float(np.clip((cl - target_cl) / slope, -0.75, 0.75))
+        if previous is None:
+            # A bounded first move establishes the secant slope cheaply.
+            increment = 0.50 if error < 0.0 else -0.50
+        else:
+            old_alpha, old_error = previous
+            slope = (error - old_error) / (alpha - old_alpha)
+            if abs(slope) < 1.0e-5:
+                raise RuntimeError("trim secant slope is too small")
+            increment = float(np.clip(-error / slope, -0.75, 0.75))
+        previous = (alpha, error)
+        alpha += increment
     raise RuntimeError(
         f"trim did not reach CL={target_cl:.3f} at m={camber:.4f}, p={crest:.3f}; last alpha={alpha:.3f} deg"
     )
 
 
-def evaluate(camber: float, crest: float, *, gradient: bool = False) -> tuple[TrimmedPoint, np.ndarray | None]:
+def evaluate(
+    camber: float, crest: float, *, gradient: bool = False, cruise_guess: float = 1.5, dash_guess: float = 0.5
+) -> tuple[TrimmedPoint, np.ndarray | None]:
     """Trim one geometry at both conditions and optionally return dCD/d(m,p)|CL."""
-    alpha_cruise, cruise = trim(camber, crest, mach=CRUISE_MACH, target_cl=CRUISE_CL, guess=1.5)
-    alpha_dash, dash = trim(camber, crest, mach=DASH_MACH, target_cl=DASH_CL, guess=0.5)
+    alpha_cruise, cruise = trim(camber, crest, mach=CRUISE_MACH, target_cl=CRUISE_CL, guess=cruise_guess)
+    alpha_dash, dash = trim(camber, crest, mach=DASH_MACH, target_cl=DASH_CL, guess=dash_guess)
     cruise_result, dash_result = cruise.solve(), dash.solve()
     cruise_load, dash_load = forces(cruise_result), forces(dash_result)
     point = TrimmedPoint(
@@ -176,7 +194,7 @@ def main() -> None:
     OUT.mkdir(exist_ok=True)
     started = perf_counter()
     print(f"Writing trimmed two-condition study to {OUT}", flush=True)
-    print("[grid] each geometry is JAX-trimmed to cruise and dash lift targets", flush=True)
+    print("[grid] each geometry is forward-trimmed to cruise and dash lift targets", flush=True)
 
     shape = (len(GRID_CREST), len(GRID_CAMBER))
     cd = np.empty(shape)
@@ -186,10 +204,12 @@ def main() -> None:
     points: list[TrimmedPoint] = []
     total = cd.size
     for i, crest in enumerate(GRID_CREST):
+        cruise_guess, dash_guess = 1.5, 0.5
         for j, camber in enumerate(GRID_CAMBER):
             number = i * len(GRID_CAMBER) + j + 1
             print(f"[grid {number:02d}/{total}] m={100*camber:.2f}% p={crest:.3f} ...", end=" ", flush=True)
-            point, _ = evaluate(float(camber), float(crest))
+            point, _ = evaluate(float(camber), float(crest), cruise_guess=cruise_guess, dash_guess=dash_guess)
+            cruise_guess, dash_guess = point.alpha_cruise, point.alpha_dash
             points.append(point)
             cd[i, j], mach[i, j], cm[i, j], alpha[i, j] = (
                 point.cd_cruise, point.mach_dash, point.cm_dash, point.alpha_cruise
