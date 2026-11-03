@@ -57,13 +57,15 @@ MESH = dict(n_surface=48, n_radial=24, far_field_radius=10.0, first_cell_height=
 # be recomputed on a refined mesh.
 SOLVER = dict(backend="numba", tolerance=1e-5, max_iterations=25_000, print_interval=0)
 VARIABLES = ("camber", "camber_position", "alpha")
-COURSE_CMAP = "course_viridis_light"
+COURSE_CMAP = "course_light_greys"
 
 
 def register_course_colormap() -> None:
-    """Register a light, colorblind-safe portion of viridis for course figures."""
+    """Register a print-friendly light grayscale map for course figures."""
     if COURSE_CMAP not in plt.colormaps:
-        colors = plt.get_cmap("viridis")(np.linspace(0.25, 0.90, 256))
+        # Keep the darkest filled contour visibly lighter than black.  Black is
+        # reserved for contour and constraint lines, so photocopies retain them.
+        colors = plt.get_cmap("Greys")(np.linspace(0.08, 0.58, 256))
         cmap = LinearSegmentedColormap.from_list(COURSE_CMAP, colors)
         plt.colormaps.register(cmap)
 
@@ -279,7 +281,7 @@ def main() -> None:
     write_candidates(candidate_rows, robust_grid)
 
     x, y = np.meshgrid(100 * GRID_CAMBER, GRID_CREST)
-    paths = [(name, np.asarray(history), color) for (name, _, history), color in zip(runs, ("#0072B2", "#D55E00"))]
+    paths = [(name, np.asarray(history), color) for (name, _, history), color in zip(runs, ("#303030", "#777777"))]
     draw_map(x, y, alpha, label=r"trimmed cruise $\alpha$ (deg)", filename="trim_alpha_map.png")
     draw_map(
         x, y, cd, label=r"cruise $C_D$", filename="trimmed_cd_map.png",
