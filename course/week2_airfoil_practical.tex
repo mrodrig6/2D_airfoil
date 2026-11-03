@@ -22,7 +22,7 @@ At cruise, $q_\infty S=10.0\ \mathrm{kN}$ and the trim target is $C_{L,\rm cruis
 \[
 M_{\rm max,dash}\leq1.60,\qquad C_{m,c/4,\rm dash}\geq-0.300.
 \]
-\noindent The JAX adjoint supplies the local derivatives used by the drag optimizer; it does not make the inviscid two-dimensional model a certification tool.
+\noindent\textbf{What JAX does here.} At one geometry, JAX calculates how a tiny change in camber $m$ or crest location $p/c$ changes calculated cruise drag. The colored paths show the code taking a few steps in the lower-drag direction. JAX does \emph{not} choose the requirements, check every limit automatically, or certify a design; those are the engineering tasks in this practical.
 
 \noindent\textbf{Model boundary.} These calculations do not certify viscous drag, shock--boundary-layer interaction, separation, three-dimensional effects, structural loads, stability, or full aircraft performance.
 
@@ -33,13 +33,13 @@ M_{\rm max,dash}\leq1.60,\qquad C_{m,c/4,\rm dash}\geq-0.300.
 \includegraphics[width=.48\linewidth]{course/week2_trimmed_figures/trimmed_cd_map.png}
 \end{center}
 
-\noindent\textit{Every map point is a separately trimmed solution. On the drag map, the black dashed contour is the dash Mach limit and the black dotted contour is the dash moment limit. Colored traces are two short JAX-adjoint gradient-descent histories from different starting geometries.}
+\noindent\textit{Each map point is one airfoil after the code has adjusted incidence to meet the lift target. On the drag map: dashed black line = Mach limit; dotted black line = moment limit. The colored paths show two short JAX searches from different starting shapes.}
 
 \begin{enumerate}
 \item[1.] (2 points) Calculate $L_{\rm req}$ and verify $C_{L,\rm cruise}=0.75$ from the supplied cruise loading.
-\item[2.] (2 points) Explain why choosing the largest camber or the largest incidence is not a valid design rule for this study.
-\item[3.] (3 points) On the drag map, identify the nominally feasible region. State which side of each constraint contour is acceptable; then determine whether the absolute minimum-drag point is feasible and explain why a minimum-drag point can nevertheless be a poor recommendation.
-\item[4.] (3 points) Interpret one JAX optimization trace. Explain why it is useful that the adjoint supplies derivatives with respect to both $m$ and $p/c$, even though a final engineering decision still requires constraint checks.
+\item[2.] (2 points) The code adjusts incidence to meet lift. Why is ``choose the largest camber'' not a valid design rule?
+\item[3.] (3 points) On the drag map, mark the pass side of each black constraint line. Does the lowest-drag point pass both limits? Why might it still be a poor choice?
+\item[4.] (3 points) In plain language, what do the colored JAX paths show? What useful information does JAX calculate before it takes the next step?
 \end{enumerate}
 
 \newpage
@@ -52,7 +52,7 @@ M_{\rm max,dash}\leq1.60,\qquad C_{m,c/4,\rm dash}\geq-0.300.
 \includegraphics[width=.48\linewidth]{course/week2_trimmed_figures/robust_dash_mach.png}
 \end{center}
 
-\noindent\textit{The stars identify the unconstrained grid minimum and the balanced recommendation. The recommendation is selected from nominally feasible grid points by maximizing its smaller normalized Mach/moment constraint margin, with drag used as a tie-breaker.}
+\noindent\textit{The stars show two choices. The balanced choice is not the lowest-drag point. It leaves more room below the Mach limit and above the moment limit.}
 
 \begin{center}\small
 \begin{tabular}{c|c|c|c|c|c}
@@ -64,10 +64,10 @@ Balanced recommendation & 1.20 & 0.35 & 0.1022 & 1.452 & -0.204 \\
 \end{center}
 
 \begin{enumerate}
-\item[5.] (3 points) Compare the unconstrained drag minimum with the robust recommendation. State the trade-off that makes the robust choice an engineering recommendation rather than merely the nominal mathematical minimum.
-\item[6.] (3 points) Use the dash trade-off plot and the two Mach fields to explain why a geometry with lower cruise drag can have less dash-flow margin, even when it still nominally passes the dash limits.
-\item[7.] (2 points) If the robust design is used as a baseline, state one geometry or operating-condition change you would test next, and the physical risk it is intended to investigate.
-\item[8.] (2 points) State the next numerical verification required before treating the drag ranking and constraint margins as reliable. Explain why this check matters particularly near a shock limit.
+\item[5.] (3 points) Choose one candidate for the next design step. Use two numbers from the table to support your choice.
+\item[6.] (3 points) Which Mach field has more margin from the dash Mach limit? Describe one visible flow difference that supports your answer.
+\item[7.] (2 points) Name one next change to test. State the risk it is meant to check: shock strength, drag, moment, or separation.
+\item[8.] (2 points) What numerical check is needed before trusting this drag ranking? Why is that check important near a shock?
 \end{enumerate}
 
 \newpage
@@ -76,11 +76,11 @@ Balanced recommendation & 1.20 & 0.35 & 0.1022 & 1.452 & -0.204 \\
 
 \begin{enumerate}
 \item[1.] $W=625(10)=6250\ \mathrm{N}$ and $L_{\rm req}=1.2(6250)=7500\ \mathrm{N}=7.5\ \mathrm{kN}$. Hence $C_{L,\rm cruise}=L/(q_\infty S)=7.5/10.0=0.75$.
-\item[2.] Incidence is not independently selected: it is trimmed to meet lift. Higher camber changes the trimmed incidence, drag, dash peak Mach, and moment; a geometry must satisfy all constraints, not maximize one variable.
+\item[2.] Incidence is already adjusted to meet lift. More camber can change drag, dash Mach, and moment, so the largest camber is not automatically best.
 \item[3.] The feasible region lies on the low-$M_{\rm max}$ side of the dashed contour and the allowable-moment side of the dotted contour. Here the absolute drag minimum technically passes: $M_{\rm max}=1.551<1.60$ and $C_m=-0.288>-0.300$. It has only 0.049 Mach and 0.012 moment margin, however, so a small numerical or model change could make it fail.
-\item[4.] The trace shows a gradient-based search in two geometry directions. JAX provides the local sensitivity of trimmed cruise drag to camber magnitude and crest location at the cost of an adjoint solve rather than independent full finite differences. Constraint values and model validity still must be checked separately.
-\item[5.] The unconstrained minimum has $C_D=0.0919$, $M_{\rm max}=1.551$, and $C_m=-0.288$. The balanced recommendation accepts $C_D=0.1022$ in exchange for $M_{\rm max}=1.452$ and $C_m=-0.204$. Its Mach and moment margins are therefore much larger, protecting the recommendation against numerical/model uncertainty.
-\item[6.] The lower-drag geometry produces a larger dash peak Mach and is visibly closer to a sharp upper-surface recompression. It remains nominally feasible, but its small margins make the conclusion fragile. The trade-off plot quantifies the margin; the Mach contours provide the flow evidence.
+\item[4.] Each colored path starts from a different shape and moves toward lower calculated cruise drag. Before each move, JAX calculates the local drag sensitivity to camber and crest location. The student/engineer must still check the Mach and moment limits.
+\item[5.] Choose the balanced recommendation. It gives up some drag ($0.1022$ instead of $0.0919$) but has much more Mach margin ($1.452$ instead of $1.551$) and moment margin ($-0.204$ instead of $-0.288$).
+\item[6.] The balanced design has more margin: $M_{\rm max}=1.452$ versus 1.551. Its Mach field has a smaller/weaker high-Mach region and a less severe upper-surface recompression. Equivalent figure-supported wording earns credit.
 \item[7.] Accept a physically justified change, such as changing crest location while preserving cruise lift to control dash pressure recovery, or varying dash Mach/incidence to map shock onset. The answer must name the targeted risk: shock strength, wave drag, moment, or separation.
 \item[8.] Perform a grid-refinement/mesh-convergence study, comparing trimmed incidence, $C_D$, $M_{\rm max}$, $C_m$, and shock location over successively finer meshes. Shock position and numerical drag are resolution-sensitive, so a small apparent margin can be numerical rather than physical.
 \end{enumerate}
