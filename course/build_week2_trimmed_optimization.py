@@ -23,6 +23,7 @@ import sys
 from time import perf_counter
 
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -56,6 +57,15 @@ MESH = dict(n_surface=48, n_radial=24, far_field_radius=10.0, first_cell_height=
 # be recomputed on a refined mesh.
 SOLVER = dict(backend="numba", tolerance=1e-5, max_iterations=25_000, print_interval=0)
 VARIABLES = ("camber", "camber_position", "alpha")
+COURSE_CMAP = "course_viridis_light"
+
+
+def register_course_colormap() -> None:
+    """Register a light, colorblind-safe portion of viridis for course figures."""
+    if COURSE_CMAP not in plt.colormaps:
+        colors = plt.get_cmap("viridis")(np.linspace(0.25, 0.90, 256))
+        cmap = LinearSegmentedColormap.from_list(COURSE_CMAP, colors)
+        plt.colormaps.register(cmap)
 
 
 def elapsed(seconds: float) -> str:
@@ -140,7 +150,7 @@ def evaluate(
 
 def draw_map(x, y, values, *, label: str, filename: str, constraints=(), paths=()):
     fig, ax = plt.subplots(figsize=(6.0, 4.1), constrained_layout=True)
-    filled = ax.contourf(x, y, values, levels=12, cmap="viridis")
+    filled = ax.contourf(x, y, values, levels=10, cmap=COURSE_CMAP)
     lines = ax.contour(x, y, values, levels=8, colors="#202020", linewidths=0.65)
     ax.clabel(lines, inline=True, fontsize=7, fmt="%.3f")
     for constraint, style, text in constraints:
@@ -227,6 +237,7 @@ def write_candidates(rows: list[tuple[str, TrimmedPoint]], robust_point: Trimmed
 
 def main() -> None:
     OUT.mkdir(exist_ok=True)
+    register_course_colormap()
     started = perf_counter()
     print(f"Writing trimmed two-condition study to {OUT}", flush=True)
     print("[grid] each geometry is forward-trimmed to cruise and dash lift targets", flush=True)
@@ -277,7 +288,7 @@ def main() -> None:
         paths=paths,
     )
     fig, ax = plt.subplots(figsize=(5.8, 4.0), constrained_layout=True)
-    scatter = ax.scatter(cd.ravel(), mach.ravel(), c=cm.ravel(), cmap="viridis", s=55, edgecolors="black", linewidths=.35)
+    scatter = ax.scatter(cd.ravel(), mach.ravel(), c=cm.ravel(), cmap=COURSE_CMAP, s=55, edgecolors="black", linewidths=.35)
     ax.axhline(MACH_LIMIT, color="black", linestyle="--", linewidth=1.6, label=r"$M_{max}=1.60$")
     ax.axvline(robust_grid.cd_cruise, color="#555555", linestyle=":", linewidth=1.0)
     for name, point in candidate_rows[:2]:
@@ -291,7 +302,7 @@ def main() -> None:
 
     for label, point in (("nominal", nominal_grid), ("robust", robust_grid)):
         result = point.dash_case.solve()
-        plot_field(result, OUT / f"{label}_dash_mach.png", cmap="viridis", window=(-0.25, 1.25, -0.35, 0.35))
+        plot_field(result, OUT / f"{label}_dash_mach.png", cmap=COURSE_CMAP, window=(-0.25, 1.25, -0.35, 0.35))
         plot_surface_pressure(result, OUT / f"{label}_dash_cp.png")
 
     print(f"[done] wrote maps, candidate CSV, and dash fields in {elapsed(perf_counter() - started)}", flush=True)
