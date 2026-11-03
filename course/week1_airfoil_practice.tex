@@ -12,6 +12,8 @@ This open-tool practice exercise prepares you for the in-class CFD interpretatio
 
 Week 1 holds the NACA 2412 geometry fixed and asks how incidence is selected to carry payload lift. Week 2 keeps that payload-trim idea, but asks whether changing geometry can lower cruise drag while preserving dash-condition margins.
 
+\noindent\textbf{What JAX will do in Week 2.} JAX is a software tool that calculates a \emph{sensitivity}: if we make a very small change to camber or camber-crest location, how does calculated drag change? The code uses those sensitivities to choose the next geometry to try. JAX does not choose the requirements, judge safety, or replace engineering judgment.
+
 You may submit the completed evidence sheet for small extra credit and feedback. Feedback addresses whether your claims are supported by your figures and data; it is not a grade for prose or authorship.
 
 \section*{What to run}
@@ -46,9 +48,9 @@ $6^\circ$ & & & & & & \\
 \end{center}
 
 \begin{enumerate}
-\item On the $\alpha=4^\circ$ pressure plot, identify the upper and lower surfaces. State which surface has the lower pressure over most of the chord.
-\item Using your polar, describe the trend of $C_L$ as $\alpha$ increases. Do not call the trend ``proof'' of a real-airfoil performance limit.
-\item Identify one conclusion that this inviscid, subcritical exercise cannot support.
+\item On the $\alpha=4^\circ$ pressure plot, label the upper and lower surfaces. Which surface has lower pressure over most of the chord?
+\item From the polar, state what happens to $C_L$ when $\alpha$ increases. Why does this plot not prove a real-airfoil performance limit?
+\item Name one real effect that this inviscid, two-dimensional calculation leaves out.
 \end{enumerate}
 
 \newpage
@@ -67,10 +69,10 @@ C_L\approx0.75,\qquad C_D\leq0.050.
 \]
 \begin{enumerate}
 \setcounter{enumi}{3}
-\item Identify the two tested incidences that bracket the payload target. Select a preliminary incidence and state the next run needed to trim to $C_L=0.75$ more precisely.
-\item Explain why a polar alone cannot tell you where on the airfoil the pressure loading changed.
-\item Compare the $\alpha=2^\circ$ and $4^\circ$ $C_p$ curves. Explain how that change supports the increase in integrated lift shown in the polar.
-\item State what changes in Week 2: distinguish the Week 1 operating-variable decision from the Week 2 geometry-design decision.
+\item Which two tested incidences surround $C_L=0.75$? Choose a first incidence to try. What incidence should be run next to reach $C_L=0.75$ more closely?
+\item A polar gives total lift and drag. What information about the airfoil does it \emph{not} give?
+\item Compare the $\alpha=2^\circ$ and $4^\circ$ $C_p$ curves. What changes on the upper surface, and how does that explain the larger lift?
+\item In one sentence: what do you choose in Week 1, and what does JAX help change in Week 2?
 \end{enumerate}
 
 \newpage
